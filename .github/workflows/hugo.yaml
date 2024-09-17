@@ -6,12 +6,7 @@ on:
       - main  # Set a branch to deploy
   pull_request:
 
-# 设置GITHUB_TOKEN的权限，以允许部署到GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  
+
 jobs:
   deploy:
     runs-on: ubuntu-22.04
