@@ -1,3 +1,4 @@
 baseURL = 'https://ultrablur.github.io/'
 languageCode = 'en-us'
-title = 'Gao HuYuChen'
+title = 'Gao Huyuchen'
+theme = 'hugo-PaperMod'
