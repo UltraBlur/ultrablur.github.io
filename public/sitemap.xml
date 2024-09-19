@@ -2,25 +2,28 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://ultrablur.github.io/archive/</loc>
+    <loc>http://localhost:1313/</loc>
+    <lastmod>2024-09-19T16:44:25+08:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/googleb240e5e97cf7d33b/</loc>
+    <lastmod>2024-09-19T16:44:25+08:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/archive/</loc>
     <lastmod>2024-09-19T16:03:02+08:00</lastmod>
   </url><url>
-    <loc>https://ultrablur.github.io/</loc>
-    <lastmod>2024-09-19T16:03:02+08:00</lastmod>
-  </url><url>
-    <loc>https://ultrablur.github.io/about/</loc>
+    <loc>http://localhost:1313/about/</loc>
     <lastmod>2024-09-19T16:01:53+08:00</lastmod>
   </url><url>
-    <loc>https://ultrablur.github.io/posts/first/</loc>
+    <loc>http://localhost:1313/posts/first/</loc>
     <lastmod>2024-09-18T00:23:48+08:00</lastmod>
   </url><url>
-    <loc>https://ultrablur.github.io/posts/</loc>
+    <loc>http://localhost:1313/posts/</loc>
     <lastmod>2024-09-18T00:23:48+08:00</lastmod>
   </url><url>
-    <loc>https://ultrablur.github.io/categories/</loc>
+    <loc>http://localhost:1313/categories/</loc>
   </url><url>
-    <loc>https://ultrablur.github.io/gallery/</loc>
+    <loc>http://localhost:1313/gallery/</loc>
   </url><url>
-    <loc>https://ultrablur.github.io/tags/</loc>
+    <loc>http://localhost:1313/tags/</loc>
   </url>
 </urlset>
