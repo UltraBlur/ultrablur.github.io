@@ -1,39 +1,3 @@
-# name: GitHub Pages
-
-# on:
-#   push:
-#     branches:
-#       - main  # Set a branch to deploy
-#   pull_request:
-
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-22.04
-#     concurrency:
-#       group: ${{ github.workflow }}-${{ github.ref }}
-#     steps:
-#       - uses: actions/checkout@v4
-#         with:
-#           submodules: true  # Fetch Hugo themes (true OR recursive)
-#           fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
-
-#       - name: Setup Hugo
-#         uses: peaceiris/actions-hugo@v3
-#         with:
-#           hugo-version: '0.134.2'
-#           extended: true
-
-#       - name: Build
-#         run: hugo --minify
-
-#       - name: Deploy
-#         uses: peaceiris/actions-gh-pages@v3
-#         if: github.ref == 'refs/heads/main'
-#         with:
-#           github_token: ${{ secrets.GITHUB_TOKEN }}
-#           publish_dir: ./public
-
 # 用于构建和部署Hugo网站到GitHub Pages的示例工作流程
 name: 发布Hugo网站到Pages
 
@@ -70,10 +34,26 @@ jobs:
     env:
       HUGO_VERSION: 0.134.2
     steps:
+      - name: 🛎 Check out master
+        uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: 🔧 Install tools
+        run: |
+          sudo apt install curl jq
+
+      - name: Use Node.js
+        uses: actions/setup-node@master
+        with:
+          node-version: 10.x
+      - run: npm i -g postcss postcss-cli autoprefixer
+
       - name: 安装Hugo CLI
         run: |
           wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
-          && sudo dpkg -i ${{ runner.temp }}/hugo.deb          
+          && sudo dpkg -i ${{ runner.temp }}/hugo.deb
+                   
       - name: 安装Dart Sass
         run: sudo snap install dart-sass
       - name: 检出
