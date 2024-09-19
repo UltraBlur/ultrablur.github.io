@@ -29,9 +29,9 @@ defaults:
   
 jobs:
   build:
-    HUGO_VERSION: 0.134.2+extended
     runs-on: ubuntu-latest
-
+    env:
+      HUGO_VERSION: 0.134.2+extended
     steps:
       - name: 🛎 Check out master
         uses: actions/checkout@master
