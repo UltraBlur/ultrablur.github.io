@@ -42,8 +42,7 @@ jobs:
           sudo apt install curl jq
       - name: Use Node.js
         uses: actions/setup-node@master
-        with:
-          node-version: 10.x
+
       - run: npm i -g postcss postcss-cli autoprefixer
       
       - name: 安装Hugo CLI
