@@ -28,27 +28,23 @@ defaults:
     shell: bash
 
 jobs:
-  # 构建作业
   build:
+
     runs-on: ubuntu-latest
-    env:
-      HUGO_VERSION: 0.134.2
+
     steps:
       - name: 🛎 Check out master
         uses: actions/checkout@master
         with:
           fetch-depth: 1
-
       - name: 🔧 Install tools
         run: |
           sudo apt install curl jq
-
       - name: Use Node.js
         uses: actions/setup-node@master
         with:
           node-version: 10.x
       - run: npm i -g postcss postcss-cli autoprefixer
-
       - name: 🤵 Install Hugo
         run: |
           HUGO_VERSION=$(curl -s https://api.github.com/repos/gohugoio/hugo/releases/latest | jq -r '.tag_name')
@@ -57,7 +53,6 @@ jobs:
           sudo mv hugo /usr/local/bin/
           cd .. && rm -rf tmp/
           hugo version
-
       - name: 🧹 Clean site
         run: |
           if [ -d "docs" ]; then
@@ -74,7 +69,8 @@ jobs:
           git add .
           git commit -am "🚀 Deploy with ${GITHUB_WORKFLOW}"
           git push --all -f https://${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
-                   
+          
+                 
   #     - name: 安装Dart Sass
   #       run: sudo snap install dart-sass
   #     - name: 检出
