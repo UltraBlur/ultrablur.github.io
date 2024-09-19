@@ -26,10 +26,10 @@ concurrency:
 defaults:
   run:
     shell: bash
-
+  
 jobs:
   build:
-
+    HUGO_VERSION: 0.134.2+extended
     runs-on: ubuntu-latest
 
     steps:
@@ -45,15 +45,12 @@ jobs:
         with:
           node-version: 10.x
       - run: npm i -g postcss postcss-cli autoprefixer
-      - name: 🤵 Install Hugo
+      
+      - name: 安装Hugo CLI
         run: |
-          HUGO_VERSION=$(curl -s https://api.github.com/repos/gohugoio/hugo/releases/latest | jq -r '.tag_name')
-          mkdir tmp/ && cd tmp/
-          curl -sSL https://github.com/gohugoio/hugo/releases/download/${HUGO_VERSION}/hugo_extended_${HUGO_VERSION: -6}_Linux-64bit.tar.gz | tar -xvzf-
-          sudo mv hugo /usr/local/bin/
-          cd .. && rm -rf tmp/
-          hugo version     
-
+          wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
+          && sudo dpkg -i ${{ runner.temp }}/hugo.deb      
+      
       - name: 安装Dart Sass
         run: sudo snap install dart-sass
       - name: 检出
