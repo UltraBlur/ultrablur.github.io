@@ -1,28 +1,22 @@
-# 用于构建和部署Hugo网站到GitHub Pages的示例工作流程
-name: 发布Hugo网站到Pages
+
+name: build and development my page
 
 on:
-  # 在目标为默认分支的推送上运行
   push:
     branches:
       - main
 
-  # 允许您手动从“Actions”标签运行此工作流程
   workflow_dispatch:
 
-# 设置GITHUB_TOKEN的权限，以允许部署到GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 仅允许一个并发部署，跳过在进行中的运行与最新排队的运行之间排队的运行。
-# 但是，请不要取消进行中的运行，因为我们希望这些生产部署能够完成。
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
-# 默认使用bash
 defaults:
   run:
     shell: bash
@@ -63,7 +57,6 @@ jobs:
         
       - name: 使用Hugo构建
         env:
-          # 为了与Hugo模块的最大向后兼容性
           HUGO_ENVIRONMENT: production
           HUGO_ENV: production
         run: |
@@ -76,7 +69,6 @@ jobs:
         with:
           path: ./public
 
-  # 部署作业
   deploy:
     environment:
       name: github-pages

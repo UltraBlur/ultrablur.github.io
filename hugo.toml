@@ -26,6 +26,3 @@ pygmentsCodefences       = true
     link = "/about"
     text = "Gao Huyuchen"
 
-[[params.mainMenu]]
-    link = "/googleb240e5e97cf7d33b"
-    text = "GSC"
