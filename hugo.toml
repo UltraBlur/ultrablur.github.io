@@ -1,4 +1,28 @@
 baseURL = 'https://ultrablur.github.io/'
 languageCode = 'en-us'
 title = 'Gao Huyuchen'
-theme = 'hugo-PaperMod'
+theme = 'sam'  
+
+pygmentsStyle            = "monokai"                        #   
+pygmentsCodefences       = true
+
+[params]
+    homepage             = "main"                           # What to call the home page link, link will not be rendered if empty
+    footerText           = ""
+
+[[params.mainMenu]]
+    link = "/posts/"
+    text = "posts"
+
+[[params.mainMenu]]
+    link = "/gallery/"
+    text = "gallery"
+
+[[params.mainMenu]]
+    link = "/archive"
+    text = "archive"
+
+[[params.mainMenu]]
+    link = "/about"
+    text = "Gao Huyuchen"
+

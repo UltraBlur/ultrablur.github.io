@@ -1,27 +1,33 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Gao Huyuchen</title>
     <link>https://ultrablur.github.io/</link>
     <description>Recent content on Gao Huyuchen</description>
-    <generator>Hugo -- 0.134.2</generator>
+    <generator>Hugo</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 18 Sep 2024 00:23:48 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 19 Sep 2024 16:03:02 +0800</lastBuildDate>
     <atom:link href="https://ultrablur.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>First</title>
-      <link>https://ultrablur.github.io/post/first/</link>
-      <pubDate>Wed, 18 Sep 2024 00:23:48 +0800</pubDate>
-      <guid>https://ultrablur.github.io/post/first/</guid>
-      <description>&lt;p&gt;这是第一个文章的测试：
-123123&lt;/p&gt;</description>
+      <title>Archive</title>
+      <link>https://ultrablur.github.io/archive/</link>
+      <pubDate>Thu, 19 Sep 2024 16:03:02 +0800</pubDate>
+      <guid>https://ultrablur.github.io/archive/</guid>
+      <description></description>
     </item>
     <item>
       <title>About</title>
       <link>https://ultrablur.github.io/about/</link>
-      <pubDate>Wed, 18 Sep 2024 00:23:05 +0800</pubDate>
+      <pubDate>Thu, 19 Sep 2024 16:01:53 +0800</pubDate>
       <guid>https://ultrablur.github.io/about/</guid>
-      <description>&lt;p&gt;这是一个测试&lt;/p&gt;</description>
+      <description>&lt;p&gt;高胡宇晨&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>First 新的博客</title>
+      <link>https://ultrablur.github.io/posts/first/</link>
+      <pubDate>Wed, 18 Sep 2024 00:23:48 +0800</pubDate>
+      <guid>https://ultrablur.github.io/posts/first/</guid>
+      <description>&lt;p&gt;这是第一个测试文章。&lt;/p&gt;&#xA;&lt;p&gt;大概一年前的时候，尝试着用OrangePi-4 LTS搭了一个基于Wordpress的个人博客，当时为了域名还买了年费的内网穿透。折腾时候就意识到了成本和部署难度，相比实用性完全不成正比。后来放暑假了，把香橙派带回家后就没有拿出来过了。那个博客也仅仅发了几篇日记而已。&lt;/p&gt;&#xA;&lt;p&gt;重新做博客是因为看到了师哥的个人网站里，像是奖状墙一样的Resume和宝贝满满的Archive，大受震撼。也希望未来会有人搜索我的大名，然后偶然翻到这里，然后心满意足的离去吧！&lt;/p&gt;&#xA;&lt;p&gt;转眼到了大四，拿的出手的东西不多但也不是完全没有。自己与“执行力”高完全不沾边，但也鲜有半途而废的事情，因为不想做的事情基本上都没有迈出第一步。希望之后也可以像贴奖状一样把这里填的满满的。再不济当个赛博书架，放满精心整理的资料，也是一件美事。&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>
