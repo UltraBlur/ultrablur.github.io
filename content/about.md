@@ -8,7 +8,7 @@ draft = false
 # 高胡宇晨
 Gao Huyuchen
 
-DIT & DI & RnD
+DIT & DI & R&D
 
 Email: gaohuyuchen@foxmail.com
 

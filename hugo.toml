@@ -1,6 +1,6 @@
 baseURL = 'https://ultrablur.github.io/'
 languageCode = 'en-us'
-title = 'Gao Huyuchen'
+title = '高胡宇晨｜Gao Huyuchen'
 theme = 'sam'  
 
 pygmentsStyle            = "monokai"                        #   
