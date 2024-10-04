@@ -16,7 +16,7 @@ Github: https://github.com/UltraBlur/
 
 ## Education
 ![](/img/BFA_DFTT_Logo.png)
-{{ $image := $image.Resize "600x" }}
+
 Beijing Film Academy - Department of Film and Television Technology
 
 **Bachelor: 2021.9 - 2025.6**

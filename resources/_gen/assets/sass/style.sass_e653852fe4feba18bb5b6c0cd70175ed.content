@@ -6,7 +6,7 @@
   box-sizing: border-box; }
 
 html {
-  background-color: #0A0D0D;
+  background-color: #202124;
   font-family: "Didact Gothic", ‘Hiragino Sans GB ’;
   font-size: 16px; }
 
@@ -182,7 +182,7 @@ article {
     opacity: 1; }
   article blockquote {
     background-color: #e2e8c3;
-    color: #0A0D0D;
+    color: #202124;
     padding: 2rem;
     margin: 2rem 1rem 2rem 1rem;
     border-radius: 3px; }
