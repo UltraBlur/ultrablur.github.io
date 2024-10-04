@@ -34,7 +34,7 @@ h3 {
 }
 
 li {
-    opacity: 0.8
+    opacity: 0.9
 }
 
 li a {
@@ -83,7 +83,7 @@ hr {
     width: 50%;
     border-style: solid;
     border-width: 1px;
-    opacity: 0.3
+    opacity: 0.8
 }
 
 .wrap {
@@ -308,7 +308,7 @@ hr {
 .tag {
     padding: 0.25em 0em;
     margin-right: 0.5em;
-    opacity: 0.6
+    opacity: 0.9
 }
 
 .grid {

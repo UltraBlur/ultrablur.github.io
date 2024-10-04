@@ -6,6 +6,15 @@ theme = 'sam'
 pygmentsStyle            = "monokai"                        #   
 pygmentsCodefences       = true
 
+[[params.videoBackground.sources]]
+    source  = "/WebBG.mp4" # Your video file
+    type    = "video/mp4"
+    poster  = "/WebBG.jpg" # The image to show when the video isn't playing
+
+[params.videoBackground]
+    overlay = "rgba(0, 0, 0, 0)" # optional
+
+
 [params]
     homepage             = "main"                           # What to call the home page link, link will not be rendered if empty
     footerText           = ""

@@ -6,14 +6,14 @@
   box-sizing: border-box; }
 
 html {
-  background-color: #212121;
+  background-color: #0A0D0D;
   font-family: "Didact Gothic", ‘Hiragino Sans GB ’;
   font-size: 16px; }
 
 body {
   font-size: 15px;
   font-family: "Didact Gothic", ‘Hiragino Sans GB ’;
-  color: #F9FEFA;
+  color: #F4F6E8;
   line-height: 2rem;
   letter-spacing: 2.5px;
   text-shadow: none;
@@ -31,7 +31,7 @@ header {
 h1, h2, h3 {
   margin-bottom: 0.5em;
   font-family: 'Didact Gothic', sans-serif;
-  opacity: 0.9; }
+  opacity: 0.85; }
 
 li {
   opacity: 0.95; }
@@ -45,15 +45,15 @@ p {
   display: inline; }
 
 a {
-  color: #b7f3c3;
+  color: #e2e8c3;
   text-decoration: none;
-  border-bottom: 2px solid #b7f3c3;
+  border-bottom: 2px solid #e2e8c3;
   transition: 0.5s ease; }
   a:hover {
-    color: #F9FEFA;
+    color: #F4F6E8;
     font-style: none; }
   a:active {
-    color: #b7f3c3; }
+    color: #e2e8c3; }
 
 hr {
   margin: 1rem 0;
@@ -61,7 +61,7 @@ hr {
   width: 50%;
   border-style: solid;
   border-width: 1px;
-  opacity: 0.3; }
+  opacity: 0.6; }
 
 nav {
   margin: 1em auto; }
@@ -110,7 +110,7 @@ nav {
   font-family: "Didact Gothic", ‘Hiragino Sans GB ’;
   font-size: 1rem;
   line-height: 1em;
-  opacity: 0.8; }
+  opacity: 0.9; }
   .footer a {
     border-bottom: none;
     display: contents; }
@@ -142,11 +142,11 @@ article {
     margin-bottom: 1em; }
   article h1, article h2, article h3 {
     margin: 1em 0em;
-    color: #F9FEFA;
+    color: #F4F6E8;
     text-align: left; }
   article .anchor-link > a {
     border-bottom: none;
-    color: #F9FEFA; }
+    color: #F4F6E8; }
     article .anchor-link > a:hover > .pilcrow {
       display: inline; }
   article span.pilcrow {
@@ -163,7 +163,7 @@ article {
     border-radius: 3px;
     padding: 1rem;
     overflow-x: auto;
-    background-color: #1C1C1C;
+    background-color: #171D20;
     width: 100%;
     margin-bottom: 1em; }
   article pre > code {
@@ -173,7 +173,7 @@ article {
     font-family: 'Source Code Pro', monospace;
     padding: 0.1rem;
     border-radius: 2px;
-    border: 1px solid #b7f3c3; }
+    border: 1px solid #e2e8c3; }
   article img {
     width: 100%;
     max-width: 100%;
@@ -181,13 +181,13 @@ article {
     margin: 2rem auto;
     opacity: 1; }
   article blockquote {
-    background-color: #b7f3c3;
-    color: #212121;
+    background-color: #e2e8c3;
+    color: #0A0D0D;
     padding: 2rem;
     margin: 2rem 1rem 2rem 1rem;
     border-radius: 3px; }
     article blockquote a {
-      color: #111; }
+      color: #080B44; }
     article blockquote ul {
       margin-top: 1rem; }
     article blockquote li {
@@ -202,7 +202,7 @@ article {
     article table td, article table th {
       padding: 2px 5px;
       text-align: center;
-      border: 1px solid #b7f3c3; }
+      border: 1px solid #e2e8c3; }
   article li {
     line-height: 2;
     padding-left: 0.4rem; }
@@ -221,14 +221,14 @@ article {
       border: 0; }
     article .gist .gist-meta {
       background-color: transparent;
-      color: #F9FEFA; }
+      color: #F4F6E8; }
       article .gist .gist-meta a {
-        color: #F9FEFA; }
+        color: #F4F6E8; }
 
 .tag {
   padding: 0.25em 0em;
   margin-right: 0.5em;
-  opacity: 0.6; }
+  opacity: 0.9; }
 
 .grid {
   margin: 1em auto;
