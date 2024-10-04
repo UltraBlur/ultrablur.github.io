@@ -1,0 +1,106 @@
+---
+title: "文字样式测试 TextSample"
+date: 2024-10-04T16:07:22+08:00
+showDate: false
+draft: false
+tags: ["blog","test"]
+---
+
+# 1. 一级标题
+
+## 1.1 二级标题
+
+### 1.1.1 三级标题
+
+**这个是粗体**
+
+***这个是粗体加斜体***
+
+- 无序列表 1
+- 无序列表 2
+  - 无序列表 2.1
+  - 无序列表 2.2
+
+  这是超链接样式测试[Gao Huyuchen](https://127.0.0.1:1313/)
+
+
+
+### 1.1.2 分割线
+---
+
+### 1.1.3 表格
+
+
+| 姓名   | 年龄 |     工作 |
+| :----- | :--: | -------: |
+| 小可爱 |  18  | 吃可爱多 |
+| 小小勇敢 |  20  | 爬棵勇敢树 |
+| 小小小机智 |  22  | 看一本机智书 |
+
+
+## 1.2 特殊语法
+
+### 1.2.1 脚注
+
+```markdown
+链接：[文字](链接)
+脚注：[文字](脚注解释 "脚注名字")
+```
+
+有人认为在[大前端时代](https://en.wikipedia.org/wiki/Front-end_web_development "Front-end web development")的背景下，移动端开发（Android、IOS）将逐步退出历史舞台。
+
+[全栈工程师](是指掌握多种技能，并能利用多种技能独立完成产品的人。 "什么是全栈工程师")在业务开发流程中起到了至关重要的作用。
+
+### 1.3 代码块
+
+> 测试了Hugo支持代码块
+
+如果在一个行内需要引用代码，只要用反引号引起来就好，如下：
+
+Use the `printf()` function.
+
+在需要高亮的代码块的前一行及后一行使用三个反引号，同时**第一行反引号后面表示代码块所使用的语言**，如下：
+
+```java
+// FileName: HelloWorld.java
+public class HelloWorld {
+  // Java 入口程序，程序从此入口
+  public static void main(String[] args) {
+    System.out.println("Hello,World!"); // 向控制台打印一条语句
+  }
+}
+```
+
+
+```
+bash
+xml
+yaml
+```
+- 带行号且不换行，代码大小与官方一致
+- 需要在代码块处标志语言，否则无法高亮
+- 粘贴到公众号后，用鼠标点代码块内外一次，完成高亮
+
+
+```diff
++ 新增项
+- 删除项
+```
+### 3.3 数学公式
+
+*测试了这个Hugo不支持*
+
+$\ce{Hg^2+ ->[I-] HgI2 ->[I-] [Hg^{II}I4]^2-}$
+
+
+$$H(D_2) = -\left(\frac{2}{4}\log_2 \frac{2}{4} + \frac{2}{4}\log_2 \frac{2}{4}\right) = 1$$
+
+矩阵：
+$$
+  \begin{pmatrix}
+  1 & a_1 & a_1^2 & \cdots & a_1^n \\
+  1 & a_2 & a_2^2 & \cdots & a_2^n \\
+  \vdots & \vdots & \vdots & \ddots & \vdots \\
+  1 & a_m & a_m^2 & \cdots & a_m^n \\
+  \end{pmatrix}
+$$

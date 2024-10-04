@@ -1,7 +1,10 @@
-+++
-title = 'First 新的博客'
-date = 2024-09-18T00:23:48+08:00
-+++
+---
+title: "First_新的博客"
+date : 2024-09-18T00:23:48+08:00
+showDate: false
+draft: false
+tags: ["blog","story"]
+---
 
 这是第一个测试文章。
 
