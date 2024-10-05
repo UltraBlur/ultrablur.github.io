@@ -7,7 +7,7 @@ pygmentsStyle            = "monokai"                        #
 pygmentsCodefences       = true
 
 [[params.videoBackground.sources]]
-    source  = "/WebBG.mp4" # Your video file
+    source  = "/WebBG_V06.mp4" # Your video file
     type    = "video/mp4"
     poster  = "/WebBG.jpg" # The image to show when the video isn't playing
 
