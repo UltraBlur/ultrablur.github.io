@@ -2,6 +2,7 @@ baseURL = 'https://ultrablur.github.io/'
 languageCode = 'en-us'
 title = '高胡宇晨｜Gao Huyuchen'
 theme = 'sam'  
+enableEmoji = true
 
 pygmentsStyle            = "monokai"                        #   
 pygmentsCodefences       = true
