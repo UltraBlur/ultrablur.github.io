@@ -1,5 +1,5 @@
 baseURL = 'https://ultrablur.github.io/'
-languageCode = 'en-us'
+locale = 'en-US'
 title = '高胡宇晨｜Gao Huyuchen'
 theme = 'sam'  
 enableEmoji = true
@@ -35,4 +35,3 @@ pygmentsCodefences       = true
 [[params.mainMenu]]
     link = "/about"
     text = "Gao Huyuchen"
-

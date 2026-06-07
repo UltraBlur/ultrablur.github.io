@@ -1,0 +1,26 @@
+{
+  "name": "ultrablur.github.io",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "dev": "hugo serve",
+    "build": "hugo --gc --minify"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UltraBlur/ultrablur.github.io.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/UltraBlur/ultrablur.github.io/issues"
+  },
+  "homepage": "https://github.com/UltraBlur/ultrablur.github.io#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "postcss-cli": "^11.0.1"
+  }
+}
