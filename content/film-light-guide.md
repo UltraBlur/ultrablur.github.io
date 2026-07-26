@@ -19,8 +19,31 @@ Film Light 是一款为胶片摄影设计的手持测光与拍摄记录工具。
 
 ---
 
+## App Store 简介 / App Store Description {#description}
+
+Film Light，做你口袋里的专业数字测光表！适用于胶片摄影、影视灯光。
+
+基于场景参考(Scene-Referred)的专业摄影测光表 APP。基于 Apple Log 色彩管线，高效测光，精准预览。独创的拟物风拨盘测光 UI。内置经典胶片模拟 LUT，亦可自定义导入 .cube 文件。支持近 1 度精准点测、智能矩阵测光。便捷的曝光补偿、ND 滤镜计算。
+
+不止是测光表，更是你的摄影日志。内置相册功能，支持项目与胶卷管理；相册可查看 EV 点表、随时切换 LUT 预览，让每一次曝光决策都留有记录。
+
+**机型要求：**
+iPhone 15 Pro 及后续支持 Apple Log 的机型可获得完整体验。在不支持 Apple Log 的机型上，Film Light 将以 HLG 模式运行；由于该模式下的画面经过局部影调映射（LTM），任意移动取样点后的读数无法保证准确，因此自定义 EV 点表结果并不准确。
+
+*Film Light — a professional digital light meter in your pocket. Built for film photography and cinematography.*
+
+*A professional metering app based on Scene-Referred exposure. Built on Apple's Log color pipeline for fast, precise metering and preview. Features a signature skeuomorphic dial UI. Comes with classic film-emulation LUTs, plus support for importing your own .cube files. Offers near-1° spot metering and smart matrix metering, alongside quick exposure compensation and ND filter calculations.*
+
+*More than a light meter — it's your shooting log. Built-in Album with project and roll management; review EV point charts and switch LUT previews right from the Album, keeping a record of every exposure decision.*
+
+***Device Requirements:***
+*iPhone 15 Pro and later Apple Log–capable models get the full experience. On models without Apple Log, Film Light runs in HLG mode; because HLG frames go through local tone mapping (LTM), readings at arbitrarily moved sample points can't be guaranteed accurate, so custom EV point results are not reliable in this mode.*
+
+---
+
 ## 目录 / Contents
 
+- [App Store 简介 / App Store Description](#description)
 - [测光系统 / Metering](#metering)
 - [曝光参数：ISO・EV・ND / Exposure Controls](#exposure)
 - [两种界面风格 / Interface Styles](#style)
