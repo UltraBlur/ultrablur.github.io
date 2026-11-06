@@ -272,7 +272,7 @@
 
   /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
   function buildAxes(coord, bbox) {
-    var pad = 0.06;
+    var pad = 0.10;
     var lo = [], hi = [];
     for (var k = 0; k < 3; k++) {
       var span = (bbox[1][k] - bbox[0][k]) || 1;
