@@ -358,12 +358,15 @@
       seg(p0, p1);
 
       var step = niceStep(ax.to - ax.from);
+      var lastLabel = null;
       for (var v = Math.ceil(ax.from / step) * step; v <= ax.to + 1e-9; v += step) {
         var base = ax.at.slice(); base[ax.i] = v;
         var tip = base.slice();
         tip[ax.tickAxis] -= tick;
         seg(base, tip);
-        labels.push({ t: fmt(v, step), p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
+        var txt = fmt(v, step);
+        if (txt !== lastLabel) labels.push({ t: txt, p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
+        lastLabel = txt;
       }
 
       var nameP = ax.at.slice();
@@ -436,6 +439,7 @@
     coord: 'lab',
     neutral: false,
     grid: true,
+    norm: true,
     cull: false,
     yaw: 0.72,
     pitch: 0.34,
@@ -531,7 +535,15 @@
         }
       }
     });
-    var center = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+    // 以第一个（主）体积的中心对焦，轴框只参与定尺度，避免色体偏向一侧
+    var c0 = meshes[0].pos, cm = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (var i = 0; i < c0.length; i += 3) {
+      for (var k = 0; k < 3; k++) {
+        if (c0[i + k] < cm[0][k]) cm[0][k] = c0[i + k];
+        if (c0[i + k] > cm[1][k]) cm[1][k] = c0[i + k];
+      }
+    }
+    var center = [(cm[0][0] + cm[1][0]) / 2, (cm[0][1] + cm[1][1]) / 2, (cm[0][2] + cm[1][2]) / 2];
     // 用包围盒半对角线做半径，保证整个色体都在视野里
     var radius = 0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
     return { center: center, scale: 1 / radius };
@@ -564,6 +576,22 @@
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
 
     var mesh = buildSurface(primary, coord, N, state.neutral);
+
+    // 竖直轴统一到「参考白 = 1」：各坐标量纲不同，归一化后才能横向比较
+    var whiteP = pointFor(primary, coord, [1, 1, 1]);
+    var sy = state.norm && whiteP && Math.abs(whiteP[1]) > 1e-9 ? 1 / whiteP[1] : 1;
+    if (sy !== 1) {
+      for (var yi = 0; yi < mesh.pos.length; yi++) mesh.pos[yi] *= sy;
+    }
+    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (var bi2 = 0; bi2 < mesh.pos.length; bi2 += 3) {
+      for (var bk2 = 0; bk2 < 3; bk2++) {
+        if (mesh.pos[bi2 + bk2] < bb[0][bk2]) bb[0][bk2] = mesh.pos[bi2 + bk2];
+        if (mesh.pos[bi2 + bk2] > bb[1][bk2]) bb[1][bk2] = mesh.pos[bi2 + bk2];
+      }
+    }
+    mesh.bbox = bb;
+
     var axes = buildAxes(coord, mesh.bbox);
     var frame = computeFrame([mesh, { pos: axes.pos }]);
 
@@ -574,6 +602,7 @@
 
     if (state.grid) {
       var grid = buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)));
+      if (sy !== 1) for (var gk = 0; gk < grid.pos.length; gk++) grid.pos[gk] *= sy;
       applyFrame(grid.pos, frame);
       uploadLines('grid', grid.pos, [0.16, 0.16, 0.18, 0.30]);
     } else if (buffers.grid) {
@@ -585,7 +614,7 @@
     var anchors = axes.labels.slice();
     [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
       var p = pointFor(primary, coord, v[1]);
-      if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
+      if (p) anchors.push({ t: v[0], p: sy === 1 ? p : [p[0] * sy, p[1] * sy, p[2] * sy], cls: 'is-vertex' });
     });
 
     state.labels = anchors.map(function (a) {
@@ -606,6 +635,7 @@
     state.mesh = mesh;
     state.frame = frame;
     state.bbox = mesh.bbox;
+    fitCamera();
     if (/voldebug/.test(location.search)) {
       var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
       for (var bi = 0; bi < mesh.pos.length; bi += 3) {
@@ -634,6 +664,48 @@
       };
     }
     requestRender();
+  }
+
+
+  /* 在当前朝向下，把包围盒最大投影尺寸塞进画布的 92% */
+  function fitCamera() {
+    if (!state.mesh) return;
+    var pos = state.mesh.pos;
+    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (var i = 0; i < pos.length; i += 3) {
+      for (var k = 0; k < 3; k++) {
+        if (pos[i + k] < bb[0][k]) bb[0][k] = pos[i + k];
+        if (pos[i + k] > bb[1][k]) bb[1][k] = pos[i + k];
+      }
+    }
+    var corners = [];
+    for (var c = 0; c < 8; c++) {
+      corners.push([
+        bb[(c & 1) ? 1 : 0][0],
+        bb[(c & 2) ? 1 : 0][1],
+        bb[(c & 4) ? 1 : 0][2]
+      ]);
+    }
+    var aspect = canvas.width / Math.max(1, canvas.height);
+    var best = 12;
+    for (var d = 1.4; d <= 12; d += 0.05) {
+      var cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+      var eye = [d * cp * Math.sin(state.yaw), d * sp, d * cp * Math.cos(state.yaw)];
+      var view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
+      var proj = perspective(30 * Math.PI / 180, aspect, Math.max(0.05, d - 1.35), d + 2.4);
+      var vp = mul4(proj, view);
+      var worst = 0;
+      for (var ci = 0; ci < corners.length; ci++) {
+        var p0 = corners[ci];
+        var x = vp[0] * p0[0] + vp[4] * p0[1] + vp[8] * p0[2] + vp[12];
+        var y = vp[1] * p0[0] + vp[5] * p0[1] + vp[9] * p0[2] + vp[13];
+        var w = vp[3] * p0[0] + vp[7] * p0[1] + vp[11] * p0[2] + vp[15];
+        if (w <= 0.01) { worst = 9; break; }
+        worst = Math.max(worst, Math.abs(x / w), Math.abs(y / w));
+      }
+      if (worst <= 0.86) { best = d; break; }
+    }
+    state.dist = best;
   }
 
   /* ---------- 绘制 ---------- */
@@ -826,6 +898,11 @@
   bind('vol-coord', 'change', function (e) {
     state.coord = e.target.value;
     updateCondVisibility();
+    rebuild();
+  });
+
+  bind('vol-norm', 'change', function (e) {
+    state.norm = e.target.checked;
     rebuild();
   });
 
