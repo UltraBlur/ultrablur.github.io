@@ -3,7 +3,7 @@
  * 输入：XYZ（相对量，参考白 Y = 1）+ 参考白亮度 Lw（cd/m²）
  * 输出：显示三元组 [水平, 竖直, 深度]，竖直方向统一是明度类轴
  *
- * 公式来源：ICtCp (Dolby/BT.2100)、JzAzBz (Safdar 2017)、ZCAM (Safdar 2021)、
+ * 公式来源：ICtCp (Dolby/BT.2100)、JzAzBz (Safdar 2017)、
  * CAM02-UCS (Luo 2006)、Oklab (Björn Ottosson 2020)、CIE 1976 L*u*v*。
  * 常数与 colour-science 的实现一致，便于交叉验证。
  */
@@ -91,14 +91,9 @@
   var JZ_LMS_Izazbz_2017 = [0.5, 0.5, 0.0,
                             3.524, -4.066708, 0.542708,
                             0.199076, 1.096799, -1.295875];
-  var JZ_LMS_Izazbz_2021 = [0.0, 1.0, 0.0,
-                            3.524, -4.066708, 0.542708,
-                            0.199076, 1.096799, -1.295875];
 
   var JZ17 = { b: 1.15, g: 0.66, c1: 0.8359375, c2: 18.8515625, c3: 18.6875,
                n: 0.1593017578125, p: 134.034375, d: -0.56, d0: 1.6295499532821565e-11 };
-  var JZ21 = { b: 1.15, g: 0.66, c1: 0.8359375, c2: 18.8515625, c3: 18.6875,
-               n: 0.1593017578125, p: 134.034375, d: -0.56, d0: 3.7035226210190005e-11 };
 
   function jzazbzI(xyzAbs, C, matrix) {
     var X = xyzAbs[0], Y = xyzAbs[1], Z = xyzAbs[2];
@@ -216,58 +211,13 @@
     return [Mp * Math.cos(h), Jp, Mp * Math.sin(h)]; // [a', J', b']
   }
 
-  /* ---------- ZCAM ---------- */
-
-  function zcam(xyz, Wrel, Lw, opts) {
-    var Fs = opts.Fs;
-    var La = opts.La;
-    var Yb = opts.YbRel;
-
-    // ZCAM 的 Jz 用相对 XYZ（白点 Y = 1），只有 F_L 用绝对 L_A
-    // 三个空间的白点都是 D65，Zhai 2018 色适应为恒等，这里直接略过
-    var abs = xyz;
-    var white = Wrel;
-
-    var iz = jzazbzI(abs, JZ21, JZ_LMS_Izazbz_2021);
-    var izw = jzazbzI(white, JZ21, JZ_LMS_Izazbz_2021);
-
-    var Fb = Math.sqrt(Yb);
-    var FL = 0.171 * Math.cbrt(La) * (1 - Math.exp(-48 / 9 * La));
-
-    var hz = Math.atan2(iz[2], iz[1]) * 180 / Math.PI;
-    if (hz < 0) hz += 360;
-    var ez = 1.015 + Math.cos((89.038 + hz) * Math.PI / 180);
-
-    var Qp = 1.6 * Fs / Math.pow(Fb, 0.12);
-    var Qm = Math.pow(Fs, 2.2) * Math.sqrt(Fb) * Math.pow(FL, 0.2);
-    var Qz = 2700 * Math.pow(iz[0], Qp) * Qm;
-    var Qzw = 2700 * Math.pow(izw[0], Qp) * Qm;
-    var Jz = 100 * Qz / Qzw;
-
-    var Mz = 100 * Math.pow(iz[1] * iz[1] + iz[2] * iz[2], 0.37) *
-             (Math.pow(ez, 0.068) * Math.pow(FL, 0.2)) /
-             (Math.pow(Fb, 0.1) * Math.pow(izw[0], 0.78));
-    var Cz = 100 * Mz / Qzw;
-
-    var rad = hz * Math.PI / 180;
-    var Vz = Math.sqrt(Math.pow(Jz - 58, 2) + 3.4 * Cz * Cz);
-    var Kz = 100 - 0.8 * Math.sqrt(Jz * Jz + 8 * Cz * Cz);
-    var Wz = 100 - Math.sqrt(Math.pow(100 - Jz, 2) + Cz * Cz);
-    var Sz = 100 * Math.pow(FL, 0.6) * Math.sqrt(Qz > 0 ? Mz / Qz : 0);
-    return {
-      az: Cz * Math.cos(rad), Jz: Jz, bz: Cz * Math.sin(rad),
-      Cz: Cz, Vz: Vz, Kz: Kz, Wz: Wz, Mz: Mz, Sz: Sz, hz: hz
-    };
-  }
-
   root.ColourModels = {
     pq: pq,
     ictcp: ictcp,
     jzazbz: jzazbz,
     oklab: oklab,
     luv: luv,
-    cam02ucs: cam02ucs,
-    zcam: zcam
+    cam02ucs: cam02ucs
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.ColourModels;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -10,7 +10,9 @@
 {{ end }}
 {{ define "section_title" }}<!-- Title rendered below. -->{{ end }}
 {{ define "section_content" }}
-{{ $t := index hugo.Data.i18n "zh" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $t := index hugo.Data.i18n $lang }}
 {{ $slugs := slice "srgb" "p3-d65" "rec2020" }}
 {{ $spaces := slice }}
 {{ $srgbMatrix := slice }}
@@ -21,48 +23,52 @@
     {{ $spaces = $spaces | append (dict "slug" $slug "title" .Title "matrix" .Params.matrix "white" .Params.whitePoint) }}
   {{ end }}
 {{ end }}
-<div class="c-page" data-lang="zh">
+<div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
-    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" false) }}
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
       <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ "colour/" | relURL }}">{{ $t.colourTitle }}</a> / {{ .Title }}
+        <a href="{{ if $en }}{{ "/en/colour/" | relURL }}{{ else }}{{ "colour/" | relURL }}{{ end }}">{{ $t.colourTitle }}</a> / {{ .Title }}
+        {{ if $en }}
+        <a class="c-lang" href="{{ "/colour/volume/" | relURL }}" hreflang="zh">中文</a>
+        {{ else }}
+        <a class="c-lang" href="{{ "/en/colour/volume/" | relURL }}" hreflang="en">English</a>
+        {{ end }}
       </nav>
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="volume-data">{{ dict
         "spaces" $spaces
         "srgbMatrix" $srgbMatrix
         "defaultPrimary" "srgb"
-        "ui" (dict "error" "WebGL 初始化失败")
+        "ui" (dict "error" (cond $en "WebGL initialisation failed" "WebGL 初始化失败"))
       | jsonify | safeJS }}</script>
 
       <div class="c-vol" data-volume>
         <div class="c-vol-controls">
-          <label>主空间
+          <label>{{ cond $en "Space" "主空间" }}
             <select id="vol-space">
               {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
             </select>
           </label>
-          <label>坐标
+          <label>{{ cond $en "Coordinates" "坐标" }}
             <select id="vol-coord">
-              <optgroup label="色度 / 明度">
+              <optgroup label="{{ cond $en "Chromaticity / lightness" "色度 / 明度" }}">
                 <option value="xyz">XYZ</option>
                 <option value="xyy">xyY</option>
-                <option value="lab" selected>CIE Lab（D65）</option>
-                <option value="luv">CIE Luv（D65）</option>
+                <option value="lab" selected>CIE Lab (D65)</option>
+                <option value="luv">CIE Luv (D65)</option>
               </optgroup>
-              <optgroup label="感知均匀（SDR）">
+              <optgroup label="{{ cond $en "Perceptually uniform (SDR)" "感知均匀（SDR）" }}">
                 <option value="oklab">Oklab</option>
                 <option value="cam02">CAM02-UCS</option>
               </optgroup>
-              <optgroup label="HDR / 外观模型">
-                <option value="ictcp">ICtCp（PQ）</option>
+              <optgroup label="{{ cond $en "HDR" "HDR" }}">
+                <option value="ictcp">ICtCp (PQ)</option>
                 <option value="jzazbz">JzAzBz</option>
-                <option value="zcam">ZCAM</option>
               </optgroup>
             </select>
           </label>
-          <label>白点亮度
+          <label>{{ cond $en "White level" "白点亮度" }}
             <select id="vol-lum">
               <option value="48">48 cd/m²</option>
               <option value="100" selected>100 cd/m²</option>
@@ -70,49 +76,40 @@
               <option value="1000">1000 cd/m²</option>
             </select>
           </label>
-          <span data-vol-zq hidden><label>竖直量
-            <select id="vol-zq">
-              <option value="Jz" selected>Jz（明度）</option>
-              <option value="Vz">Vz（鲜艳度）</option>
-              <option value="Kz">Kz（黑度）</option>
-              <option value="Wz">Wz（白度）</option>
-              <option value="Cz">Cz（彩度，非明度）</option>
-            </select>
-          </label></span>
-          <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> 网格线</label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> 中性表面</label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-auto"> 自动旋转</label>
-          <button type="button" id="vol-reset" class="c-vol-btn">复位</button>
+          <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Mesh" "网格线" }}</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> {{ cond $en "Neutral surface" "中性表面" }}</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
+          <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
         </div>
 
         <div class="c-vol-controls c-vol-cut" data-vol-cut>
-          <label class="c-vol-check"><input type="checkbox" id="vol-cut"> 截面</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-cut"> {{ cond $en "Section" "截面" }}</label>
           <input type="range" id="vol-cut-level" min="0" max="100" value="50" step="1">
-          <output id="vol-cut-val">关</output>
+          <output id="vol-cut-val">{{ cond $en "off" "关" }}</output>
         </div>
 
         <div class="c-vol-controls c-vol-cond" data-vol-cond hidden>
-          <span class="c-vol-cond-label">观察条件</span>
-          <label>环绕
+          <span class="c-vol-cond-label">{{ cond $en "Viewing conditions" "观察条件" }}</span>
+          <label>{{ cond $en "Surround" "环绕" }}
             <select id="vol-surround">
-              <option value="average" selected>平均（F=1.0, c=0.69）</option>
-              <option value="dim">昏暗（0.9, 0.59）</option>
-              <option value="dark">暗（0.8, 0.525）</option>
+              <option value="average" selected>{{ cond $en "Average (F=1.0, c=0.69)" "平均（F=1.0, c=0.69）" }}</option>
+              <option value="dim">{{ cond $en "Dim (0.9, 0.59)" "昏暗（0.9, 0.59）" }}</option>
+              <option value="dark">{{ cond $en "Dark (0.8, 0.525)" "暗（0.8, 0.525）" }}</option>
             </select>
           </label>
-          <label>适应亮度 L<sub>A</sub>
+          <label>{{ cond $en "Adapting luminance L" "适应亮度 L" }}<sub>A</sub>
             <select id="vol-la">
-              <option value="0.05">白点的 5%</option>
-              <option value="0.1">白点的 10%</option>
-              <option value="0.2" selected>白点的 20%</option>
-              <option value="0.4">白点的 40%</option>
+              <option value="0.05">{{ cond $en "5% of white" "白点的 5%" }}</option>
+              <option value="0.1">{{ cond $en "10% of white" "白点的 10%" }}</option>
+              <option value="0.2" selected>{{ cond $en "20% of white" "白点的 20%" }}</option>
+              <option value="0.4">{{ cond $en "40% of white" "白点的 40%" }}</option>
             </select>
           </label>
-          <label>背景 Y<sub>b</sub>
+          <label>{{ cond $en "Background Y" "背景 Y" }}<sub>b</sub>
             <select id="vol-bg">
-              <option value="0.1">白点的 10%</option>
-              <option value="0.2" selected>白点的 20%</option>
-              <option value="0.4">白点的 40%</option>
+              <option value="0.1">{{ cond $en "10% of white" "白点的 10%" }}</option>
+              <option value="0.2" selected>{{ cond $en "20% of white" "白点的 20%" }}</option>
+              <option value="0.4">{{ cond $en "40% of white" "白点的 40%" }}</option>
             </select>
           </label>
         </div>
@@ -120,24 +117,15 @@
         <div class="c-vol-stage">
           <canvas aria-label="{{ .Title }}"></canvas>
           <div class="c-vol-labels" aria-hidden="true"></div>
-          <p class="c-vol-fallback" hidden>此浏览器不支持 WebGL，无法显示三维视图。</p>
+          <p class="c-vol-fallback" hidden>{{ cond $en "This browser does not support WebGL." "此浏览器不支持 WebGL，无法显示三维视图。" }}</p>
         </div>
 
-        <p class="c-vol-cap">拖动旋转 · 滚轮或双指缩放 · 双击复位</p>
+        <p class="c-vol-cap">{{ cond $en "Drag to rotate · scroll or pinch to zoom · double-click to reset" "拖动旋转 · 滚轮或双指缩放 · 双击复位" }}</p>
 
-        <div class="c-vol-note">
-          <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，三轴等比例，不做拉伸。</p>
-          <p><strong>它不是什么：</strong>相机与工作空间的色体是“约定的 RGB 单位立方体”，不代表传感器能记录的亮度范围；显示亮度色体与 ICC 配置文件色域需要另外的亮度和测量条件，本页没有做。</p>
-          <p><strong>截面：</strong>用当前竖直坐标（L\*、J′、I、Jz 等）的水平面切开色体，切面以上被裁掉，交线用深色描出。拖动滑块移动切面位置；数值显示的是该坐标上的实际值。</p>
-          <p><strong>观察条件：</strong>CAM02-UCS 与 ZCAM 需要环绕、适应亮度和背景亮度。默认是「平均环绕、L<sub>A</sub> = 白点 20%、Y<sub>b</sub> = 白点 20%」，换成昏暗或暗环绕会同时改变 F、c、N<sub>c</sub>（ZCAM 用 F<sub>s</sub>）。这两个模型以外的坐标不受影响。</p>
-          <p><strong>坐标轴：</strong>三条轴摆在色体包围盒的底边上，刻度朝外，地面网格落在 L\* = 0（XYZ 为 Y = 0）的平面上。</p>
-          <p><strong>Lab 的条件：</strong>Lab 的参考白取各空间自己的白点——这三个空间都是 D65，所以不做任何色适应，和上面的 XYZ、xyY 完全一致。（印刷与 ICC 体系用 D50，那是另一套约定，这里不采用；ACES 的白点约 D60，将来接入时再单独处理。）</p>
-          <p><strong>颜色：</strong>表面颜色只是屏幕示意——超出 sRGB 的部分已裁掉，想看真实形状请勾选「中性表面」。</p>
-          <p><strong>已知限制：</strong>xyY 中黑点 (0,0,0) 的色度未定义，那里不会生成面；试验页面，尚未做截面与拾取。</p>
-        </div>
+        <div class="c-vol-note">{{ .Content }}</div>
       </div>
     </div>
   </div>
-  <script>document.documentElement.lang = "zh";</script>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
 </div>
 {{ end }}

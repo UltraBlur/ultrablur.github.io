@@ -24,6 +24,8 @@
       <div class="c-prose">
         {{ .Content }}
 
+        <p class="c-vol-link"><a href="{{ printf "%svolume/" $base | relURL }}">{{ if $en }}3D gamut volume (experimental){{ else }}三维色域（试验）{{ end }}</a></p>
+
         {{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working }}
         {{ range hugo.Data.colourspaces }}
         <h2>{{ .label }}</h2>
