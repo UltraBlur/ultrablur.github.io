@@ -29,6 +29,10 @@ pygmentsCodefences       = true
     text = "gallery"
 
 [[params.mainMenu]]
+    link = "/colour/"
+    text = "colour"
+
+[[params.mainMenu]]
     link = "/archive"
     text = "archive"
 

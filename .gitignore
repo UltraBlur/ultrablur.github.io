@@ -5,3 +5,6 @@ node_modules/
 public/
 resources/_gen/
 .hugo_build.lock
+
+# 中间过程文件（临时脚本、截图、转换产物等），不提交
+.tmp/

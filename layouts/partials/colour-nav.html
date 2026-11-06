@@ -1,0 +1,36 @@
+{{ $current := .current }}
+<nav class="c-nav" aria-label="色彩空间目录">
+  <details class="c-nav-wrap" open>
+    <summary>目录</summary>
+    <div class="c-nav-body">
+      {{ range hugo.Data.colourspaces }}
+      <div class="c-nav-group">
+        <p class="c-nav-label">{{ .label }}</p>
+        <ul>
+          {{ $lastGroup := "" }}
+          {{ $subNames := dict "camera" "相机" "film" "胶片" "aces" "ACES" "working" "工作空间" }}
+          {{ range .items }}
+          {{ $g := .group | default "" }}
+          {{ if and $g (ne $g $lastGroup) }}
+          <li class="c-nav-sub">{{ index $subNames $g }}</li>
+          {{ $lastGroup = $g }}
+          {{ end }}
+          {{ $page := site.GetPage (printf "/colour/%s" .slug) }}
+          {{ if $page }}
+          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .title }}</a></li>
+          {{ else }}
+          <li class="is-pending" title="尚未收录">{{ .title }}</li>
+          {{ end }}
+          {{ end }}
+        </ul>
+      </div>
+      {{ end }}
+    </div>
+  </details>
+</nav>
+<script>
+  (function () {
+    var nav = document.querySelector('.c-nav-wrap');
+    if (nav && !window.matchMedia('(min-width: 821px)').matches) nav.open = false;
+  })();
+</script>

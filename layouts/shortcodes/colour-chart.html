@@ -1,0 +1,8 @@
+{{ partial "colour-figure.html" (dict
+  "kind" (cond (eq (.Get 0) "gamut") "gamut" "transfer")
+  "label" (cond (eq (.Get 0) "gamut")
+    "ARRI Wide Gamut 4，CIE 1931 xy 色度图"
+    "LogC4 编码曲线，横轴为相对 18% 灰的档位，纵轴为归一化编码值")
+  "caption" (cond (eq (.Get 0) "gamut")
+    "图 1：ARRI Wide Gamut 4 — CIE 1931 xy。[1][2]"
+    "图 2：LogC4 编码曲线，L = 0.18 × 2^stops。[1][2]")) }}

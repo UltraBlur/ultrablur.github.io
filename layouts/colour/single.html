@@ -1,0 +1,105 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $locus := resources.Get "js/colour-locus.js" | minify | fingerprint }}
+<script defer src="{{ $locus.RelPermalink }}" integrity="{{ $locus.Data.Integrity }}"></script>
+{{ $app := resources.Get "js/colour.js" | minify | fingerprint }}
+<script defer src="{{ $app.RelPermalink }}" integrity="{{ $app.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- Title rendered below. -->{{ end }}
+{{ define "section_content" }}
+<div class="c-page">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink) }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="面包屑"><a href="{{ "colour/" | relURL }}">色彩空间</a> / {{ .Title }}</nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      {{ $slug := path.Base .File.Dir }}
+      {{ $curve := index hugo.Data.curves $slug }}
+      {{ $anchors := index hugo.Data.anchors $slug }}
+      {{ $chart := dict "primaries" .Params.primaries "white" .Params.whitePoint "whiteName" .Params.whiteName "curve" $curve }}
+      <script type="application/json" id="colour-data">{{ $chart | jsonify | safeJS }}</script>
+      {{ with .Content }}
+      <div class="c-prose">{{ . }}</div>
+      {{ else }}
+      <div class="c-prose">
+        {{ with .Params.intro }}<p class="c-intro">{{ . }}</p>{{ end }}
+        {{ $figNo := 2 }}{{ if not .Params.primaries }}{{ $figNo = 1 }}{{ end }}
+        <div class="c-figs">
+          {{ if .Params.primaries }}
+          {{ partial "colour-figure.html" (dict
+            "kind" "gamut"
+            "label" (printf "%s，CIE 1931 xy 色度图" .Title)
+            "caption" (printf "图 1：%s — CIE 1931 xy。" .Title)) }}
+          {{ end }}
+          {{ if eq .Params.category "Display Referred" }}
+          {{ partial "colour-figure.html" (dict
+            "kind" "eotf"
+            "default" (.Params.eotfDefault | default "srgb")
+            "label" (printf "%s 显示传递函数：横轴为 0–1 码值，纵轴为亮度（cd/m²）" .Title)
+            "caption" (printf "图 2：显示传递函数（EOTF）。横轴可切换归一化码值与按位深/范围换算的量化码值，纵轴为亮度（cd/m²）。原色与传递函数相互独立，可切换对照。")) }}
+          {{ else if $curve }}
+          {{ partial "colour-figure.html" (dict
+            "kind" "curve"
+            "label" (printf "%s 编码曲线，横轴为相对 18%% 灰的档位，纵轴为编码值" .Title)
+            "caption" (printf "图 %d：%s 编码曲线，L = 0.18 × 2^stops。" $figNo .Title)) }}
+          {{ end }}
+        </div>
+        {{ with .Params.primaries }}
+        <table>
+          <thead><tr><th></th><th>x</th><th>y</th></tr></thead>
+          <tbody>
+            <tr><td>Red</td><td>{{ printf "%.4f" (index (index . 0) 0) }}</td><td>{{ printf "%.4f" (index (index . 0) 1) }}</td></tr>
+            <tr><td>Green</td><td>{{ printf "%.4f" (index (index . 1) 0) }}</td><td>{{ printf "%.4f" (index (index . 1) 1) }}</td></tr>
+            <tr><td>Blue</td><td>{{ printf "%.4f" (index (index . 2) 0) }}</td><td>{{ printf "%.4f" (index (index . 2) 1) }}</td></tr>
+            {{ with $.Params.whitePoint }}<tr><td>White ({{ $.Params.whiteName }})</td><td>{{ printf "%.4f" (index . 0) }}</td><td>{{ printf "%.4f" (index . 1) }}</td></tr>{{ end }}
+          </tbody>
+        </table>
+        {{ end }}
+        {{ with .Params.gamutNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
+        {{ with .Params.whiteNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
+        {{ with .Params.transferNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
+        {{ with $anchors }}
+        <h2>传递函数</h2>
+        <table class="c-kv">
+          <tbody>
+            {{ with .tf }}<tr><th>曲线</th><td>{{ . }}</td></tr>{{ end }}
+            <tr><th>黑点 / 白点（10-bit 码值）</th><td>{{ .black }} / {{ .white }}</td></tr>
+            <tr><th>线性 0 → 编码</th><td>{{ .e0 }}</td></tr>
+            <tr><th>18% 灰 → 编码</th><td>{{ .e18 }}</td></tr>
+            <tr><th>线性 1.0 → 编码</th><td>{{ .e1 }}</td></tr>
+          </tbody>
+        </table>
+        {{ with .fromLin }}
+        <h3>编码：convertFromLinear</h3>
+        <pre>{{ . }}</pre>
+        {{ end }}
+        {{ with .toLin }}
+        <h3>解码：convertToLinear</h3>
+        <pre>{{ . }}</pre>
+        {{ end }}
+        {{ end }}
+        {{ if .Params.eiTable }}{{ partial "colour-logc-ei.html" . }}{{ end }}
+        {{ with .Params.matrix }}
+        <h2>{{ if $.Params.matrixInverse }}矩阵{{ else }}RGB → XYZ 矩阵{{ end }}</h2>
+        <pre>RGB → XYZ
+[ {{ printf "%14.12f" (index (index . 0) 0) }} {{ printf "%14.12f" (index (index . 0) 1) }} {{ printf "%14.12f" (index (index . 0) 2) }} ]
+[ {{ printf "%14.12f" (index (index . 1) 0) }} {{ printf "%14.12f" (index (index . 1) 1) }} {{ printf "%14.12f" (index (index . 1) 2) }} ]
+[ {{ printf "%14.12f" (index (index . 2) 0) }} {{ printf "%14.12f" (index (index . 2) 1) }} {{ printf "%14.12f" (index (index . 2) 2) }} ]</pre>
+        {{ end }}
+        {{ with .Params.matrixInverse }}
+        <pre>XYZ → RGB
+[ {{ printf "%14.12f" (index (index . 0) 0) }} {{ printf "%14.12f" (index (index . 0) 1) }} {{ printf "%14.12f" (index (index . 0) 2) }} ]
+[ {{ printf "%14.12f" (index (index . 1) 0) }} {{ printf "%14.12f" (index (index . 1) 1) }} {{ printf "%14.12f" (index (index . 1) 2) }} ]
+[ {{ printf "%14.12f" (index (index . 2) 0) }} {{ printf "%14.12f" (index (index . 2) 1) }} {{ printf "%14.12f" (index (index . 2) 2) }} ]</pre>
+        {{ end }}
+        {{ partial "colour-sources.html" . }}
+      </div>
+      {{ end }}
+    </div>
+  </div>
+</div>
+{{ end }}
+{{ define "bottom-menu" }}
+<nav class="bottom-menu"><p><a href="{{ "colour/" | relURL }}">色彩空间</a> · <a href="{{ .Site.Home.RelPermalink }}">首页</a></p></nav>
+{{ end }}

@@ -1,0 +1,40 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ end }}
+{{ define "section_title" }}<!-- Title rendered below. -->{{ end }}
+{{ define "section_content" }}
+<div class="c-page">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "") }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="面包屑"><a href="{{ .Site.Home.RelPermalink }}">首页</a> / {{ .Title }}</nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <div class="c-prose">
+        {{ .Content }}
+
+        {{ $subNames := dict "camera" "相机" "film" "胶片" "aces" "ACES" "working" "工作空间" }}
+        {{ range hugo.Data.colourspaces }}
+        <h2>{{ .label }}</h2>
+        {{ $isDR := eq .label "Display Referred" }}
+        <ul class="c-entries">
+          {{ $last := "" }}
+          {{ range .items }}
+          {{ $g := .group | default "" }}
+          {{ if and $g (ne $g $last) }}
+          <li class="c-entries-sub">{{ index $subNames $g }}</li>
+          {{ $last = $g }}
+          {{ end }}
+          <li>
+            <a href="{{ printf "colour/%s/" .slug | relURL }}">{{ .title }}</a>
+            {{ if and $isDR .transfer }}<span class="c-entry-note">{{ .transfer }}</span>{{ end }}
+          </li>
+          {{ end }}
+        </ul>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
+{{ define "bottom-menu" }}<nav class="bottom-menu"><p><a href="{{ .Site.Home.RelPermalink }}">首页</a></p></nav>{{ end }}
