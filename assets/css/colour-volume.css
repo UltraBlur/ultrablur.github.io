@@ -23,3 +23,7 @@
 .c-vol-fallback[hidden] { display: none; }
 .c-vol-label.is-axis { font-size: 10px; color: #9c9c9c; letter-spacing: 0; }
 .c-vol-label.is-axis-name { font-size: 11px; color: #5f5f5f; font-style: italic; }
+.c-vol-cond { padding: .45rem .6rem; border: 1px solid #e8e8e8; background: #fbfbfb; }
+.c-vol-cond-label { font-size: .76rem; letter-spacing: .06em; color: #999; }
+.c-vol-cond sub { font-size: .7em; }
+.c-vol-cond[hidden] { display: none; }

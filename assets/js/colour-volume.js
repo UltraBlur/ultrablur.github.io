@@ -69,8 +69,17 @@
   /* 参考白亮度（cd/m²），只有 HDR / 外观模型用得到 */
   var LUM = 100;
 
+  /* 观察条件：CIECAM02 用 F / c / Nc，ZCAM 用 F_s；背景按参考白的比例给 */
+  var SURROUNDS = {
+    average: { F: 1.0, c: 0.69, Nc: 1.0, Fs: 0.69 },
+    dim: { F: 0.9, c: 0.59, Nc: 0.95, Fs: 0.59 },
+    dark: { F: 0.8, c: 0.525, Nc: 0.8, Fs: 0.525 }
+  };
+  var COND = { surround: 'average', bg: 0.2, laFactor: 0.2 };
+
   function camOpts(Lw) {
-    return { La: Lw * 0.2, Yb: Lw * 0.2, F: 1.0, c: 0.69, Nc: 1.0 };
+    var s = SURROUNDS[COND.surround] || SURROUNDS.average;
+    return { La: Lw * COND.laFactor, Yb: Lw * COND.bg, F: s.F, c: s.c, Nc: s.Nc };
   }
 
   /* 返回显示坐标 [水平, 竖直, 深度]，无效点返回 null */
@@ -97,7 +106,7 @@
         camOpts(LUM)
       );
     } else if (coord === 'zcam') {
-      out = MODELS.zcam(xyz, W, LUM, { Fs: 0.69, La: LUM * 0.2, YbRel: 0.2 });
+      out = MODELS.zcam(xyz, W, LUM, { Fs: (SURROUNDS[COND.surround] || SURROUNDS.average).Fs, La: LUM * COND.laFactor, YbRel: COND.bg });
     } else {
       return [xyz[0], xyz[1], xyz[2]];
     }
@@ -811,6 +820,7 @@
 
   bind('vol-coord', 'change', function (e) {
     state.coord = e.target.value;
+    updateCondVisibility();
     rebuild();
   });
 
@@ -818,6 +828,28 @@
     LUM = parseFloat(e.target.value) || 100;
     rebuild();
   });
+
+  bind('vol-surround', 'change', function (e) {
+    COND.surround = e.target.value;
+    rebuild();
+  });
+
+  bind('vol-bg', 'change', function (e) {
+    COND.bg = parseFloat(e.target.value) || 0.2;
+    rebuild();
+  });
+
+  bind('vol-la', 'change', function (e) {
+    COND.laFactor = parseFloat(e.target.value) || 0.2;
+    rebuild();
+  });
+
+  var condBox = document.querySelector('[data-vol-cond]');
+  function updateCondVisibility() {
+    if (!condBox) return;
+    var needs = state.coord === 'cam02' || state.coord === 'zcam';
+    condBox.hidden = !needs;
+  }
 
   bind('vol-neutral', 'change', function (e) {
     state.neutral = e.target.checked;
@@ -842,6 +874,8 @@
 
   // 默认值来自页面
   if (primarySel) { primarySel.value = state.primary; }
+
+  updateCondVisibility();
 
   try {
     resize();

@@ -76,6 +76,32 @@
           <button type="button" id="vol-reset" class="c-vol-btn">复位</button>
         </div>
 
+        <div class="c-vol-controls c-vol-cond" data-vol-cond hidden>
+          <span class="c-vol-cond-label">观察条件</span>
+          <label>环绕
+            <select id="vol-surround">
+              <option value="average" selected>平均（F=1.0, c=0.69）</option>
+              <option value="dim">昏暗（0.9, 0.59）</option>
+              <option value="dark">暗（0.8, 0.525）</option>
+            </select>
+          </label>
+          <label>适应亮度 L<sub>A</sub>
+            <select id="vol-la">
+              <option value="0.05">白点的 5%</option>
+              <option value="0.1">白点的 10%</option>
+              <option value="0.2" selected>白点的 20%</option>
+              <option value="0.4">白点的 40%</option>
+            </select>
+          </label>
+          <label>背景 Y<sub>b</sub>
+            <select id="vol-bg">
+              <option value="0.1">白点的 10%</option>
+              <option value="0.2" selected>白点的 20%</option>
+              <option value="0.4">白点的 40%</option>
+            </select>
+          </label>
+        </div>
+
         <div class="c-vol-stage">
           <canvas aria-label="{{ .Title }}"></canvas>
           <div class="c-vol-labels" aria-hidden="true"></div>
@@ -87,6 +113,7 @@
         <div class="c-vol-note">
           <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，三轴等比例，不做拉伸。</p>
           <p><strong>它不是什么：</strong>相机与工作空间的色体是“约定的 RGB 单位立方体”，不代表传感器能记录的亮度范围；显示亮度色体与 ICC 配置文件色域需要另外的亮度和测量条件，本页没有做。</p>
+          <p><strong>观察条件：</strong>CAM02-UCS 与 ZCAM 需要环绕、适应亮度和背景亮度。默认是「平均环绕、L<sub>A</sub> = 白点 20%、Y<sub>b</sub> = 白点 20%」，换成昏暗或暗环绕会同时改变 F、c、N<sub>c</sub>（ZCAM 用 F<sub>s</sub>）。这两个模型以外的坐标不受影响。</p>
           <p><strong>坐标轴：</strong>三条轴摆在色体包围盒的底边上，刻度朝外，地面网格落在 L\* = 0（XYZ 为 Y = 0）的平面上。</p>
           <p><strong>Lab 的条件：</strong>Lab 的参考白取各空间自己的白点——这三个空间都是 D65，所以不做任何色适应，和上面的 XYZ、xyY 完全一致。（印刷与 ICC 体系用 D50，那是另一套约定，这里不采用；ACES 的白点约 D60，将来接入时再单独处理。）</p>
           <p><strong>颜色：</strong>表面颜色只是屏幕示意——超出 sRGB 的部分已裁掉，想看真实形状请勾选「中性表面」。</p>
