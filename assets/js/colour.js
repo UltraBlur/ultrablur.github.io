@@ -939,6 +939,8 @@
       var codeMode = p.xmode === 'code';
       if (bitSel) bitSel.disabled = !codeMode;
       if (rangeSel) rangeSel.disabled = !codeMode;
+      var xGroup = fig.querySelector('.c-eotf-group--x');
+      if (xGroup) xGroup.classList.toggle('is-off', !codeMode);
     }
 
     [sel, xSel, bitSel, rangeSel].forEach(function (el) {
