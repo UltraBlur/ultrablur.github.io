@@ -11,7 +11,7 @@ variant = "en"
 
 **What it is not:** for cameras and working spaces the body is the *nominal* RGB unit cube, not the range a sensor can record. Display-luminance volumes and ICC profile gamuts need additional luminance and measurement conditions and are out of scope here.
 
-**Section:** a horizontal plane at the current vertical coordinate (L\*, J′, I, Jz …) cuts the volume; everything above the plane is clipped and the cut is filled with the colour at the intersection, outlined in a darker line. Drag the slider to move the plane; the number is the actual value on that axis.
+**Section:** a horizontal plane at the current vertical coordinate (L\*, J′, I, Jz …) cuts the volume; everything above the plane is clipped and the intersection is outlined in a darker line. The cut shows the inside of the shell — the section is not filled yet. Drag the slider to move the plane; the number is the actual value on that axis.
 
 **Viewing conditions:** CAM02-UCS uses surround, adapting luminance and background luminance (CIE 159:2004). The defaults are average surround, L<sub>A</sub> = 20% of white and Y<sub>b</sub> = 20% of white; dim or dark surround changes F, c and N<sub>c</sub> together.
 

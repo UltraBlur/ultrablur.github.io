@@ -234,7 +234,9 @@
         for (var b2 = 0; b2 < N; b2++) {
           var i0 = grid[a2][b2], i1 = grid[a2 + 1][b2], i2 = grid[a2 + 1][b2 + 1], i3 = grid[a2][b2 + 1];
           if (i0 < 0 || i1 < 0 || i2 < 0 || i3 < 0) continue;
-          idx.push(i0, i1, i2, i0, i2, i3);
+          // val = 0 的面法线朝外方向相反，索引反写以保持统一绕序
+          if (face.val === 0) idx.push(i0, i3, i2, i0, i2, i1);
+          else idx.push(i0, i1, i2, i0, i2, i3);
         }
       }
     });
@@ -323,6 +325,8 @@
       lo.push(bbox[0][k] - span * pad);
       hi.push(bbox[1][k] + span * pad);
     }
+    // 竖直轴从 0 起（明度类坐标的零点就是黑）
+    lo[1] = Math.min(0, lo[1]);
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
@@ -471,7 +475,7 @@
     'void main(){ if (vY > uCut) discard; vec3 n = normalize(vNor);' +
     'float d = abs(dot(n, normalize(vec3(0.42, 0.78, 0.46))));' +
     'vec3 c = vCol * (0.74 + 0.26 * d);' +
-    'if (!gl_FrontFacing && uCap < 0.5) c = vec3(0.93, 0.93, 0.92);' +
+    
     'gl_FragColor = vec4(c, 1.0); }'
   );
 
@@ -741,74 +745,9 @@
     }
     uploadLines('cut', new Float32Array(line), [0.10, 0.10, 0.12, 0.95]);
 
-    // 串成环（带方向）→ 三角化 → 填充断面
-    var segList = [];
-    for (var si = 0; si < segs.length; si += 2) segList.push([segs[si], segs[si + 1]]);
-    var adj = {};
-    for (var k2 = 0; k2 < segList.length; k2++) {
-      var ka = key3(segList[k2][0]), kb = key3(segList[k2][1]);
-      (adj[ka] || (adj[ka] = [])).push(k2);
-      (adj[kb] || (adj[kb] = [])).push(k2);
-    }
-    var usedSeg = {}, capPos = [], capNor = [], capCol = [], capIdx = [];
-    for (var s0 = 0; s0 < segList.length; s0++) {
-      if (usedSeg[s0]) continue;
-      var loop = [segList[s0][0], segList[s0][1]];
-      usedSeg[s0] = 1;
-      var curKey = key3(segList[s0][1]);
-      var startKey = key3(segList[s0][0]);
-      var guard = 0, closed = false;
-      while (guard++ < 5000) {
-        if (curKey === startKey) { closed = true; break; }
-        var cands = adj[curKey] || [];
-        var next = -1;
-        for (var ci = 0; ci < cands.length; ci++) if (!usedSeg[cands[ci]]) { next = cands[ci]; break; }
-        if (next < 0) break;
-        usedSeg[next] = 1;
-        var seg = segList[next];
-        var fromA = key3(seg[0]) === curKey;
-        var far = fromA ? seg[1] : seg[0];
-        loop.push(far);
-        curKey = key3(far);
-      }
-      if (!closed) continue;
-      loop.pop();
-      if (loop.length < 3) continue;
-
-      // 只接受三角化覆盖完整的环，避免留下破洞和飞面
-      var poly = loop.map(function (p) { return [p[0], p[2]]; });
-      var tri = triangulate2D(poly);
-      var areaPoly = 0, areaTri = 0;
-      for (var ai = 0; ai < poly.length; ai++) {
-        var an = poly[(ai + 1) % poly.length];
-        areaPoly += poly[ai][0] * an[1] - an[0] * poly[ai][1];
-      }
-      areaPoly = Math.abs(areaPoly) / 2;
-      for (var tj = 0; tj < tri.length; tj += 3) {
-        var A = poly[tri[tj]], B = poly[tri[tj + 1]], C = poly[tri[tj + 2]];
-        areaTri += Math.abs((B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0])) / 2;
-      }
-      if (areaPoly < 1e-9 || Math.abs(areaTri - areaPoly) / areaPoly > 0.04) continue;
-
-      var base = capPos.length / 3;
-      for (var lp = 0; lp < loop.length; lp++) {
-        capPos.push(loop[lp][0], state.cutY, loop[lp][2]);
-        capNor.push(0, 1, 0);
-        capCol.push(loop[lp][3] * 0.94, loop[lp][4] * 0.94, loop[lp][5] * 0.94);
-      }
-      for (var ti = 0; ti < tri.length; ti++) capIdx.push(base + tri[ti]);
-    }
-
-    if (capIdx.length) {
-      uploadSolid('cap', {
-        pos: new Float32Array(capPos),
-        nor: new Float32Array(capNor),
-        col: new Float32Array(capCol),
-        idx: new Uint16Array(capIdx)
-      });
-    } else if (buffers.cap) {
-      buffers.cap.count = 0;
-    }
+    // 断面填充暂时关闭：串环与耳切在当前网格上会留下破洞和飞面，
+    // 只保留交线，避免出现比不填更糟的画面。
+    if (buffers.cap) buffers.cap.count = 0;
     requestRender();
   }
 
