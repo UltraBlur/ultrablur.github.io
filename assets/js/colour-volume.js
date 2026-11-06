@@ -437,8 +437,6 @@
     neutral: false,
     grid: true,
     cull: false,
-    cutOn: false,
-    cutFrac: 0.5,
     yaw: 0.72,
     pitch: 0.34,
     dist: 4.2,
@@ -468,11 +466,10 @@
 
   var solidProg = program(
     'attribute vec3 aPos; attribute vec3 aNor; attribute vec3 aCol;' +
-    'uniform mat4 uVP; varying vec3 vNor; varying vec3 vCol; varying float vY;' +
-    'void main(){ vNor = aNor; vCol = aCol; vY = aPos.y; gl_Position = uVP * vec4(aPos, 1.0); }',
-    'precision mediump float; varying vec3 vNor; varying vec3 vCol; varying float vY;' +
-    'uniform float uCut; uniform float uCap;' +
-    'void main(){ if (vY > uCut) discard; vec3 n = normalize(vNor);' +
+    'uniform mat4 uVP; varying vec3 vNor; varying vec3 vCol;' +
+    'void main(){ vNor = aNor; vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }',
+    'precision mediump float; varying vec3 vNor; varying vec3 vCol;' +
+    'void main(){ vec3 n = normalize(vNor);' +
     'float d = abs(dot(n, normalize(vec3(0.42, 0.78, 0.46))));' +
     'vec3 c = vCol * (0.74 + 0.26 * d);' +
     
@@ -481,10 +478,10 @@
 
   var lineProg = program(
     'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP; uniform float uBias;' +
-    'varying vec4 vCol; varying float vY; void main(){ vCol = vec4(aCol, 1.0); vY = aPos.y;' +
+    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0);' +
     'gl_Position = uVP * vec4(aPos, 1.0); gl_Position.z -= uBias * gl_Position.w; }',
-    'precision mediump float; varying vec4 vCol; varying float vY; uniform float uCutLine;' +
-    'void main(){ if (vY > uCutLine) discard; gl_FragColor = vCol; }'
+    'precision mediump float; varying vec4 vCol;' +
+    'void main(){ gl_FragColor = vCol; }'
   );
 
   var solidLoc = {
@@ -492,15 +489,12 @@
     nor: gl.getAttribLocation(solidProg, 'aNor'),
     col: gl.getAttribLocation(solidProg, 'aCol'),
     vp: gl.getUniformLocation(solidProg, 'uVP'),
-    cut: gl.getUniformLocation(solidProg, 'uCut'),
-    cap: gl.getUniformLocation(solidProg, 'uCap')
   };
   var lineLoc = {
     pos: gl.getAttribLocation(lineProg, 'aPos'),
     col: gl.getAttribLocation(lineProg, 'aCol'),
     vp: gl.getUniformLocation(lineProg, 'uVP'),
-    bias: gl.getUniformLocation(lineProg, 'uBias'),
-    cut: gl.getUniformLocation(lineProg, 'uCutLine')
+    bias: gl.getUniformLocation(lineProg, 'uBias')
   };
 
   var buffers = { solid: {}, ref: {}, axes: {} };
@@ -612,7 +606,6 @@
     state.mesh = mesh;
     state.frame = frame;
     state.bbox = mesh.bbox;
-    updateCut();
     if (/voldebug/.test(location.search)) {
       var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
       for (var bi = 0; bi < mesh.pos.length; bi += 3) {
@@ -640,114 +633,6 @@
         }
       };
     }
-    requestRender();
-  }
-
-  /* ---------- 截面 ---------- */
-
-  function cutLevel() {
-    var bb = state.bbox;
-    if (!bb) return Infinity;
-    var lo = bb[0][1], hi = bb[1][1];
-    return lo + (hi - lo) * state.cutFrac;
-  }
-
-  function key3(p) {
-    return Math.round(p[0] * 4000) + ',' + Math.round(p[2] * 4000);
-  }
-
-  function pointInTri(p, a, b, c) {
-    var d1 = (p[0] - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (p[1] - b[1]);
-    var d2 = (p[0] - c[0]) * (b[1] - c[1]) - (b[0] - c[0]) * (p[1] - c[1]);
-    var d3 = (p[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (p[1] - a[1]);
-    var neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    var pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-    return !(neg && pos);
-  }
-
-  /* 多边形耳切三角化，输入为 [x, z] */
-  function triangulate2D(pts) {
-    var idx = [], n = pts.length;
-    if (n < 3) return idx;
-    var area = 0;
-    for (var i = 0; i < n; i++) {
-      var a = pts[i], b = pts[(i + 1) % n];
-      area += a[0] * b[1] - b[0] * a[1];
-    }
-    var V = [];
-    for (var j = 0; j < n; j++) V.push(area < 0 ? n - 1 - j : j);
-    var guard = 0;
-    while (V.length > 3 && guard++ < 3000) {
-      var found = false;
-      for (var k = 0; k < V.length; k++) {
-        var i0 = V[(k + V.length - 1) % V.length], i1 = V[k], i2 = V[(k + 1) % V.length];
-        var A = pts[i0], B = pts[i1], C = pts[i2];
-        var cross = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
-        if (cross <= 0) continue;
-        var bad = false;
-        for (var q = 0; q < V.length; q++) {
-          var J = V[q];
-          if (J === i0 || J === i1 || J === i2) continue;
-          if (pointInTri(pts[J], A, B, C)) { bad = true; break; }
-        }
-        if (bad) continue;
-        idx.push(i0, i1, i2);
-        V.splice(k, 1);
-        found = true;
-        break;
-      }
-      if (!found) break;
-    }
-    if (V.length === 3) idx.push(V[0], V[1], V[2]);
-    return idx;
-  }
-
-  function updateCut() {
-    if (!state.mesh || !state.frame) return;
-    if (!state.cutOn) {
-      state.cutY = Infinity;
-      if (buffers.cut) buffers.cut.count = 0;
-      if (buffers.cap) buffers.cap.count = 0;
-      requestRender();
-      return;
-    }
-    var level = cutLevel();
-    state.cutY = (level - state.frame.center[1]) * state.frame.scale;
-
-    var mesh = state.mesh, pos = mesh.pos, col = mesh.col, idx = mesh.idx;
-    var segs = [];
-    for (var i = 0; i < idx.length; i += 3) {
-      var a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
-      var tri = [[a, b], [b, c], [c, a]];
-      var hits = [];
-      for (var k = 0; k < 3; k++) {
-        var p = tri[k][0], q = tri[k][1];
-        var dp = pos[p + 1] - state.cutY, dq = pos[q + 1] - state.cutY;
-        if ((dp > 0) !== (dq > 0)) {
-          var t = (state.cutY - dp) / (dq - dp);
-          hits.push([
-            pos[p] + (pos[q] - pos[p]) * t,
-            state.cutY,
-            pos[p + 2] + (pos[q + 2] - pos[p + 2]) * t,
-            col[p] + (col[q] - col[p]) * t,
-            col[p + 1] + (col[q + 1] - col[p + 1]) * t,
-            col[p + 2] + (col[q + 2] - col[p + 2]) * t
-          ]);
-        }
-      }
-      if (hits.length === 2) segs.push(hits[0], hits[1]);
-    }
-
-    // 交线
-    var line = [];
-    for (var s2 = 0; s2 < segs.length; s2++) {
-      line.push(segs[s2][0], segs[s2][1], segs[s2][2]);
-    }
-    uploadLines('cut', new Float32Array(line), [0.10, 0.10, 0.12, 0.95]);
-
-    // 断面填充暂时关闭：串环与耳切在当前网格上会留下破洞和飞面，
-    // 只保留交线，避免出现比不填更糟的画面。
-    if (buffers.cap) buffers.cap.count = 0;
     requestRender();
   }
 
@@ -795,8 +680,6 @@
     if (b && b.count) {
       gl.useProgram(solidProg);
       gl.uniformMatrix4fv(solidLoc.vp, false, VP);
-      gl.uniform1f(solidLoc.cut, state.cutY === undefined ? Infinity : state.cutY);
-      gl.uniform1f(solidLoc.cap, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
       gl.enableVertexAttribArray(solidLoc.pos);
       gl.vertexAttribPointer(solidLoc.pos, 3, gl.FLOAT, false, 0, 0);
@@ -813,34 +696,10 @@
       gl.disableVertexAttribArray(solidLoc.col);
     }
 
-    // 断面填充（与裁剪面重合，不参与裁剪）
-    var capB = buffers.cap;
-    if (capB && capB.count) {
-      gl.useProgram(solidProg);
-      gl.uniformMatrix4fv(solidLoc.vp, false, VP);
-      gl.uniform1f(solidLoc.cut, state.cutY + 0.002);
-      gl.uniform1f(solidLoc.cap, 1);
-      gl.bindBuffer(gl.ARRAY_BUFFER, capB.pos);
-      gl.enableVertexAttribArray(solidLoc.pos);
-      gl.vertexAttribPointer(solidLoc.pos, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, capB.nor);
-      gl.enableVertexAttribArray(solidLoc.nor);
-      gl.vertexAttribPointer(solidLoc.nor, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, capB.col);
-      gl.enableVertexAttribArray(solidLoc.col);
-      gl.vertexAttribPointer(solidLoc.col, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, capB.idx);
-      gl.drawElements(gl.TRIANGLES, capB.count, gl.UNSIGNED_SHORT, 0);
-      gl.disableVertexAttribArray(solidLoc.pos);
-      gl.disableVertexAttribArray(solidLoc.nor);
-      gl.disableVertexAttribArray(solidLoc.col);
-    }
-
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     drawLines('grid');
     drawLines('axes');
-    drawLines('cut');
     gl.disable(gl.BLEND);
 
     updateLabels(proj, view);
@@ -853,7 +712,6 @@
     gl.useProgram(lineProg);
     gl.uniformMatrix4fv(lineLoc.vp, false, VP);
     gl.uniform1f(lineLoc.bias, key === 'grid' ? 0.0009 : 0);
-    gl.uniform1f(lineLoc.cut, key === 'grid' ? (state.cutY === undefined ? Infinity : state.cutY) : Infinity);
     gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
     gl.enableVertexAttribArray(lineLoc.pos);
     gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
@@ -991,28 +849,6 @@
     rebuild();
   });
 
-  var cutBox = document.getElementById('vol-cut');
-  var cutRange = document.getElementById('vol-cut-level');
-  var cutOut = document.getElementById('vol-cut-val');
-
-  function readCut() {
-    if (!cutRange || !cutBox) return;
-    state.cutOn = cutBox.checked;
-    state.cutFrac = parseFloat(cutRange.value) / 100;
-    updateCut();
-    if (cutOut) {
-      if (!state.cutOn) cutOut.textContent = '关';
-      else {
-        var bb = state.bbox;
-        var v = bb ? bb[0][1] + (bb[1][1] - bb[0][1]) * state.cutFrac : 0;
-        cutOut.textContent = (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2));
-      }
-    }
-  }
-
-  if (cutBox) cutBox.addEventListener('change', readCut);
-  if (cutRange) cutRange.addEventListener('input', readCut);
-
   var condBox = document.querySelector('[data-vol-cond]');
   function updateCondVisibility() {
     if (condBox) condBox.hidden = state.coord !== 'cam02';
@@ -1049,7 +885,6 @@
   if (primarySel) { primarySel.value = state.primary; }
 
   updateCondVisibility();
-  readCut();
 
   try {
     resize();

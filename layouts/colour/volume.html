@@ -82,12 +82,6 @@
           <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
         </div>
 
-        <div class="c-vol-controls c-vol-cut" data-vol-cut>
-          <label class="c-vol-check"><input type="checkbox" id="vol-cut"> {{ cond $en "Section" "截面" }}</label>
-          <input type="range" id="vol-cut-level" min="0" max="100" value="50" step="1">
-          <output id="vol-cut-val">{{ cond $en "off" "关" }}</output>
-        </div>
-
         <div class="c-vol-controls c-vol-cond" data-vol-cond hidden>
           <span class="c-vol-cond-label">{{ cond $en "Viewing conditions" "观察条件" }}</span>
           <label>{{ cond $en "Surround" "环绕" }}
