@@ -1,0 +1,847 @@
+/*
+ * 三维色体积预览（试验）
+ * 把归一化线性 RGB 立方体 [0,1]³ 映射到 XYZ / xyY / Lab，用 WebGL 绘制。
+ * 零依赖：矩阵、网格、相机、交互都写在这里。
+ */
+(function () {
+  'use strict';
+
+  var host = document.querySelector('[data-volume]');
+  if (!host) return;
+
+  var cfgEl = document.getElementById('volume-data');
+  var cfg;
+  try { cfg = JSON.parse(cfgEl.textContent); } catch (e) { return; }
+  var UI = cfg.ui || {};
+  var D50 = [0.3457, 0.3585];
+
+  /* ---------- 3×3 矩阵（行主序） ---------- */
+
+  function mul3(A, B) {
+    var C = new Array(9);
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 3; c++) {
+        C[r * 3 + c] = A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c];
+      }
+    }
+    return C;
+  }
+
+  function mulVec3(A, v) {
+    return [
+      A[0] * v[0] + A[1] * v[1] + A[2] * v[2],
+      A[3] * v[0] + A[4] * v[1] + A[5] * v[2],
+      A[6] * v[0] + A[7] * v[1] + A[8] * v[2]
+    ];
+  }
+
+  function invert3(m) {
+    var a = m[0], b = m[1], c = m[2], d = m[3], e = m[4], f = m[5], g = m[6], h = m[7], i = m[8];
+    var A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+    var det = a * A + b * B + c * C;
+    if (!det) return null;
+    var id = 1 / det;
+    return [
+      A * id, -(b * i - c * h) * id, (b * f - c * e) * id,
+      B * id, (a * i - c * g) * id, -(a * f - c * d) * id,
+      C * id, -(a * h - b * g) * id, (a * e - b * d) * id
+    ];
+  }
+
+  /* ---------- 白点与色适应 ---------- */
+
+  function whiteXYZ(xy) {
+    var x = xy[0], y = xy[1];
+    return [x / y, 1, (1 - x - y) / y];
+  }
+
+  var BF = [
+    0.8951, 0.2664, -0.1614,
+    -0.7502, 1.7135, 0.0367,
+    0.0389, -0.0685, 1.0296
+  ];
+  var BF_INV = invert3(BF);
+
+  function adaptMatrix(srcXY, dstXY) {
+    var s = mulVec3(BF, whiteXYZ(srcXY));
+    var d = mulVec3(BF, whiteXYZ(dstXY));
+    var D = [d[0] / s[0], 0, 0, 0, d[1] / s[1], 0, 0, 0, d[2] / s[2]];
+    return mul3(BF_INV, mul3(D, BF));
+  }
+
+  var D50_XYZ = whiteXYZ(D50);
+
+  /* ---------- 坐标变换 ---------- */
+
+  function labFromXYZ(xyz) {
+    var t = [xyz[0] / D50_XYZ[0], xyz[1] / D50_XYZ[1], xyz[2] / D50_XYZ[2]];
+    var e = 216 / 24389; // (6/29)^3
+    var k = 24389 / 27;
+    var f = t.map(function (v) { return v > e ? Math.cbrt(v) : (k * v + 16) / 116; });
+    return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])]; // [L*, a*, b*]
+  }
+
+  /* 返回显示坐标 [水平, 竖直, 深度]，无效点返回 null */
+  function toDisplay(coord, xyz) {
+    if (coord === 'xyz') {
+      return [xyz[0], xyz[1], xyz[2]];
+    }
+    if (coord === 'xyy') {
+      var s = xyz[0] + xyz[1] + xyz[2];
+      if (!(s > 1e-9)) return null; // Y = 0 处色度未定义
+      return [xyz[0] / s, xyz[1], xyz[2] / s];
+    }
+    var lab = labFromXYZ(xyz);
+    return [lab[1], lab[0], lab[2]]; // [a*, L*, b*]，L* 竖直
+  }
+
+  /* ---------- 线性 RGB → 预览用 sRGB ---------- */
+
+  function encodeSrgb(v) {
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  }
+
+  function previewColor(linearSrgb) {
+    return [
+      encodeSrgb(linearSrgb[0]),
+      encodeSrgb(linearSrgb[1]),
+      encodeSrgb(linearSrgb[2])
+    ];
+  }
+
+  /* ---------- 每个空间一套转换 ---------- */
+
+  function flatten3(m) {
+    if (!m) return null;
+    if (m.length === 9 && typeof m[0] === 'number') return m.slice();
+    var out = [];
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) out.push(m[i][j]);
+    return out;
+  }
+
+  function makeSpace(entry) {
+    var M = flatten3(entry.matrix);    // RGB → XYZ，行 = X,Y,Z
+    var adapt = adaptMatrix(entry.white, D50);
+    var labM = mul3(adapt, M);         // RGB → XYZ(D50)，用于 Lab
+    var inv = invert3(flatten3(cfg.srgbMatrix));
+    return {
+      slug: entry.slug,
+      title: entry.title,
+      toXYZ: function (rgb) { return mulVec3(M, rgb); },
+      toLabXYZ: function (rgb) { return mulVec3(labM, rgb); },
+      color: function (rgb) {
+        if (!inv) return [0.8, 0.8, 0.8];
+        return previewColor(mulVec3(inv, mulVec3(M, rgb)));
+      }
+    };
+  }
+
+  var spaces = (cfg.spaces || []).map(makeSpace);
+  var spaceBySlug = {};
+  spaces.forEach(function (s) { spaceBySlug[s.slug] = s; });
+
+  function pointFor(space, coord, rgb) {
+    var xyz = coord === 'lab' ? space.toLabXYZ(rgb) : space.toXYZ(rgb);
+    return toDisplay(coord, xyz);
+  }
+
+  /* ---------- 体积网格 ---------- */
+
+  var FACES = [
+    { fix: 0, val: 0 }, { fix: 0, val: 1 },
+    { fix: 1, val: 0 }, { fix: 1, val: 1 },
+    { fix: 2, val: 0 }, { fix: 2, val: 1 }
+  ];
+
+  function normalAt(space, coord, rgb, u, v, eps, fix) {
+    function bump(c) {
+      var d = rgb.slice();
+      d[c] = rgb[c] + eps > 1 ? rgb[c] - eps : rgb[c] + eps;
+      return d;
+    }
+    var p0 = pointFor(space, coord, rgb);
+    var pa = pointFor(space, coord, bump(u));
+    var pb = pointFor(space, coord, bump(v));
+    if (!p0 || !pa || !pb) return null;
+    var t1 = [pa[0] - p0[0], pa[1] - p0[1], pa[2] - p0[2]];
+    var t2 = [pb[0] - p0[0], pb[1] - p0[1], pb[2] - p0[2]];
+    var n = [
+      t1[1] * t2[2] - t1[2] * t2[1],
+      t1[2] * t2[0] - t1[0] * t2[2],
+      t1[0] * t2[1] - t1[1] * t2[0]
+    ];
+    var len = Math.hypot(n[0], n[1], n[2]);
+    if (!(len > 1e-12)) return null;
+    n = [n[0] / len, n[1] / len, n[2] / len];
+    // 用固定通道的正方向定朝向：法线各面之间连续，不会逐个顶点翻面
+    if (fix !== undefined) {
+      var d1 = rgb.slice(); d1[fix] = Math.min(1, rgb[fix] + eps);
+      var d2 = rgb.slice(); d2[fix] = Math.max(0, rgb[fix] - eps);
+      var p1 = pointFor(space, coord, d1), p2 = pointFor(space, coord, d2);
+      var dir = p1 && p2 ? [p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]]
+              : (p1 ? [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]]
+                    : (p2 ? [p0[0] - p2[0], p0[1] - p2[1], p0[2] - p2[2]] : null));
+      if (dir && dir[0] * n[0] + dir[1] * n[1] + dir[2] * n[2] < 0) {
+        n = [-n[0], -n[1], -n[2]];
+      }
+    }
+    return n;
+  }
+
+  function buildSurface(space, coord, N, neutral) {
+    var pos = [], nor = [], col = [], idx = [];
+
+    FACES.forEach(function (face) {
+      var u = (face.fix + 1) % 3, v = (face.fix + 2) % 3;
+      var start = pos.length / 3;
+      var grid = [];
+      for (var i = 0; i <= N; i++) {
+        grid[i] = [];
+        for (var j = 0; j <= N; j++) {
+          var rgb = [0, 0, 0];
+          rgb[face.fix] = face.val;
+          rgb[u] = i / N;
+          rgb[v] = j / N;
+          var p = pointFor(space, coord, rgb);
+          if (!p) { grid[i][j] = -1; continue; }
+          grid[i][j] = pos.length / 3;
+          pos.push(p[0], p[1], p[2]);
+          var c = neutral ? [0.9, 0.9, 0.9] : space.color(rgb);
+          col.push(c[0], c[1], c[2]);
+          var n = normalAt(space, coord, rgb, u, v, 1 / (N * 400), face.fix) || [0, 0, 1];
+          nor.push(n[0], n[1], n[2]);
+        }
+      }
+      for (var a2 = 0; a2 < N; a2++) {
+        for (var b2 = 0; b2 < N; b2++) {
+          var i0 = grid[a2][b2], i1 = grid[a2 + 1][b2], i2 = grid[a2 + 1][b2 + 1], i3 = grid[a2][b2 + 1];
+          if (i0 < 0 || i1 < 0 || i2 < 0 || i3 < 0) continue;
+          idx.push(i0, i1, i2, i0, i2, i3);
+        }
+      }
+    });
+
+    return {
+      pos: new Float32Array(pos),
+      nor: new Float32Array(nor),
+      col: new Float32Array(col),
+      idx: new Uint16Array(idx)
+    };
+  }
+
+
+  function buildGrid(space, coord, N, step) {
+    var pos = [], nor = [];
+    function line(pts) {
+      for (var i = 1; i < pts.length; i++) {
+        var a = pts[i - 1], b = pts[i];
+        if (!a || !b) continue;
+        pos.push(a[0][0], a[0][1], a[0][2], b[0][0], b[0][1], b[0][2]);
+        nor.push(a[1][0], a[1][1], a[1][2], b[1][0], b[1][1], b[1][2]);
+      }
+    }
+    function sample(face, u, v, i, j) {
+      var rgb = [0, 0, 0];
+      rgb[face.fix] = face.val;
+      rgb[u] = i / N;
+      rgb[v] = j / N;
+      var p = pointFor(space, coord, rgb);
+      if (!p) return null;
+      var n = normalAt(space, coord, rgb, u, v, 1 / (N * 400), face.fix) || [0, 0, 1];
+      return [p, n];
+    }
+    FACES.forEach(function (face) {
+      var u = (face.fix + 1) % 3, v = (face.fix + 2) % 3;
+      for (var i = 0; i <= N; i += step) {
+        var pts = [];
+        for (var j = 0; j <= N; j++) pts.push(sample(face, u, v, i, j));
+        line(pts);
+      }
+      for (var j2 = 0; j2 <= N; j2 += step) {
+        var pts2 = [];
+        for (var i2 = 0; i2 <= N; i2++) pts2.push(sample(face, u, v, i2, j2));
+        line(pts2);
+      }
+    });
+    return { pos: new Float32Array(pos), nor: new Float32Array(nor) };
+  }
+
+  /* ---------- 线框 ---------- */
+
+  function buildEdges(space, coord, M) {
+    var pos = [];
+    var cube = [
+      [[0, 0, 0], [1, 0, 0]], [[0, 0, 0], [0, 1, 0]], [[0, 0, 0], [0, 0, 1]],
+      [[1, 1, 1], [0, 1, 1]], [[1, 1, 1], [1, 0, 1]], [[1, 1, 1], [1, 1, 0]],
+      [[1, 0, 0], [1, 1, 0]], [[1, 0, 0], [1, 0, 1]],
+      [[0, 1, 0], [1, 1, 0]], [[0, 1, 0], [0, 1, 1]],
+      [[0, 0, 1], [1, 0, 1]], [[0, 0, 1], [0, 1, 1]]
+    ];
+    cube.forEach(function (edge) {
+      var prev = null;
+      for (var i = 0; i <= M; i++) {
+        var t = i / M;
+        var rgb = [
+          edge[0][0] + (edge[1][0] - edge[0][0]) * t,
+          edge[0][1] + (edge[1][1] - edge[0][1]) * t,
+          edge[0][2] + (edge[1][2] - edge[0][2]) * t
+        ];
+        var p = pointFor(space, coord, rgb);
+        if (!p) { prev = null; continue; }
+        if (prev) pos.push(prev[0], prev[1], prev[2], p[0], p[1], p[2]);
+        prev = p;
+      }
+    });
+    return new Float32Array(pos);
+  }
+
+  /* ---------- 坐标轴家具 ---------- */
+
+  function buildAxes(coord, extent) {
+    var pos = [];
+    function seg(a, b) { pos.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
+    if (coord === 'lab') {
+      var R2 = extent * 0.8;
+      for (var gx2 = -R2; gx2 <= R2 + 1e-9; gx2 += R2 / 4) seg([gx2, 0, -R2], [gx2, 0, R2]);
+      for (var gz2 = -R2; gz2 <= R2 + 1e-9; gz2 += R2 / 4) seg([-R2, 0, gz2], [R2, 0, gz2]);
+      seg([0, 0, 0], [0, 100, 0]);
+      for (var L = 0; L <= 100; L += 20) seg([-2.2, L, 0], [2.2, L, 0]);
+      return new Float32Array(pos);
+    }
+    if (coord === 'xyz') {
+      var E = extent * 0.9, st = E / 4;
+      for (var gx = 0; gx <= E + 1e-9; gx += st) seg([gx, 0, 0], [gx, 0, E]);
+      for (var gz = 0; gz <= E + 1e-9; gz += st) seg([0, 0, gz], [E, 0, gz]);
+      seg([0, 0, 0], [extent, 0, 0]);
+      seg([0, 0, 0], [0, extent, 0]);
+      seg([0, 0, 0], [0, 0, extent]);
+      return new Float32Array(pos);
+    }
+    var R = 0.8, step = 0.2;
+    for (var x = 0; x <= R + 1e-9; x += step) seg([x, 0, 0], [x, 0, R]);
+    for (var y = 0; y <= R + 1e-9; y += step) seg([0, 0, y], [R, 0, y]);
+    seg([0, 0, 0], [0, 1, 0]);
+    return new Float32Array(pos);
+  }
+
+  /* ---------- 4×4 矩阵 ---------- */
+
+  function perspective(fovy, aspect, near, far) {
+    var f = 1 / Math.tan(fovy / 2);
+    var nf = 1 / (near - far);
+    return new Float32Array([
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, 2 * far * near * nf, 0
+    ]);
+  }
+
+  function lookAt(eye, center, up) {
+    var zx = eye[0] - center[0], zy = eye[1] - center[1], zz = eye[2] - center[2];
+    var zl = Math.hypot(zx, zy, zz) || 1;
+    zx /= zl; zy /= zl; zz /= zl;
+    var xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
+    var xl = Math.hypot(xx, xy, xz) || 1;
+    xx /= xl; xy /= xl; xz /= xl;
+    var yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    return new Float32Array([
+      xx, yx, zx, 0,
+      xy, yy, zy, 0,
+      xz, yz, zz, 0,
+      -(xx * eye[0] + xy * eye[1] + xz * eye[2]),
+      -(yx * eye[0] + yy * eye[1] + yz * eye[2]),
+      -(zx * eye[0] + zy * eye[1] + zz * eye[2]),
+      1
+    ]);
+  }
+
+  function mul4(A, B) {
+    var C = new Float32Array(16);
+    for (var r = 0; r < 4; r++) {
+      for (var c = 0; c < 4; c++) {
+        var s = 0;
+        for (var k = 0; k < 4; k++) s += A[k * 4 + r] * B[c * 4 + k];
+        C[c * 4 + r] = s;
+      }
+    }
+    return C;
+  }
+
+  /* ---------- 状态 ---------- */
+
+  var canvas = host.querySelector('canvas');
+  var gl = canvas.getContext('webgl', { antialias: true, alpha: false }) ||
+           canvas.getContext('experimental-webgl', { antialias: true, alpha: false });
+  var fallback = host.querySelector('.c-vol-fallback');
+  if (!gl) {
+    if (fallback) fallback.hidden = false;
+    canvas.hidden = true;
+    return;
+  }
+  if (fallback) fallback.hidden = true;
+
+  var state = {
+    primary: cfg.defaultPrimary || spaces[0].slug,
+    ref: cfg.defaultRef || '',
+    coord: 'lab',
+    neutral: false,
+    grid: true,
+    cull: false,
+    yaw: 0.95,
+    pitch: 0.30,
+    dist: 3.0,
+    auto: false,
+    bounds: null,
+    labels: []
+  };
+
+  function compile(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(s) || 'shader');
+    }
+    return s;
+  }
+
+  function program(vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || 'link');
+    return p;
+  }
+
+  var solidProg = program(
+    'attribute vec3 aPos; attribute vec3 aNor; attribute vec3 aCol;' +
+    'uniform mat4 uVP; varying vec3 vNor; varying vec3 vCol;' +
+    'void main(){ vNor = aNor; vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }',
+    'precision mediump float; varying vec3 vNor; varying vec3 vCol;' +
+    'void main(){ vec3 n = normalize(vNor);' +
+    'float d = abs(dot(n, normalize(vec3(0.42, 0.78, 0.46))));' +
+    'gl_FragColor = vec4(vCol * (0.74 + 0.26 * d), 1.0); }'
+  );
+
+  var lineProg = program(
+    'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP;' +
+    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0); gl_Position = uVP * vec4(aPos, 1.0); }',
+    'precision mediump float; varying vec4 vCol;' +
+    'void main(){ gl_FragColor = vCol; }'
+  );
+
+  var solidLoc = {
+    pos: gl.getAttribLocation(solidProg, 'aPos'),
+    nor: gl.getAttribLocation(solidProg, 'aNor'),
+    col: gl.getAttribLocation(solidProg, 'aCol'),
+    vp: gl.getUniformLocation(solidProg, 'uVP')
+  };
+  var lineLoc = {
+    pos: gl.getAttribLocation(lineProg, 'aPos'),
+    col: gl.getAttribLocation(lineProg, 'aCol'),
+    vp: gl.getUniformLocation(lineProg, 'uVP')
+  };
+
+  var buffers = { solid: {}, ref: {}, axes: {} };
+
+  function uploadSolid(key, mesh) {
+    var b = buffers[key] || (buffers[key] = {});
+    if (!b.pos) { b.pos = gl.createBuffer(); b.nor = gl.createBuffer(); b.col = gl.createBuffer(); b.idx = gl.createBuffer(); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.pos); gl.bufferData(gl.ARRAY_BUFFER, mesh.pos, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.nor); gl.bufferData(gl.ARRAY_BUFFER, mesh.nor, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.col); gl.bufferData(gl.ARRAY_BUFFER, mesh.col, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.idx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.idx, gl.STATIC_DRAW);
+    b.count = mesh.idx.length;
+    return b;
+  }
+
+  function uploadLines(key, pos, color) {
+    var b = buffers[key] || (buffers[key] = {});
+    if (!b.pos) { b.pos = gl.createBuffer(); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.pos); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+    b.count = pos.length / 3;
+    b.color = color;
+    return b;
+  }
+
+  /* 全局中心与尺度：以主空间为准，叠加体共用 */
+  function computeFrame(meshes) {
+    var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    meshes.forEach(function (m) {
+      var p = m.pos;
+      for (var i = 0; i < p.length; i += 3) {
+        for (var k = 0; k < 3; k++) {
+          if (p[i + k] < min[k]) min[k] = p[i + k];
+          if (p[i + k] > max[k]) max[k] = p[i + k];
+        }
+      }
+    });
+    var center = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+    // 用包围盒半对角线做半径，保证整个色体都在视野里
+    var radius = 0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
+    return { center: center, scale: 1 / radius };
+  }
+
+  function applyFrame(arr, frame) {
+    for (var i = 0; i < arr.length; i += 3) {
+      arr[i] = (arr[i] - frame.center[0]) * frame.scale;
+      arr[i + 1] = (arr[i + 1] - frame.center[1]) * frame.scale;
+      arr[i + 2] = (arr[i + 2] - frame.center[2]) * frame.scale;
+    }
+    return arr;
+  }
+
+  var labelEls = [];
+  function ensureLabels(n) {
+    var box = host.querySelector('.c-vol-labels');
+    while (labelEls.length < n) {
+      var d = document.createElement('span');
+      d.className = 'c-vol-label';
+      box.appendChild(d);
+      labelEls.push(d);
+    }
+  }
+
+  function rebuild() {
+    var primary = spaceBySlug[state.primary];
+    if (!primary) return;
+    var coord = state.coord;
+    var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
+
+    var mesh = buildSurface(primary, coord, N, state.neutral);
+    var frame = computeFrame([mesh]);
+
+    applyFrame(mesh.pos, frame);
+
+    uploadSolid('primary', mesh);
+
+    if (state.grid) {
+      var grid = buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)));
+      applyFrame(grid.pos, frame);
+      for (var gi = 0; gi < grid.pos.length; gi += 3) {
+        grid.pos[gi] += grid.nor[gi] * 0.006;
+        grid.pos[gi + 1] += grid.nor[gi + 1] * 0.006;
+        grid.pos[gi + 2] += grid.nor[gi + 2] * 0.006;
+      }
+      uploadLines('grid', grid.pos, [0.14, 0.14, 0.16, 0.20]);
+    } else if (buffers.grid) {
+      buffers.grid.count = 0;
+    }
+
+    var refMesh = null;
+    if (state.ref && spaceBySlug[state.ref]) {
+      refMesh = buildEdges(spaceBySlug[state.ref], coord, 56);
+      applyFrame(refMesh, frame);
+      uploadLines('ref', refMesh, [0.34, 0.34, 0.38, 0.55]);
+    } else if (buffers.ref.pos) {
+      buffers.ref.count = 0;
+    }
+
+    var extent = 1 / frame.scale;
+    var axes = buildAxes(coord, Math.max(extent * 0.75, 0.5));
+    applyFrame(axes, frame);
+    uploadLines('axes', axes, coord === 'lab' ? [0.72, 0.72, 0.74, 1] : [0.76, 0.76, 0.78, 1]);
+
+    // 标签锚点（未变换的显示坐标 → 同一 frame）
+    var anchors = [];
+    if (coord === 'lab') {
+      anchors.push({ t: 'L*', p: [0, 104, 0] });
+      anchors.push({ t: 'a*', p: [72, 0, 0] });
+      anchors.push({ t: 'b*', p: [0, 0, 72] });
+    } else if (coord === 'xyz') {
+      anchors.push({ t: 'X', p: [extent, 0, 0] });
+      anchors.push({ t: 'Y', p: [0, extent, 0] });
+      anchors.push({ t: 'Z', p: [0, 0, extent] });
+    } else {
+      anchors.push({ t: 'x', p: [0.82, 0, 0] });
+      anchors.push({ t: 'y', p: [0, 0, 0.82] });
+      anchors.push({ t: 'Y', p: [0, 1.02, 0] });
+    }
+    [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
+      var p = pointFor(primary, coord, v[1]);
+      if (p) anchors.push({ t: v[0], p: p, small: true });
+    });
+
+    state.labels = anchors.map(function (a) {
+      var p = [
+        (a.p[0] - frame.center[0]) * frame.scale,
+        (a.p[1] - frame.center[1]) * frame.scale,
+        (a.p[2] - frame.center[2]) * frame.scale
+      ];
+      return { t: a.t, p: p, small: !!a.small };
+    });
+    ensureLabels(state.labels.length);
+    labelEls.forEach(function (el, i) {
+      var l = state.labels[i];
+      el.textContent = l ? l.t : '';
+      el.className = 'c-vol-label' + (l && l.small ? ' is-vertex' : '');
+    });
+
+    state.frame = frame;
+    if (/voldebug/.test(location.search)) {
+      var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
+      for (var bi = 0; bi < mesh.pos.length; bi += 3) {
+        for (var bk = 0; bk < 3; bk++) {
+          if (mesh.pos[bi + bk] < bb[bk]) bb[bk] = mesh.pos[bi + bk];
+          if (mesh.pos[bi + bk] > bb2[bk]) bb2[bk] = mesh.pos[bi + bk];
+        }
+      }
+      window.__volSet = function (o) {
+        if (o.yaw !== undefined) state.yaw = o.yaw;
+        if (o.pitch !== undefined) state.pitch = o.pitch;
+        if (o.dist !== undefined) state.dist = o.dist;
+        if (o.coord !== undefined) { state.coord = o.coord; rebuild(); return; }
+        requestRender();
+      };
+      window.__vol = {
+        coord: coord,
+        bbox: [bb, bb2],
+        frame: frame,
+        sample: {
+          W: pointFor(primary, coord, [1, 1, 1]),
+          K: pointFor(primary, coord, [0, 0, 0]),
+          R: pointFor(primary, coord, [1, 0, 0]),
+          G: pointFor(primary, coord, [0, 1, 0])
+        }
+      };
+    }
+    requestRender();
+  }
+
+  /* ---------- 绘制 ---------- */
+
+  var VP = new Float32Array(16);
+  var dirty = true;
+
+  function requestRender() { dirty = true; }
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = canvas.clientWidth || host.clientWidth;
+    var h = canvas.clientHeight || Math.round(w * 0.72);
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    requestRender();
+  }
+
+  function cameraEye() {
+    var cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+    return [state.dist * cp * Math.sin(state.yaw), state.dist * sp, state.dist * cp * Math.cos(state.yaw)];
+  }
+
+  function draw() {
+    dirty = false;
+    var aspect = canvas.width / Math.max(1, canvas.height);
+    var eye = cameraEye();
+    var near = Math.max(0.02, state.dist - 2.2);
+    var proj = perspective(40 * Math.PI / 180, aspect, near, state.dist + 3.2);
+    var view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
+    VP = mul4(proj, view);
+
+    gl.clearColor(1, 1, 1, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    if (state.cull) { gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); } else { gl.disable(gl.CULL_FACE); }
+
+    // 实体
+    var b = buffers.primary;
+    if (b && b.count) {
+      gl.useProgram(solidProg);
+      gl.uniformMatrix4fv(solidLoc.vp, false, VP);
+      gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
+      gl.enableVertexAttribArray(solidLoc.pos);
+      gl.vertexAttribPointer(solidLoc.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, b.nor);
+      gl.enableVertexAttribArray(solidLoc.nor);
+      gl.vertexAttribPointer(solidLoc.nor, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, b.col);
+      gl.enableVertexAttribArray(solidLoc.col);
+      gl.vertexAttribPointer(solidLoc.col, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.idx);
+      gl.drawElements(gl.TRIANGLES, b.count, gl.UNSIGNED_SHORT, 0);
+      gl.disableVertexAttribArray(solidLoc.pos);
+      gl.disableVertexAttribArray(solidLoc.nor);
+      gl.disableVertexAttribArray(solidLoc.col);
+    }
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawLines('grid');
+    drawLines('axes');
+    drawLines('ref');
+    gl.disable(gl.BLEND);
+
+    updateLabels(proj, view);
+    if (state.auto) requestRender();
+  }
+
+  function drawLines(key) {
+    var b = buffers[key];
+    if (!b || !b.count || !b.pos) return;
+    gl.useProgram(lineProg);
+    gl.uniformMatrix4fv(lineLoc.vp, false, VP);
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
+    gl.enableVertexAttribArray(lineLoc.pos);
+    gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttrib4fv(lineLoc.col, b.color);
+    gl.disableVertexAttribArray(lineLoc.col);
+    gl.drawArrays(gl.LINES, 0, b.count);
+    gl.disableVertexAttribArray(lineLoc.pos);
+  }
+
+  function project(p, w0, h0) {
+    var x = p[0], y = p[1], z = p[2];
+    var cx = VP[0] * x + VP[4] * y + VP[8] * z + VP[12];
+    var cy = VP[1] * x + VP[5] * y + VP[9] * z + VP[13];
+    var cw = VP[3] * x + VP[7] * y + VP[11] * z + VP[15];
+    if (cw <= 0.001) return null;
+    return [(cx / cw * 0.5 + 0.5) * w0, (0.5 - cy / cw * 0.5) * h0];
+  }
+
+  function updateLabels() {
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    state.labels.forEach(function (l, i) {
+      var el = labelEls[i];
+      if (!el) return;
+      var s = project(l.p, w, h);
+      if (!s) { el.style.opacity = '0'; return; }
+      el.style.opacity = '1';
+      el.style.left = s[0].toFixed(1) + 'px';
+      el.style.top = s[1].toFixed(1) + 'px';
+    });
+  }
+
+  function frameLoop() {
+    if (state.auto) {
+      state.yaw += 0.0035;
+      dirty = true;
+    }
+    if (dirty) draw();
+    requestAnimationFrame(frameLoop);
+  }
+
+  /* ---------- 交互 ---------- */
+
+  var pointers = new Map();
+  var pinchStart = 0, pinchDist = 0;
+
+  canvas.addEventListener('pointerdown', function (e) {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      var it = Array.from(pointers.values());
+      pinchStart = Math.hypot(it[0].x - it[1].x, it[0].y - it[1].y);
+      pinchDist = state.dist;
+    }
+    canvas.classList.add('is-dragging');
+  });
+
+  canvas.addEventListener('pointermove', function (e) {
+    var prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    var dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    prev.x = e.clientX; prev.y = e.clientY;
+    if (pointers.size >= 2) {
+      var it = Array.from(pointers.values());
+      var d = Math.hypot(it[0].x - it[1].x, it[0].y - it[1].y);
+      if (pinchStart > 0) {
+        state.dist = Math.min(8, Math.max(1.2, pinchDist * pinchStart / Math.max(1, d)));
+        requestRender();
+      }
+      return;
+    }
+    state.yaw -= dx * 0.009;
+    state.pitch = Math.max(-1.45, Math.min(1.45, state.pitch + dy * 0.009));
+    requestRender();
+  });
+
+  function release(e) {
+    pointers.delete(e.pointerId);
+    if (!pointers.size) canvas.classList.remove('is-dragging');
+    pinchStart = 0;
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    state.dist = Math.min(8, Math.max(1.2, state.dist * Math.exp(e.deltaY * 0.0012)));
+    requestRender();
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', function () { resetView(); });
+
+  function resetView() {
+    state.yaw = 0.95;
+    state.pitch = 0.30;
+    state.dist = 3.0;
+    requestRender();
+  }
+
+  /* ---------- 控件 ---------- */
+
+  function bind(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener(ev, fn);
+    return el;
+  }
+
+  var primarySel = bind('vol-space', 'change', function (e) {
+    state.primary = e.target.value;
+    rebuild();
+  });
+
+  var refSel = bind('vol-ref', 'change', function (e) {
+    state.ref = e.target.value;
+    rebuild();
+  });
+
+  bind('vol-coord', 'change', function (e) {
+    state.coord = e.target.value;
+    rebuild();
+  });
+
+  bind('vol-neutral', 'change', function (e) {
+    state.neutral = e.target.checked;
+    rebuild();
+  });
+
+  bind('vol-grid', 'change', function (e) {
+    state.grid = e.target.checked;
+    rebuild();
+  });
+
+  bind('vol-auto', 'change', function (e) {
+    state.auto = e.target.checked;
+    requestRender();
+  });
+
+  bind('vol-reset', 'click', function (e) { e.preventDefault(); resetView(); });
+
+  window.addEventListener('resize', resize);
+
+  /* ---------- 启动 ---------- */
+
+  // 默认值来自页面
+  if (primarySel) { primarySel.value = state.primary; }
+  if (refSel) { refSel.value = state.ref; }
+
+  try {
+    resize();
+    rebuild();
+    frameLoop();
+  } catch (err) {
+    if (fallback) {
+      fallback.hidden = false;
+      fallback.textContent = (UI.error || 'WebGL 初始化失败') + '：' + (err && err.message ? err.message : err);
+    }
+    throw err;
+  }
+})();

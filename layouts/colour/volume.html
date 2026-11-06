@@ -1,0 +1,84 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $vol := resources.Get "css/colour-volume.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $vol.RelPermalink }}" integrity="{{ $vol.Data.Integrity }}">
+{{ $js := resources.Get "js/colour-volume.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- Title rendered below. -->{{ end }}
+{{ define "section_content" }}
+{{ $t := index hugo.Data.i18n "zh" }}
+{{ $slugs := slice "srgb" "p3-d65" "rec2020" }}
+{{ $spaces := slice }}
+{{ $srgbMatrix := slice }}
+{{ range $slugs }}
+  {{ with site.GetPage (printf "/colour/%s" .) }}
+    {{ $slug := path.Base .File.Dir }}
+    {{ if eq $slug "srgb" }}{{ $srgbMatrix = .Params.matrix }}{{ end }}
+    {{ $spaces = $spaces | append (dict "slug" $slug "title" .Title "matrix" .Params.matrix "white" .Params.whitePoint) }}
+  {{ end }}
+{{ end }}
+<div class="c-page" data-lang="zh">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" false) }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="breadcrumb">
+        <a href="{{ "colour/" | relURL }}">{{ $t.colourTitle }}</a> / {{ .Title }}
+      </nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <script type="application/json" id="volume-data">{{ dict
+        "spaces" $spaces
+        "srgbMatrix" $srgbMatrix
+        "defaultPrimary" "srgb"
+        "defaultRef" "p3-d65"
+        "ui" (dict "error" "WebGL 初始化失败")
+      | jsonify | safeJS }}</script>
+
+      <div class="c-vol" data-volume>
+        <div class="c-vol-controls">
+          <label>主空间
+            <select id="vol-space">
+              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+            </select>
+          </label>
+          <label>坐标
+            <select id="vol-coord">
+              <option value="lab">CIE Lab（D50）</option>
+              <option value="xyz">XYZ</option>
+              <option value="xyy">xyY</option>
+            </select>
+          </label>
+          <label>叠加
+            <select id="vol-ref">
+              <option value="">无</option>
+              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+            </select>
+          </label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> 网格线</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> 中性表面</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-auto"> 自动旋转</label>
+          <button type="button" id="vol-reset" class="c-vol-btn">复位</button>
+        </div>
+
+        <div class="c-vol-stage">
+          <canvas aria-label="{{ .Title }}"></canvas>
+          <div class="c-vol-labels" aria-hidden="true"></div>
+          <p class="c-vol-fallback" hidden>此浏览器不支持 WebGL，无法显示三维视图。</p>
+        </div>
+
+        <p class="c-vol-cap">拖动旋转 · 滚轮或双指缩放 · 双击复位</p>
+
+        <div class="c-vol-note">
+          <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，叠加体使用与主空间相同的中心和尺度，所以形状大小可以横向比较。</p>
+          <p><strong>它不是什么：</strong>相机与工作空间的色体是“约定的 RGB 单位立方体”，不代表传感器能记录的亮度范围；显示亮度色体与 ICC 配置文件色域需要另外的亮度和测量条件，本页没有做。</p>
+          <p><strong>Lab 的条件：</strong>先用 Bradford 从各空间自己的白点（这三个空间都是 D65）适应到 D50，再用 CIE Lab 计算，保证叠加时可以比较。</p>
+          <p><strong>颜色：</strong>表面颜色只是屏幕示意——超出 sRGB 的部分已裁掉，想看真实形状请勾选「中性表面」。</p>
+          <p><strong>已知限制：</strong>xyY 中黑点 (0,0,0) 的色度未定义，那里不会生成面；试验页面，尚未做截面与拾取。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "zh";</script>
+</div>
+{{ end }}
