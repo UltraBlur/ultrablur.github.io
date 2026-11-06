@@ -119,6 +119,13 @@
       return [xyz[0], xyz[1], xyz[2]];
     }
     if (!out) return null;
+    if (state.yaxis !== 'auto') {
+      var yv = xyz[1];
+      if (state.yaxis === 'lab') yv = labFromXYZ(xyz, W)[0];
+      else if (state.yaxis === 'srgb') yv = MODELS.encodeSrgb(xyz[1]);
+      else if (state.yaxis === 'pq') yv = MODELS.encodePq(xyz[1], LUM);
+      out[1] = yv;
+    }
     for (var i = 0; i < 3; i++) if (!isFinite(out[i])) return null;
     return out;
   }
@@ -339,6 +346,8 @@
     if (state.norm) { lo[1] = 0; hi[1] = 1; }
     else lo[1] = Math.min(0, lo[1]);
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
+    var YNAME = { y: 'Y', lab: 'L*', srgb: 'sRGB', pq: 'PQ' };
+    if (state.yaxis !== 'auto') names = [names[0], YNAME[state.yaxis] || 'Y', names[2]];
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
     function seg(a, b) { pos.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
@@ -452,6 +461,7 @@
     grid: true,
     norm: true,
     vt: 'linear',
+    yaxis: 'auto',
     cull: false,
     yaw: 0.72,
     pitch: 0.34,
@@ -910,6 +920,11 @@
   bind('vol-coord', 'change', function (e) {
     state.coord = e.target.value;
     updateCondVisibility();
+    rebuild();
+  });
+
+  bind('vol-yaxis', 'change', function (e) {
+    state.yaxis = e.target.value;
     rebuild();
   });
 

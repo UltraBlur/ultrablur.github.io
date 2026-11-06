@@ -67,6 +67,15 @@
               <option value="jzazbz">JzAzBz</option>
             </select>
           </label>
+          <label>{{ cond $en "Vertical" "纵轴" }}
+            <select id="vol-yaxis">
+              <option value="auto" selected>{{ cond $en "From coordinates" "跟随坐标" }}</option>
+              <option value="y">Y</option>
+              <option value="lab">L*</option>
+              <option value="srgb">sRGB</option>
+              <option value="pq">PQ</option>
+            </select>
+          </label>
           <label data-vol-vt hidden>{{ cond $en "Vertical axis" "纵轴变换" }}
             <select id="vol-vt">
               <option value="linear" selected>{{ cond $en "Linear luminance" "线性亮度" }}</option>
