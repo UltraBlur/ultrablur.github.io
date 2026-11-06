@@ -76,6 +76,7 @@
     dark: { F: 0.8, c: 0.525, Nc: 0.8, Fs: 0.525 }
   };
   var COND = { surround: 'average', bg: 0.2, laFactor: 0.2 };
+  var ZQ = 'Jz';
 
   function camOpts(Lw) {
     var s = SURROUNDS[COND.surround] || SURROUNDS.average;
@@ -106,7 +107,8 @@
         camOpts(LUM)
       );
     } else if (coord === 'zcam') {
-      out = MODELS.zcam(xyz, W, LUM, { Fs: (SURROUNDS[COND.surround] || SURROUNDS.average).Fs, La: LUM * COND.laFactor, YbRel: COND.bg });
+      var z = MODELS.zcam(xyz, W, LUM, { Fs: (SURROUNDS[COND.surround] || SURROUNDS.average).Fs, La: LUM * COND.laFactor, YbRel: COND.bg });
+      out = [z.az, z[ZQ], z.bz];
     } else {
       return [xyz[0], xyz[1], xyz[2]];
     }
@@ -327,6 +329,7 @@
       hi.push(bbox[1][k] + span * pad);
     }
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
+    if (coord === 'zcam') names = ['az', ZQ, 'bz'];
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
     function seg(a, b) { pos.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
@@ -436,6 +439,8 @@
     neutral: false,
     grid: true,
     cull: false,
+    cutOn: false,
+    cutFrac: 0.5,
     yaw: 0.72,
     pitch: 0.34,
     dist: 4.2,
@@ -465,33 +470,38 @@
 
   var solidProg = program(
     'attribute vec3 aPos; attribute vec3 aNor; attribute vec3 aCol;' +
-    'uniform mat4 uVP; varying vec3 vNor; varying vec3 vCol;' +
-    'void main(){ vNor = aNor; vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }',
-    'precision mediump float; varying vec3 vNor; varying vec3 vCol;' +
-    'void main(){ vec3 n = normalize(vNor);' +
+    'uniform mat4 uVP; varying vec3 vNor; varying vec3 vCol; varying float vY;' +
+    'void main(){ vNor = aNor; vCol = aCol; vY = aPos.y; gl_Position = uVP * vec4(aPos, 1.0); }',
+    'precision mediump float; varying vec3 vNor; varying vec3 vCol; varying float vY;' +
+    'uniform float uCut;' +
+    'void main(){ if (vY > uCut) discard; vec3 n = normalize(vNor);' +
     'float d = abs(dot(n, normalize(vec3(0.42, 0.78, 0.46))));' +
-    'gl_FragColor = vec4(vCol * (0.74 + 0.26 * d), 1.0); }'
+    'vec3 c = vCol * (0.74 + 0.26 * d);' +
+    'if (!gl_FrontFacing) c = vec3(0.93, 0.93, 0.92);' +
+    'gl_FragColor = vec4(c, 1.0); }'
   );
 
   var lineProg = program(
     'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP; uniform float uBias;' +
-    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0);' +
+    'varying vec4 vCol; varying float vY; void main(){ vCol = vec4(aCol, 1.0); vY = aPos.y;' +
     'gl_Position = uVP * vec4(aPos, 1.0); gl_Position.z -= uBias * gl_Position.w; }',
-    'precision mediump float; varying vec4 vCol;' +
-    'void main(){ gl_FragColor = vCol; }'
+    'precision mediump float; varying vec4 vCol; varying float vY; uniform float uCutLine;' +
+    'void main(){ if (vY > uCutLine) discard; gl_FragColor = vCol; }'
   );
 
   var solidLoc = {
     pos: gl.getAttribLocation(solidProg, 'aPos'),
     nor: gl.getAttribLocation(solidProg, 'aNor'),
     col: gl.getAttribLocation(solidProg, 'aCol'),
-    vp: gl.getUniformLocation(solidProg, 'uVP')
+    vp: gl.getUniformLocation(solidProg, 'uVP'),
+    cut: gl.getUniformLocation(solidProg, 'uCut')
   };
   var lineLoc = {
     pos: gl.getAttribLocation(lineProg, 'aPos'),
     col: gl.getAttribLocation(lineProg, 'aCol'),
     vp: gl.getUniformLocation(lineProg, 'uVP'),
-    bias: gl.getUniformLocation(lineProg, 'uBias')
+    bias: gl.getUniformLocation(lineProg, 'uBias'),
+    cut: gl.getUniformLocation(lineProg, 'uCutLine')
   };
 
   var buffers = { solid: {}, ref: {}, axes: {} };
@@ -600,7 +610,10 @@
       el.className = 'c-vol-label' + (l && l.cls ? ' ' + l.cls : '');
     });
 
+    state.mesh = mesh;
     state.frame = frame;
+    state.bbox = mesh.bbox;
+    updateCut();
     if (/voldebug/.test(location.search)) {
       var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
       for (var bi = 0; bi < mesh.pos.length; bi += 3) {
@@ -628,6 +641,50 @@
         }
       };
     }
+    requestRender();
+  }
+
+  /* ---------- 截面 ---------- */
+
+  function cutLevel() {
+    var bb = state.bbox;
+    if (!bb) return Infinity;
+    var lo = bb[0][1], hi = bb[1][1];
+    return lo + (hi - lo) * state.cutFrac;
+  }
+
+  function updateCut() {
+    if (!state.mesh || !state.frame) return;
+    if (!state.cutOn) {
+      state.cutY = Infinity;
+      if (buffers.cut) buffers.cut.count = 0;
+      requestRender();
+      return;
+    }
+    var level = cutLevel();
+    state.cutY = (level - state.frame.center[1]) * state.frame.scale;
+
+    var pos = state.mesh.pos, idx = state.mesh.idx;
+    var segs = [];
+    for (var i = 0; i < idx.length; i += 3) {
+      var a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
+      var ya = pos[a + 1], yb = pos[b + 1], yc = pos[c + 1];
+      var pts = [];
+      var tri = [[a, b, ya, yb], [b, c, yb, yc], [c, a, yc, ya]];
+      for (var k = 0; k < 3; k++) {
+        var p = tri[k][0], q = tri[k][1], dp = tri[k][2], dq = tri[k][3];
+        if ((dp > state.cutY) !== (dq > state.cutY)) {
+          var t = (state.cutY - dp) / (dq - dp);
+          pts.push([
+            pos[p] + (pos[q] - pos[p]) * t,
+            state.cutY,
+            pos[p + 2] + (pos[q + 2] - pos[p + 2]) * t
+          ]);
+        }
+      }
+      if (pts.length === 2) { segs.push(pts[0][0], pts[0][1], pts[0][2], pts[1][0], pts[1][1], pts[1][2]); }
+    }
+    uploadLines('cut', new Float32Array(segs), [0.15, 0.15, 0.17, 0.95]);
     requestRender();
   }
 
@@ -675,6 +732,7 @@
     if (b && b.count) {
       gl.useProgram(solidProg);
       gl.uniformMatrix4fv(solidLoc.vp, false, VP);
+      gl.uniform1f(solidLoc.cut, state.cutY === undefined ? Infinity : state.cutY);
       gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
       gl.enableVertexAttribArray(solidLoc.pos);
       gl.vertexAttribPointer(solidLoc.pos, 3, gl.FLOAT, false, 0, 0);
@@ -695,6 +753,7 @@
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     drawLines('grid');
     drawLines('axes');
+    drawLines('cut');
     gl.disable(gl.BLEND);
 
     updateLabels(proj, view);
@@ -707,6 +766,7 @@
     gl.useProgram(lineProg);
     gl.uniformMatrix4fv(lineLoc.vp, false, VP);
     gl.uniform1f(lineLoc.bias, key === 'grid' ? 0.0009 : 0);
+    gl.uniform1f(lineLoc.cut, key === 'grid' ? (state.cutY === undefined ? Infinity : state.cutY) : Infinity);
     gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
     gl.enableVertexAttribArray(lineLoc.pos);
     gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
@@ -844,11 +904,44 @@
     rebuild();
   });
 
+  bind('vol-zq', 'change', function (e) {
+    ZQ = e.target.value;
+    rebuild();
+  });
+
+  var cutBox = document.getElementById('vol-cut');
+  var cutRange = document.getElementById('vol-cut-level');
+  var cutOut = document.getElementById('vol-cut-val');
+
+  function readCut() {
+    if (!cutRange || !cutBox) return;
+    state.cutOn = cutBox.checked;
+    state.cutFrac = parseFloat(cutRange.value) / 100;
+    updateCut();
+    if (cutOut) {
+      if (!state.cutOn) cutOut.textContent = '关';
+      else {
+        var bb = state.bbox;
+        var v = bb ? bb[0][1] + (bb[1][1] - bb[0][1]) * state.cutFrac : 0;
+        cutOut.textContent = (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2));
+      }
+    }
+  }
+
+  if (cutBox) cutBox.addEventListener('change', readCut);
+  if (cutRange) cutRange.addEventListener('input', readCut);
+
+  var zqBox = document.querySelector('[data-vol-zq]');
+  function updateZcamVisibility() {
+    if (zqBox) zqBox.hidden = state.coord !== 'zcam';
+  }
+
   var condBox = document.querySelector('[data-vol-cond]');
   function updateCondVisibility() {
     if (!condBox) return;
     var needs = state.coord === 'cam02' || state.coord === 'zcam';
     condBox.hidden = !needs;
+    updateZcamVisibility();
   }
 
   bind('vol-neutral', 'change', function (e) {
@@ -876,6 +969,7 @@
   if (primarySel) { primarySel.value = state.primary; }
 
   updateCondVisibility();
+  readCut();
 
   try {
     resize();

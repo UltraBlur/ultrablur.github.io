@@ -250,7 +250,14 @@
     var Cz = 100 * Mz / Qzw;
 
     var rad = hz * Math.PI / 180;
-    return [Cz * Math.cos(rad), Jz, Cz * Math.sin(rad)]; // [az, Jz, bz]
+    var Vz = Math.sqrt(Math.pow(Jz - 58, 2) + 3.4 * Cz * Cz);
+    var Kz = 100 - 0.8 * Math.sqrt(Jz * Jz + 8 * Cz * Cz);
+    var Wz = 100 - Math.sqrt(Math.pow(100 - Jz, 2) + Cz * Cz);
+    var Sz = 100 * Math.pow(FL, 0.6) * Math.sqrt(Qz > 0 ? Mz / Qz : 0);
+    return {
+      az: Cz * Math.cos(rad), Jz: Jz, bz: Cz * Math.sin(rad),
+      Cz: Cz, Vz: Vz, Kz: Kz, Wz: Wz, Mz: Mz, Sz: Sz, hz: hz
+    };
   }
 
   root.ColourModels = {
