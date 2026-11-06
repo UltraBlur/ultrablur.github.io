@@ -592,6 +592,8 @@
     var tip = fig.querySelector('.c-tip');
     var pts = data.curve;
     var M = { l: 62, b: 52, t: 16, r: 18 };
+    var valid = [];
+    var maxStop = 0;
     var X0 = pts[0][0], X1 = pts[pts.length - 1][0], Y0 = 0, Y1 = 1;
     var geo = null;
 
@@ -627,10 +629,36 @@
       }));
       svg.appendChild(ref);
 
+      /* 曲线裁到编码值 1.0：超过 1.0 的部分不画，交互也停在这一点 */
       var d = '';
+      valid = [];
+      maxStop = X1;
       for (i = 0; i < pts.length; i++) {
-        if (pts[i][1] > Y1 + 0.01) break;
-        d += (d ? 'L' : 'M') + sx(pts[i][0]).toFixed(1) + ',' + sy(pts[i][1]).toFixed(1);
+        if (pts[i][1] > Y1) {
+          var a = valid.length ? valid[valid.length - 1] : pts[i - 1];
+          if (a && pts[i][1] > a[1]) {
+            /* 用相邻三点做二次插值，求出编码正好等于 1.0 的档位 */
+            var p0 = pts[i - 2] || a, p1 = a, p2 = pts[i];
+            var lo = p1[0], hi = p2[0], mid;
+            for (var k = 0; k < 40; k++) {
+              mid = (lo + hi) / 2;
+              var w0 = (mid - p1[0]) * (mid - p2[0]) / ((p0[0] - p1[0]) * (p0[0] - p2[0]));
+              var w1 = (mid - p0[0]) * (mid - p2[0]) / ((p1[0] - p0[0]) * (p1[0] - p2[0]));
+              var w2 = (mid - p0[0]) * (mid - p1[0]) / ((p2[0] - p0[0]) * (p2[0] - p1[0]));
+              var e = w0 * p0[1] + w1 * p1[1] + w2 * p2[1];
+              if (e > Y1) hi = mid; else lo = mid;
+            }
+            maxStop = (lo + hi) / 2;
+          }
+          break;
+        }
+        valid.push(pts[i]);
+      }
+      for (i = 0; i < valid.length; i++) {
+        d += (d ? 'L' : 'M') + sx(valid[i][0]).toFixed(1) + ',' + sy(valid[i][1]).toFixed(1);
+      }
+      if (maxStop < X1) {
+        d += 'L' + sx(maxStop).toFixed(1) + ',' + sy(Y1).toFixed(1);
       }
       if (d) svg.appendChild(svgEl('path', { d: d, 'class': 'c-curve' }));
 
@@ -654,13 +682,13 @@
       }));
 
       var lx = svgEl('text', { x: sx(X0) + plotW / 2, y: H - 6, 'text-anchor': 'middle', 'class': 'c-axtitle' });
-      lx.textContent = '相对 18% 灰的档位（stops）';
+      lx.textContent = UI.xStops;
       svg.appendChild(lx);
       var ly = svgEl('text', {
         x: 17, y: sy(Y0) - plotH / 2, 'text-anchor': 'middle', 'class': 'c-axtitle',
         transform: 'rotate(-90 17 ' + (sy(Y0) - plotH / 2) + ')'
       });
-      ly.textContent = '编码值（0–1）';
+      ly.textContent = UI.xEncoded;
       svg.appendChild(ly);
 
       var cross = svgEl('g', { 'class': 'c-cross', opacity: '0' });
@@ -681,10 +709,13 @@
       var px = ev.clientX - box.left, py = ev.clientY - box.top;
       if (px < M.l || px > M.l + geo.plotW || py < M.t || py > M.t + geo.plotH) { hide(); return; }
       var stop = X0 + (px - M.l) / geo.plotW * (X1 - X0);
-      var best = pts[0], i;
-      for (i = 1; i < pts.length; i++) {
-        if (Math.abs(pts[i][0] - stop) < Math.abs(best[0] - stop)) best = pts[i];
+      if (!valid.length) { hide(); return; }
+      if (stop > maxStop) stop = maxStop;
+      var best = valid[0], i;
+      for (i = 1; i < valid.length; i++) {
+        if (Math.abs(valid[i][0] - stop) < Math.abs(best[0] - stop)) best = valid[i];
       }
+      if (maxStop < X1 && stop >= maxStop - 1e-6) best = [maxStop, Y1];
       var cx = geo.sx(best[0]), cy = geo.sy(best[1]);
       geo.cross.setAttribute('opacity', '1');
       geo.cross.children[0].setAttribute('x1', cx);
