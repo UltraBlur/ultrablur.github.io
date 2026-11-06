@@ -114,6 +114,22 @@
     return [iz[1], jz, iz[2]]; // [az, Jz, bz]
   }
 
+  /* ---------- 显示编码（逆 EOTF，把亮度映射成码值） ---------- */
+
+  function encodeSrgb(v) {
+    if (!(v > 0)) return 0;
+    return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  }
+
+  function encodeGamma(v, g) {
+    return v > 0 ? Math.pow(v, 1 / g) : 0;
+  }
+
+  /* PQ：先用参考白亮度把相对亮度换算成绝对亮度 */
+  function encodePq(v, Lw) {
+    return pq((v * Lw) / 10000);
+  }
+
   /* ---------- Oklab ---------- */
 
   var OK_M1 = [0.8189330101, 0.3618667424, -0.1288597137,
@@ -213,6 +229,9 @@
 
   root.ColourModels = {
     pq: pq,
+    encodeSrgb: encodeSrgb,
+    encodeGamma: encodeGamma,
+    encodePq: encodePq,
     ictcp: ictcp,
     jzazbz: jzazbz,
     oklab: oklab,

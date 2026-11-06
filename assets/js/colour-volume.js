@@ -82,14 +82,24 @@
     return { La: Lw * COND.laFactor, Yb: Lw * COND.bg, F: s.F, c: s.c, Nc: s.Nc };
   }
 
+  /* 纵轴变换：把亮度换成码值（逆 EOTF），只对 XYZ / xyY 有意义 */
+  function applyVt(v) {
+    if (state.vt === 'linear' || !(v > 0)) return v;
+    if (state.vt === 'srgb') return MODELS.encodeSrgb(v);
+    if (state.vt === 'g22') return MODELS.encodeGamma(v, 2.2);
+    if (state.vt === 'g24') return MODELS.encodeGamma(v, 2.4);
+    if (state.vt === 'pq') return MODELS.encodePq(v, LUM);
+    return v;
+  }
+
   /* 返回显示坐标 [水平, 竖直, 深度]，无效点返回 null */
   function toDisplay(coord, xyz, W) {
     var out;
-    if (coord === 'xyz') return [xyz[0], xyz[1], xyz[2]];
+    if (coord === 'xyz') return [xyz[0], applyVt(xyz[1]), xyz[2]];
     if (coord === 'xyy') {
       var s = xyz[0] + xyz[1] + xyz[2];
       if (!(s > 1e-9)) return null; // Y = 0 处色度未定义
-      return [xyz[0] / s, xyz[1], xyz[2] / s];
+      return [xyz[0] / s, applyVt(xyz[1]), xyz[2] / s];
     }
     if (coord === 'lab') {
       var lab = labFromXYZ(xyz, W);
@@ -440,6 +450,7 @@
     neutral: false,
     grid: true,
     norm: true,
+    vt: 'linear',
     cull: false,
     yaw: 0.72,
     pitch: 0.34,
@@ -901,6 +912,11 @@
     rebuild();
   });
 
+  bind('vol-vt', 'change', function (e) {
+    state.vt = e.target.value;
+    rebuild();
+  });
+
   bind('vol-norm', 'change', function (e) {
     state.norm = e.target.checked;
     rebuild();
@@ -930,6 +946,8 @@
   function updateCondVisibility() {
     if (condBox) condBox.hidden = state.coord !== 'cam02';
     // 白点亮度只对建立在绝对亮度上的坐标有意义
+    var vtBox = document.querySelector('[data-vol-vt]');
+    if (vtBox) vtBox.hidden = !(state.coord === 'xyz' || state.coord === 'xyy');
     var lumBox = document.querySelector('[data-vol-lum]');
     if (lumBox) {
       var abs = state.coord === 'ictcp' || state.coord === 'jzazbz' || state.coord === 'cam02';

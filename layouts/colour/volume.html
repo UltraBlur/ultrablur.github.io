@@ -13,8 +13,13 @@
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
 {{ $t := index hugo.Data.i18n $lang }}
-{{ $slugs := slice "srgb" "p3-d65" "rec2020" }}
 {{ $spaces := slice }}
+{{ $slugs := slice }}
+{{ range hugo.Data.colourspaces }}
+  {{ if eq .label "Display Referred" }}
+    {{ range .items }}{{ $slugs = $slugs | append .slug }}{{ end }}
+  {{ end }}
+{{ end }}
 {{ $srgbMatrix := slice }}
 {{ range $slugs }}
   {{ with site.GetPage (printf "/colour/%s" .) }}
@@ -66,6 +71,15 @@
                 <option value="ictcp">ICtCp (PQ)</option>
                 <option value="jzazbz">JzAzBz</option>
               </optgroup>
+            </select>
+          </label>
+          <label data-vol-vt hidden>{{ cond $en "Vertical axis" "纵轴变换" }}
+            <select id="vol-vt">
+              <option value="linear" selected>{{ cond $en "Linear luminance" "线性亮度" }}</option>
+              <option value="srgb">sRGB (piecewise)</option>
+              <option value="g22">Gamma 2.2</option>
+              <option value="g24">Gamma 2.4</option>
+              <option value="pq">PQ (ST 2084)</option>
             </select>
           </label>
           <label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
