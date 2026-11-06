@@ -3,6 +3,8 @@
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
 {{ $vol := resources.Get "css/colour-volume.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $vol.RelPermalink }}" integrity="{{ $vol.Data.Integrity }}">
+{{ $models := resources.Get "js/colour-models.js" | minify | fingerprint }}
+<script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
 {{ $js := resources.Get "js/colour-volume.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
 {{ end }}
@@ -43,9 +45,29 @@
           </label>
           <label>坐标
             <select id="vol-coord">
-              <option value="lab">CIE Lab（D65）</option>
-              <option value="xyz">XYZ</option>
-              <option value="xyy">xyY</option>
+              <optgroup label="色度 / 明度">
+                <option value="xyz">XYZ</option>
+                <option value="xyy">xyY</option>
+                <option value="lab" selected>CIE Lab（D65）</option>
+                <option value="luv">CIE Luv（D65）</option>
+              </optgroup>
+              <optgroup label="感知均匀（SDR）">
+                <option value="oklab">Oklab</option>
+                <option value="cam02">CAM02-UCS</option>
+              </optgroup>
+              <optgroup label="HDR / 外观模型">
+                <option value="ictcp">ICtCp（PQ）</option>
+                <option value="jzazbz">JzAzBz</option>
+                <option value="zcam">ZCAM</option>
+              </optgroup>
+            </select>
+          </label>
+          <label>白点亮度
+            <select id="vol-lum">
+              <option value="48">48 cd/m²</option>
+              <option value="100" selected>100 cd/m²</option>
+              <option value="203">203 cd/m²</option>
+              <option value="1000">1000 cd/m²</option>
             </select>
           </label>
           <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> 网格线</label>

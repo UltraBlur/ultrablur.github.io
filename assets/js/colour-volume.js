@@ -3,7 +3,7 @@
  * 把归一化线性 RGB 立方体 [0,1]³ 映射到 XYZ / xyY / Lab，用 WebGL 绘制。
  * 零依赖：矩阵、网格、相机、交互都写在这里。
  */
-(function () {
+(function (root) {
   'use strict';
 
   var host = document.querySelector('[data-volume]');
@@ -64,18 +64,46 @@
     return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])]; // [L*, a*, b*]
   }
 
+  var MODELS = root.ColourModels || {};
+
+  /* 参考白亮度（cd/m²），只有 HDR / 外观模型用得到 */
+  var LUM = 100;
+
+  function camOpts(Lw) {
+    return { La: Lw * 0.2, Yb: Lw * 0.2, F: 1.0, c: 0.69, Nc: 1.0 };
+  }
+
   /* 返回显示坐标 [水平, 竖直, 深度]，无效点返回 null */
   function toDisplay(coord, xyz, W) {
-    if (coord === 'xyz') {
-      return [xyz[0], xyz[1], xyz[2]];
-    }
+    var out;
+    if (coord === 'xyz') return [xyz[0], xyz[1], xyz[2]];
     if (coord === 'xyy') {
       var s = xyz[0] + xyz[1] + xyz[2];
       if (!(s > 1e-9)) return null; // Y = 0 处色度未定义
       return [xyz[0] / s, xyz[1], xyz[2] / s];
     }
-    var lab = labFromXYZ(xyz, W);
-    return [lab[1], lab[0], lab[2]]; // [a*, L*, b*]，L* 竖直
+    if (coord === 'lab') {
+      var lab = labFromXYZ(xyz, W);
+      return [lab[1], lab[0], lab[2]]; // [a*, L*, b*]
+    }
+    if (coord === 'luv') out = MODELS.luv(xyz, W);
+    else if (coord === 'oklab') out = MODELS.oklab(xyz);
+    else if (coord === 'ictcp') out = MODELS.ictcp(xyz, LUM);
+    else if (coord === 'jzazbz') out = MODELS.jzazbz(xyz, LUM);
+    else if (coord === 'cam02') {
+      out = MODELS.cam02ucs(
+        [xyz[0] * LUM, xyz[1] * LUM, xyz[2] * LUM],
+        [W[0] * LUM, W[1] * LUM, W[2] * LUM],
+        camOpts(LUM)
+      );
+    } else if (coord === 'zcam') {
+      out = MODELS.zcam(xyz, W, LUM, { Fs: 0.69, La: LUM * 0.2, YbRel: 0.2 });
+    } else {
+      return [xyz[0], xyz[1], xyz[2]];
+    }
+    if (!out) return null;
+    for (var i = 0; i < 3; i++) if (!isFinite(out[i])) return null;
+    return out;
   }
 
   /* ---------- 线性 RGB → 预览用 sRGB ---------- */
@@ -268,7 +296,17 @@
     return mult * mag;
   }
 
-  var AXIS_NAMES = { lab: ['a*', 'L*', 'b*'], xyz: ['X', 'Y', 'Z'], xyy: ['x', 'Y', 'y'] };
+  var AXIS_NAMES = {
+    lab: ['a*', 'L*', 'b*'],
+    luv: ['u*', 'L*', 'v*'],
+    oklab: ['a', 'L', 'b'],
+    xyz: ['X', 'Y', 'Z'],
+    xyy: ['x', 'Y', 'y'],
+    ictcp: ['Ct', 'I', 'Cp'],
+    jzazbz: ['az', 'Jz', 'bz'],
+    cam02: ["a'", "J'", "b'"],
+    zcam: ['az', 'Jz', 'bz']
+  };
 
   /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
   function buildAxes(coord, bbox) {
@@ -283,11 +321,9 @@
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
     function seg(a, b) { pos.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
-    function fmt(v) {
-      var a = Math.abs(v);
-      if (a >= 10) return String(Math.round(v));
-      if (a >= 1) return String(Math.round(v * 10) / 10);
-      return String(Math.round(v * 100) / 100);
+    function fmt(v, step) {
+      var digits = step >= 0.5 ? 0 : step >= 0.05 ? 1 : step >= 0.005 ? 2 : 3;
+      return v.toFixed(digits).replace(/\.0+$/, '');
     }
 
     // 地面网格（y = 0，即 L*=0 / Y=0 平面）
@@ -317,12 +353,12 @@
         var tip = base.slice();
         tip[ax.tickAxis] -= tick;
         seg(base, tip);
-        labels.push({ t: fmt(v), p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
+        labels.push({ t: fmt(v, step), p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
       }
 
       var nameP = ax.at.slice();
       nameP[ax.i] = ax.to + (ax.to - ax.from) * 0.04;
-      labels.push({ t: names[idx], p: nameP, cls: 'is-axis-name', dx: ax.dx * 1.6, dy: ax.dy * 1.6 });
+      labels.push({ t: names[idx], p: nameP, cls: 'is-axis-name', dx: ax.dx * 2.2, dy: ax.dy * 1.5 });
     });
 
     return { pos: new Float32Array(pos), labels: labels };
@@ -778,6 +814,11 @@
     rebuild();
   });
 
+  bind('vol-lum', 'change', function (e) {
+    LUM = parseFloat(e.target.value) || 100;
+    rebuild();
+  });
+
   bind('vol-neutral', 'change', function (e) {
     state.neutral = e.target.checked;
     rebuild();
@@ -813,4 +854,4 @@
     }
     throw err;
   }
-})();
+})(typeof window !== 'undefined' ? window : globalThis);
