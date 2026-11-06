@@ -13,7 +13,6 @@
   var cfg;
   try { cfg = JSON.parse(cfgEl.textContent); } catch (e) { return; }
   var UI = cfg.ui || {};
-  var D50 = [0.3457, 0.3585];
 
   /* ---------- 3×3 矩阵（行主序） ---------- */
 
@@ -48,33 +47,17 @@
     ];
   }
 
-  /* ---------- 白点与色适应 ---------- */
+  /* ---------- 白点 ---------- */
 
   function whiteXYZ(xy) {
     var x = xy[0], y = xy[1];
     return [x / y, 1, (1 - x - y) / y];
   }
 
-  var BF = [
-    0.8951, 0.2664, -0.1614,
-    -0.7502, 1.7135, 0.0367,
-    0.0389, -0.0685, 1.0296
-  ];
-  var BF_INV = invert3(BF);
-
-  function adaptMatrix(srcXY, dstXY) {
-    var s = mulVec3(BF, whiteXYZ(srcXY));
-    var d = mulVec3(BF, whiteXYZ(dstXY));
-    var D = [d[0] / s[0], 0, 0, 0, d[1] / s[1], 0, 0, 0, d[2] / s[2]];
-    return mul3(BF_INV, mul3(D, BF));
-  }
-
-  var D50_XYZ = whiteXYZ(D50);
-
   /* ---------- 坐标变换 ---------- */
 
-  function labFromXYZ(xyz) {
-    var t = [xyz[0] / D50_XYZ[0], xyz[1] / D50_XYZ[1], xyz[2] / D50_XYZ[2]];
+  function labFromXYZ(xyz, W) {
+    var t = [xyz[0] / W[0], xyz[1] / W[1], xyz[2] / W[2]];
     var e = 216 / 24389; // (6/29)^3
     var k = 24389 / 27;
     var f = t.map(function (v) { return v > e ? Math.cbrt(v) : (k * v + 16) / 116; });
@@ -82,7 +65,7 @@
   }
 
   /* 返回显示坐标 [水平, 竖直, 深度]，无效点返回 null */
-  function toDisplay(coord, xyz) {
+  function toDisplay(coord, xyz, W) {
     if (coord === 'xyz') {
       return [xyz[0], xyz[1], xyz[2]];
     }
@@ -91,7 +74,7 @@
       if (!(s > 1e-9)) return null; // Y = 0 处色度未定义
       return [xyz[0] / s, xyz[1], xyz[2] / s];
     }
-    var lab = labFromXYZ(xyz);
+    var lab = labFromXYZ(xyz, W);
     return [lab[1], lab[0], lab[2]]; // [a*, L*, b*]，L* 竖直
   }
 
@@ -122,14 +105,13 @@
 
   function makeSpace(entry) {
     var M = flatten3(entry.matrix);    // RGB → XYZ，行 = X,Y,Z
-    var adapt = adaptMatrix(entry.white, D50);
-    var labM = mul3(adapt, M);         // RGB → XYZ(D50)，用于 Lab
+    var W = whiteXYZ(entry.white);     // Lab 参考白：空间自身白点，不做适应
     var inv = invert3(flatten3(cfg.srgbMatrix));
     return {
       slug: entry.slug,
       title: entry.title,
       toXYZ: function (rgb) { return mulVec3(M, rgb); },
-      toLabXYZ: function (rgb) { return mulVec3(labM, rgb); },
+      white: W,
       color: function (rgb) {
         if (!inv) return [0.8, 0.8, 0.8];
         return previewColor(mulVec3(inv, mulVec3(M, rgb)));
@@ -142,8 +124,8 @@
   spaces.forEach(function (s) { spaceBySlug[s.slug] = s; });
 
   function pointFor(space, coord, rgb) {
-    var xyz = coord === 'lab' ? space.toLabXYZ(rgb) : space.toXYZ(rgb);
-    return toDisplay(coord, xyz);
+    var xyz = space.toXYZ(rgb);
+    return toDisplay(coord, xyz, space.white);
   }
 
   /* ---------- 体积网格 ---------- */

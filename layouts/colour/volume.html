@@ -44,7 +44,7 @@
           </label>
           <label>坐标
             <select id="vol-coord">
-              <option value="lab">CIE Lab（D50）</option>
+              <option value="lab">CIE Lab（D65）</option>
               <option value="xyz">XYZ</option>
               <option value="xyy">xyY</option>
             </select>
@@ -72,7 +72,7 @@
         <div class="c-vol-note">
           <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，叠加体使用与主空间相同的中心和尺度，所以形状大小可以横向比较。</p>
           <p><strong>它不是什么：</strong>相机与工作空间的色体是“约定的 RGB 单位立方体”，不代表传感器能记录的亮度范围；显示亮度色体与 ICC 配置文件色域需要另外的亮度和测量条件，本页没有做。</p>
-          <p><strong>Lab 的条件：</strong>先用 Bradford 从各空间自己的白点（这三个空间都是 D65）适应到 D50，再用 CIE Lab 计算，保证叠加时可以比较。</p>
+          <p><strong>Lab 的条件：</strong>Lab 的参考白取各空间自己的白点——这三个空间都是 D65，所以不做任何色适应，和上面的 XYZ、xyY 完全一致。（印刷与 ICC 体系用 D50，那是另一套约定，这里不采用；ACES 的白点约 D60，将来接入时再单独处理。）</p>
           <p><strong>颜色：</strong>表面颜色只是屏幕示意——超出 sRGB 的部分已裁掉，想看真实形状请勾选「中性表面」。</p>
           <p><strong>已知限制：</strong>xyY 中黑点 (0,0,0) 的色度未定义，那里不会生成面；试验页面，尚未做截面与拾取。</p>
         </div>
