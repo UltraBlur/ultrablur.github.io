@@ -76,12 +76,12 @@ body:has(.c-page) { background: #fff; color: #252525; }
 .c-figs .c-fig { margin: 0 auto; }
 .c-fig--eotf { max-width: 560px; }
 .c-eotf-controls { display: flex; flex-wrap: wrap; gap: .5rem 1rem; font-size: .8rem; color: #444; margin-bottom: .6rem; align-items: flex-start; }
-.c-eotf-group { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .85rem; padding: .35rem .6rem; border: 1px solid #e6e6e6; background: #fbfbfb; }
+.c-eotf-group { display: flex; flex-wrap: wrap; align-items: center; gap: .28rem .6rem; padding: .32rem .5rem; border: 1px solid #e6e6e6; background: #fbfbfb; }
 .c-eotf-group label { margin: 0; }
 .c-eotf-group--x.is-off { background: #f5f5f5; }
 .c-eotf-group--x.is-off > label { color: #999; }
 .c-eotf-controls label { display: inline-flex; align-items: center; gap: .35rem; }
-.c-eotf-controls select, .c-eotf-controls input[type=number] { font: inherit; padding: .15rem .3rem; border: 1px solid #ccc; background: #fff; color: #222; }
+.c-eotf-controls select, .c-eotf-controls input[type=number] { font: inherit; padding: .15rem .22rem; border: 1px solid #ccc; background: #fff; color: #222; }
 .c-eotf-controls input[type=number] { width: 5.2em; }
 .c-eotf-controls input:disabled { color: #aaa; background: #f4f4f4; }
 .c-figs .c-fig--eotf { max-width: 560px; }
