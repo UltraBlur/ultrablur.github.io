@@ -57,20 +57,14 @@
           </label>
           <label>{{ cond $en "Coordinates" "坐标" }}
             <select id="vol-coord">
-              <optgroup label="{{ cond $en "Chromaticity / lightness" "色度 / 明度" }}">
-                <option value="xyz">XYZ</option>
-                <option value="xyy">xyY</option>
-                <option value="lab" selected>CIE Lab (D65)</option>
-                <option value="luv">CIE Luv (D65)</option>
-              </optgroup>
-              <optgroup label="{{ cond $en "Perceptually uniform (SDR)" "感知均匀（SDR）" }}">
-                <option value="oklab">Oklab</option>
-                <option value="cam02">CAM02-UCS</option>
-              </optgroup>
-              <optgroup label="{{ cond $en "HDR" "HDR" }}">
-                <option value="ictcp">ICtCp (PQ)</option>
-                <option value="jzazbz">JzAzBz</option>
-              </optgroup>
+              <option value="xyz">XYZ</option>
+              <option value="xyy">xyY</option>
+              <option value="lab" selected>CIE Lab (D65)</option>
+              <option value="luv">CIE Luv (D65)</option>
+              <option value="oklab">Oklab</option>
+              <option value="cam02">CAM02-UCS</option>
+              <option value="ictcp">ICtCp (PQ)</option>
+              <option value="jzazbz">JzAzBz</option>
             </select>
           </label>
           <label data-vol-vt hidden>{{ cond $en "Vertical axis" "纵轴变换" }}
@@ -131,7 +125,6 @@
 
         <p class="c-vol-cap">{{ cond $en "Drag to rotate · scroll or pinch to zoom · double-click to reset" "拖动旋转 · 滚轮或双指缩放 · 双击复位" }}</p>
 
-        <div class="c-vol-note">{{ .Content }}</div>
       </div>
     </div>
   </div>

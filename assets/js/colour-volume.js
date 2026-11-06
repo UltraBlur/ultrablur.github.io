@@ -335,8 +335,9 @@
       lo.push(bbox[0][k] - span * pad);
       hi.push(bbox[1][k] + span * pad);
     }
-    // 竖直轴从 0 起（明度类坐标的零点就是黑）
-    lo[1] = Math.min(0, lo[1]);
+    // 归一化开启时竖直轴固定 0–1
+    if (state.norm) { lo[1] = 0; hi[1] = 1; }
+    else lo[1] = Math.min(0, lo[1]);
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
