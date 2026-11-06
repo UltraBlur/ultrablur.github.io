@@ -1,0 +1,83 @@
+# 色彩空间区块的界面文案（中 / 英）
+# 模板用 index hugo.Data.i18n $lang 取；图表用的字符串由页面以 JSON 注入。
+zh:
+  navTitle: 目录
+  home: 首页
+  colourTitle: 色彩空间
+  pending: 尚未收录
+  camera: 相机
+  film: 胶片
+  aces: ACES
+  working: 工作空间
+  transferHeading: 传递函数
+  rowCurve: 曲线
+  rowPoints: 黑点 / 白点（10-bit 码值）
+  rowE0: 线性 0 → 编码
+  rowE18: 18% 灰 → 编码
+  rowE1: 线性 1.0 → 编码
+  encHeading: 编码：convertFromLinear
+  decHeading: 解码：convertToLinear
+  matrixHeading: RGB → XYZ 矩阵
+  matricesHeading: 矩阵
+  sourcesHeading: 来源
+  figGamut: 图 1：%s — CIE 1931 xy。
+  figCurve1: 图 1：%s 编码曲线，L = 0.18 × 2^stops。
+  figCurve2: 图 2：%s 编码曲线，L = 0.18 × 2^stops。
+  figEotf: 图 2：显示传递函数（EOTF）。横轴可切换归一化码值与按位深/范围换算的量化码值，纵轴为亮度（cd/m²）。原色与传递函数相互独立，可切换对照。
+  labelGamut: "%s，CIE 1931 xy 色度图"
+  labelCurve: "%s 编码曲线，横轴为相对 18% 灰的档位，纵轴为编码值"
+  labelEotf: "%s 显示传递函数：横轴为码值，纵轴为亮度（cd/m²）"
+  tf: 传递函数
+  peakWhite: 满量程白
+  blackLevel: 黑位
+  logAxis: 对数纵轴
+  xAxis: 横轴
+  bits: 位深
+  range: 范围
+  optNorm: 归一化码值
+  optCode: 量化码值
+  optSrgb: sRGB（分段）
+  eiHeading: 曝光指数（EI）
+  hint: 表格可横向滚动。
+  jump: 英文
+
+en:
+  navTitle: Contents
+  home: Home
+  colourTitle: Colour Spaces
+  pending: Not yet documented
+  camera: Cameras
+  film: Film
+  aces: ACES
+  working: Working spaces
+  transferHeading: Transfer function
+  rowCurve: Curve
+  rowPoints: Black / white point (10-bit code values)
+  rowE0: Linear 0 → code
+  rowE18: 18% grey → code
+  rowE1: Linear 1.0 → code
+  encHeading: "Encoding: convertFromLinear"
+  decHeading: "Decoding: convertToLinear"
+  matrixHeading: RGB → XYZ matrix
+  matricesHeading: Matrices
+  sourcesHeading: Sources
+  figGamut: "Fig. 1: %s — CIE 1931 xy."
+  figCurve1: "Fig. 1: %s encoding curve, L = 0.18 × 2^stops."
+  figCurve2: "Fig. 2: %s encoding curve, L = 0.18 × 2^stops."
+  figEotf: "Fig. 2: Display transfer function (EOTF). The horizontal axis can show the normalised code value or a quantised code value derived from bit depth and range; the vertical axis is luminance (cd/m²). Primaries and transfer function are independent and can be compared side by side."
+  labelGamut: "%s, CIE 1931 xy chromaticity diagram"
+  labelCurve: "%s encoding curve, stops relative to 18% grey against encoded value"
+  labelEotf: "%s display transfer function: code value against luminance (cd/m²)"
+  tf: Transfer function
+  peakWhite: Peak white
+  blackLevel: Black level
+  logAxis: Log luminance
+  xAxis: Horizontal axis
+  bits: Bit depth
+  range: Range
+  optNorm: Normalised code
+  optCode: Quantised code
+  optSrgb: sRGB (piecewise)
+  eiHeading: Exposure index (EI)
+  hint: Scroll the table horizontally.
+  jump: 中文

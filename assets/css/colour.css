@@ -7,6 +7,7 @@ body:has(.c-page) { background: #fff; color: #252525; }
 .c-page a { color: #315e80; border-bottom: none; text-decoration: underline; text-underline-offset: 3px; }
 .c-page a:hover { color: #183c58; }
 .c-crumb { color: #666; font-size: .85rem; margin-bottom: 1.8rem; }
+.c-lang { float: right; font-size: .85em; }
 
 /* sidebar */
 .c-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 2.8rem; align-items: start; }

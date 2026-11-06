@@ -240,7 +240,20 @@ EOTF 图的传递函数选项与量化范围：
 
 ---
 
-## 9. 本地工作流
+## 10. 英文版
+
+英文页面放在 `content/en/colour/`，与中文页一一对应，URL 为 `/en/colour/<slug>/`。
+
+- 英文页只写 `title`、`variant = "en"`、`ref = "<slug>"` 和文本字段；**数值（原色、白点、矩阵、`eotfDefault`、`eiTable`）一律从 `ref` 指向的中文页读取**，不复制一份，避免两边漂移。
+- 文本字段（`intro`、`gamutNote`、`whiteNote`、`transferNote`、`sources`）按语言各写一份。
+- 界面文案集中在 `data/i18n.yaml`（`zh` / `en` 两块）；图表内的字符串由页面以 `#colour-ui` JSON 注入给 `colour.js`。
+- 目录页 Display Referred 的备注用 `data/colourspaces.yaml` 里的 `transfer` / `transferEn`。
+- `/en/` 是跳转页（`layouts/en/list.html`），指向 `/en/colour/`。
+- 英文以白皮书与 `.flspace` 的原话为准：primaries、white point、transfer function、reference white、code value、quantisation range。
+
+---
+
+## 11. 本地工作流
 
 ```bash
 hugo --gc --minify --destination .tmp/build          # 生产构建，看退出码

@@ -9,7 +9,7 @@
 - 布局覆盖：`layouts/colour/{single,list}.html`、`layouts/partials/colour-{nav,figure,sources}.html`、`layouts/shortcodes/colour-chart.html`
 - 资源：`assets/css/colour.css`、`assets/js/colour.js`（图表）、`colour-locus.js`（光谱轨迹）
 - 数据：`data/colourspaces.yaml`（目录）、`data/curves.json`（曲线采样）、`data/anchors.json`（锚点 + 函数原文）
-- 构建：68 页，0 warning
+- 构建：120 页，0 warning；中文在 `/colour/`，英文在 `/en/colour/`
 
 ## 内容
 

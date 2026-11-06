@@ -1,25 +1,27 @@
 {{ $current := .current }}
-<nav class="c-nav" aria-label="色彩空间目录">
+{{ $en := .en | default false }}
+{{ $t := index hugo.Data.i18n (cond $en "en" "zh") }}
+{{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working }}
+<nav class="c-nav" aria-label="{{ $t.navTitle }}">
   <details class="c-nav-wrap" open>
-    <summary>目录</summary>
+    <summary>{{ $t.navTitle }}</summary>
     <div class="c-nav-body">
       {{ range hugo.Data.colourspaces }}
       <div class="c-nav-group">
         <p class="c-nav-label">{{ .label }}</p>
         <ul>
           {{ $lastGroup := "" }}
-          {{ $subNames := dict "camera" "相机" "film" "胶片" "aces" "ACES" "working" "工作空间" }}
           {{ range .items }}
           {{ $g := .group | default "" }}
           {{ if and $g (ne $g $lastGroup) }}
           <li class="c-nav-sub">{{ index $subNames $g }}</li>
           {{ $lastGroup = $g }}
           {{ end }}
-          {{ $page := site.GetPage (printf "/colour/%s" .slug) }}
+          {{ $page := site.GetPage (printf "%scolour/%s" (cond $en "/en/" "/") .slug) }}
           {{ if $page }}
           <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .title }}</a></li>
           {{ else }}
-          <li class="is-pending" title="尚未收录">{{ .title }}</li>
+          <li class="is-pending" title="{{ $t.pending }}">{{ .title }}</li>
           {{ end }}
           {{ end }}
         </ul>

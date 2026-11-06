@@ -1,5 +1,7 @@
-{{ with .Params.sources }}
-<h2>来源</h2>
+{{ $ctx := .ctx }}
+{{ $heading := .heading }}
+{{ with $ctx.Params.sources }}
+<h2>{{ $heading }}</h2>
 <ol class="c-src">
   {{ range . }}
   <li><a href="{{ .url }}" rel="noopener">{{ .title }}</a></li>

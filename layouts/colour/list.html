@@ -4,16 +4,27 @@
 {{ end }}
 {{ define "section_title" }}<!-- Title rendered below. -->{{ end }}
 {{ define "section_content" }}
-<div class="c-page">
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $t := index hugo.Data.i18n $lang }}
+{{ $base := cond $en "/en/colour/" "/colour/" }}
+<div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
-    {{ partial "colour-nav.html" (dict "ctx" . "current" "") }}
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="面包屑"><a href="{{ .Site.Home.RelPermalink }}">首页</a> / {{ .Title }}</nav>
+      <nav class="c-crumb" aria-label="breadcrumb">
+        <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ .Site.Home.RelPermalink }}{{ end }}">{{ $t.home }}</a> / {{ .Title }}
+        {{ if $en }}
+        <a class="c-lang" href="{{ "/colour/" | relURL }}" hreflang="zh">中文</a>
+        {{ else }}
+        {{ with site.GetPage "/en/colour" }}<a class="c-lang" href="{{ .RelPermalink }}" hreflang="en">English</a>{{ end }}
+        {{ end }}
+      </nav>
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <div class="c-prose">
         {{ .Content }}
 
-        {{ $subNames := dict "camera" "相机" "film" "胶片" "aces" "ACES" "working" "工作空间" }}
+        {{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working }}
         {{ range hugo.Data.colourspaces }}
         <h2>{{ .label }}</h2>
         {{ $isDR := eq .label "Display Referred" }}
@@ -26,8 +37,8 @@
           {{ $last = $g }}
           {{ end }}
           <li>
-            <a href="{{ printf "colour/%s/" .slug | relURL }}">{{ .title }}</a>
-            {{ if and $isDR .transfer }}<span class="c-entry-note">{{ .transfer }}</span>{{ end }}
+            <a href="{{ printf "%s%s/" $base .slug | relURL }}">{{ .title }}</a>
+            {{ if and $isDR .transfer }}<span class="c-entry-note">{{ if $en }}{{ .transferEn | default .transfer }}{{ else }}{{ .transfer }}{{ end }}</span>{{ end }}
           </li>
           {{ end }}
         </ul>
@@ -35,6 +46,10 @@
       </div>
     </div>
   </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
 </div>
 {{ end }}
-{{ define "bottom-menu" }}<nav class="bottom-menu"><p><a href="{{ .Site.Home.RelPermalink }}">首页</a></p></nav>{{ end }}
+{{ define "bottom-menu" }}
+{{ $en := eq .Params.variant "en" }}
+<nav class="bottom-menu"><p><a href="{{ .Site.Home.RelPermalink }}">{{ if $en }}Home{{ else }}首页{{ end }}</a></p></nav>
+{{ end }}

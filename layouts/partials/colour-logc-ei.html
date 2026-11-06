@@ -1,12 +1,19 @@
+{{ $t := .t }}
+{{ $en := eq $t.navTitle "Contents" }}
 {{ $rows := hugo.Data.logcEI }}
-<h2>曝光指数（EI）</h2>
+<h2>{{ $t.eiHeading }}</h2>
+{{ if $en }}
+<p>Log C V3 is a family of curves rather than a single curve: each exposure index (EI 160–1600) has its own parameters. <strong>18% grey encodes to 0.391 (400/1023) at every EI</strong>; what changes is the highlight ceiling — stepping down one stop records one more stop of highlights, so the code value at sensor saturation rises with EI.</p>
+<p>The curve and anchors on this page use the <strong>EI 800</strong> parameters (ARRI suggests EI 800 where this precision is not needed). The table lists the encoding parameters for each exposure index; the linear quantity is scene exposure and <code>a</code> is 5.555556 throughout.</p>
+{{ else }}
 <p>Log C V3 是一组曲线，而不是一条：每个曝光指数（EI 160–1600）有各自的参数。<strong>18% 灰在所有 EI 下都编码为 0.391（400/1023）</strong>，差别在于高光上限——步降一档曝光就多留一档高光，EI 越高，饱和时的编码值越高。</p>
 <p>本页的曲线与锚点取 <strong>EI 800</strong> 的参数（ARRI 建议精度要求不高时统一用 EI 800）。下表为各 EI 的编码参数，线性量取场景曝光值，<code>a</code> 恒为 5.555556。</p>
-<p class="c-hint">表格可横向滚动。</p>
+{{ end }}
+<p class="c-hint">{{ $t.hint }}</p>
 <div class="c-tablewrap">
   <table>
     <thead>
-      <tr><th>EI</th><th>cut</th><th>b</th><th>c</th><th>d</th><th>e</th><th>f</th><th>饱和时编码</th></tr>
+      <tr><th>EI</th><th>cut</th><th>b</th><th>c</th><th>d</th><th>e</th><th>f</th><th>{{ if $en }}Code at saturation{{ else }}饱和时编码{{ end }}</th></tr>
     </thead>
     <tbody>
       {{ range $rows }}
@@ -24,4 +31,8 @@
     </tbody>
   </table>
 </div>
+{{ if $en }}
+<p>“Code at saturation” is the Log C value for a sensor signal of 1.0. Curves above EI 1600 add a shoulder and cannot be expressed by the same formula.</p>
+{{ else }}
 <p>「饱和时编码」指传感器信号为 1.0 时的 Log C 值。EI 2000–3200 的曲线在高端另加 shoulder，不能用同一公式表达。</p>
+{{ end }}

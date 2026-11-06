@@ -196,44 +196,53 @@
       slug: srgb
       whiteName: D65
       transfer: sRGB 分段（编码）/ ≈Gamma 2.2（显示）
+      transferEn: "sRGB piecewise (encoding) / ≈Gamma 2.2 (display)"
       primaries: [[0.6400, 0.3300], [0.3000, 0.6000], [0.1500, 0.0600]]
     - title: "Rec.709"
       slug: rec709
       whiteName: D65
       transfer: BT.1886
+      transferEn: "BT.1886"
       primaries: [[0.6400, 0.3300], [0.3000, 0.6000], [0.1500, 0.0600]]
     - title: "Rec.2020"
       slug: rec2020
       whiteName: D65
       transfer: BT.1886
+      transferEn: "BT.1886"
       primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
     - title: "ST.2084 (PQ)"
       slug: st2084
       whiteName: D65
       transfer: ST 2084（PQ，绝对亮度）
+      transferEn: "ST 2084 (PQ, absolute luminance)"
       primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
     - title: "HLG"
       slug: hlg
       whiteName: D65
       transfer: HLG
+      transferEn: "HLG"
       primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
     - title: "P3-DCI"
       slug: p3-dci
       whiteName: P3-DCI
       transfer: Gamma 2.6
+      transferEn: "Gamma 2.6"
       primaries: [[0.6800, 0.3200], [0.2650, 0.6900], [0.1500, 0.0600]]
     - title: "P3-D65 / Display P3"
       slug: p3-d65
       whiteName: D65
       transfer: Gamma 2.2（显示）/ sRGB 分段（编码）
+      transferEn: "Gamma 2.2 (display) / sRGB piecewise (encoding)"
       primaries: [[0.6800, 0.3200], [0.2650, 0.6900], [0.1500, 0.0600]]
     - title: "Adobe RGB (1998)"
       slug: adobe-rgb
       whiteName: D65
       transfer: Gamma 563/256 ≈ 2.199
+      transferEn: "Gamma 563/256 ≈ 2.199"
       primaries: [[0.6400, 0.3300], [0.2100, 0.7100], [0.1500, 0.0600]]
     - title: "CINITY Log / Cinity RGB D65"
       slug: cinity-log
       whiteName: D65
       transfer: Cinity Log（100 nit 白）
+      transferEn: "Cinity Log (100 nit white)"
       primaries: [[0.7050, 0.2872], [0.1205, 0.8029], [0.1557, 0.0288]]

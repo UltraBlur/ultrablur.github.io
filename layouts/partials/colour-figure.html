@@ -1,5 +1,7 @@
 {{ $gamut := eq .kind "gamut" }}
 {{ $eotf := eq .kind "eotf" }}
+{{ $en := .en | default false }}
+{{ $t := index hugo.Data.i18n (cond $en "en" "zh") }}
 <figure class="c-fig{{ if $eotf }} c-fig--eotf{{ end }}" data-chart="{{ .kind }}">
   <div class="c-chart">
     {{ if $gamut }}<canvas aria-hidden="true"></canvas>{{ end }}
@@ -9,38 +11,38 @@
   {{ if $eotf }}
   <div class="c-eotf-controls">
     <div class="c-eotf-group">
-      <label>传递函数
+      <label>{{ $t.tf }}
         <select class="c-eotf-sel">
-          <option value="srgb"{{ if eq .default "srgb" }} selected{{ end }}>sRGB（分段）</option>
+          <option value="srgb"{{ if eq .default "srgb" }} selected{{ end }}>{{ $t.optSrgb }}</option>
           <option value="gamma22"{{ if eq .default "gamma22" }} selected{{ end }}>Gamma 2.2</option>
           <option value="gamma24"{{ if eq .default "gamma24" }} selected{{ end }}>Gamma 2.4</option>
           <option value="gamma26"{{ if eq .default "gamma26" }} selected{{ end }}>Gamma 2.6</option>
           <option value="gamma1961"{{ if eq .default "gamma1961" }} selected{{ end }}>Gamma 1.961</option>
           <option value="bt1886"{{ if eq .default "bt1886" }} selected{{ end }}>BT.1886</option>
-          <option value="pq"{{ if eq .default "pq" }} selected{{ end }}>ST 2084（PQ）</option>
+          <option value="pq"{{ if eq .default "pq" }} selected{{ end }}>ST 2084 (PQ)</option>
         </select>
       </label>
-      <label class="c-eotf-check"><input class="c-eotf-log" type="checkbox"> 对数纵轴</label>
+      <label class="c-eotf-check"><input class="c-eotf-log" type="checkbox"> {{ $t.logAxis }}</label>
     </div>
     <div class="c-eotf-group">
-      <label>满量程白 <input class="c-eotf-lw" type="number" value="100" min="1" max="10000" step="10"> cd/m²</label>
-      <label>黑位 <input class="c-eotf-lb" type="number" value="0" min="0" max="10" step="0.01" disabled> cd/m²</label>
+      <label>{{ $t.peakWhite }} <input class="c-eotf-lw" type="number" value="100" min="1" max="10000" step="10"> cd/m²</label>
+      <label>{{ $t.blackLevel }} <input class="c-eotf-lb" type="number" value="0" min="0" max="10" step="0.01" disabled> cd/m²</label>
     </div>
     <div class="c-eotf-group c-eotf-group--x">
-      <label>横轴
+      <label>{{ $t.xAxis }}
         <select class="c-eotf-xmode">
-          <option value="norm">归一化码值</option>
-          <option value="code">量化码值</option>
+          <option value="norm">{{ $t.optNorm }}</option>
+          <option value="code">{{ $t.optCode }}</option>
         </select>
       </label>
-      <label>位深
+      <label>{{ $t.bits }}
         <select class="c-eotf-bits" disabled>
           <option value="8">8-bit</option>
           <option value="10" selected>10-bit</option>
           <option value="12">12-bit</option>
         </select>
       </label>
-      <label>范围
+      <label>{{ $t.range }}
         <select class="c-eotf-range" disabled>
           <option value="full" selected title="0–255 / 0–1023 / 0–4095">Full</option>
           <option value="legal" title="16–235 / 64–940 / 256–3760">Legal/Video</option>

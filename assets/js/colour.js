@@ -12,11 +12,35 @@
   function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
   function parseData(root) {
-    var el = root.querySelector('script[type="application/json"]') ||
+    var el = root.querySelector('script#colour-data') ||
+             document.querySelector('script#colour-data') ||
+             root.querySelector('script[type="application/json"]') ||
              document.querySelector('script[type="application/json"]');
     if (!el) return null;
     try { return JSON.parse(el.textContent); } catch (e) { return null; }
   }
+
+  /* 界面文案：由页面注入，缺省为中文 */
+  var UI = (function () {
+    var el = document.querySelector('script#colour-ui');
+    var d = {};
+    if (el) { try { d = JSON.parse(el.textContent) || {}; } catch (e) { d = {}; } }
+    var fallback = {
+      xStops: '相对 18% 灰的档位（stops）',
+      xEncoded: '编码值（0–1）',
+      xNorm: '归一化码值（0–1）',
+      xCode: '量化码值（{b}-bit，{m}）',
+      yLum: '亮度（cd/m²）',
+      tipStops: '档位',
+      tipCode: '码值',
+      tipNorm: '归一化',
+      tipLum: '亮度',
+      tipLinear: '线性',
+      tipEncoded: '编码'
+    };
+    for (var k in fallback) if (d[k] === undefined) d[k] = fallback[k];
+    return d;
+  })();
 
   function svgEl(name, attrs) {
     var n = document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -669,11 +693,11 @@
       geo.cross.children[1].setAttribute('cy', cy);
 
       tip.innerHTML =
-        '<span class="c-tip-row"><span class="c-tip-k">档位</span>' +
+        '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipStops + '</span>' +
         (best[0] > 0 ? '+' : '') + best[0].toFixed(1) + ' stops</span>' +
-        '<span class="c-tip-row"><span class="c-tip-k">线性</span>' +
+        '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipLinear + '</span>' +
         (0.18 * Math.pow(2, best[0])).toFixed(4) + '</span>' +
-        '<span class="c-tip-row"><span class="c-tip-k">编码</span>' + best[1].toFixed(4) + '</span>';
+        '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipEncoded + '</span>' + best[1].toFixed(4) + '</span>';
       tip.style.opacity = '1';
       var tw = tip.offsetWidth, th = tip.offsetHeight;
       var left = px + 16, top = py - th - 12;
@@ -882,13 +906,15 @@
       svg.appendChild(svgEl('rect', { x: sx(0), y: sy(yMax), width: plotW, height: plotH, fill: 'none', 'class': 'c-frame' }));
 
       var lx = svgEl('text', { x: sx(0) + plotW / 2, y: H - 6, 'text-anchor': 'middle', 'class': 'c-axtitle' });
-      lx.textContent = codeMode ? ('量化码值（' + p.bits + '-bit，' + p.codeMax + '）') : '归一化码值（0–1）';
+      lx.textContent = codeMode
+        ? UI.xCode.replace('{b}', String(p.bits)).replace('{m}', String(p.codeMax))
+        : UI.xNorm;
       svg.appendChild(lx);
       var ly = svgEl('text', {
         x: 17, y: sy(yMax) + plotH / 2, 'text-anchor': 'middle', 'class': 'c-axtitle',
         transform: 'rotate(-90 17 ' + (sy(yMax) + plotH / 2) + ')'
       });
-      ly.textContent = '亮度（cd/m²）';
+      ly.textContent = UI.yLum;
       svg.appendChild(ly);
 
       var cross = svgEl('g', { 'class': 'c-cross', opacity: '0' });
@@ -919,10 +945,10 @@
       geo.cross.children[1].setAttribute('cx', cx);
       geo.cross.children[1].setAttribute('cy', cy);
       var head = geo.codeMode
-        ? '<span class="c-tip-row"><span class="c-tip-k">码值</span>' + Math.round(xv) + '</span>' +
-          '<span class="c-tip-row"><span class="c-tip-k">归一化</span>' + V.toFixed(3) + '</span>'
-        : '<span class="c-tip-row"><span class="c-tip-k">码值</span>' + V.toFixed(3) + '</span>';
-      tip.innerHTML = head + '<span class="c-tip-row"><span class="c-tip-k">亮度</span>' + L.toFixed(2) + ' cd/m²</span>';
+        ? '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipCode + '</span>' + Math.round(xv) + '</span>' +
+          '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipNorm + '</span>' + V.toFixed(3) + '</span>'
+        : '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipCode + '</span>' + V.toFixed(3) + '</span>';
+      tip.innerHTML = head + '<span class="c-tip-row"><span class="c-tip-k">' + UI.tipLum + '</span>' + L.toFixed(2) + ' cd/m²</span>';
       tip.style.opacity = '1';
       var tw = tip.offsetWidth, th = tip.offsetHeight;
       var left = px + 16, top = py - th - 12;
