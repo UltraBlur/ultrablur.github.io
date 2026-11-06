@@ -204,11 +204,20 @@
       }
     });
 
+    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (var bi = 0; bi < pos.length; bi += 3) {
+      for (var bk = 0; bk < 3; bk++) {
+        if (pos[bi + bk] < bb[0][bk]) bb[0][bk] = pos[bi + bk];
+        if (pos[bi + bk] > bb[1][bk]) bb[1][bk] = pos[bi + bk];
+      }
+    }
+
     return {
       pos: new Float32Array(pos),
       nor: new Float32Array(nor),
       col: new Float32Array(col),
-      idx: new Uint16Array(idx)
+      idx: new Uint16Array(idx),
+      bbox: bb
     };
   }
 
@@ -249,62 +258,74 @@
     return { pos: new Float32Array(pos), nor: new Float32Array(nor) };
   }
 
-  /* ---------- 线框 ---------- */
-
-  function buildEdges(space, coord, M) {
-    var pos = [];
-    var cube = [
-      [[0, 0, 0], [1, 0, 0]], [[0, 0, 0], [0, 1, 0]], [[0, 0, 0], [0, 0, 1]],
-      [[1, 1, 1], [0, 1, 1]], [[1, 1, 1], [1, 0, 1]], [[1, 1, 1], [1, 1, 0]],
-      [[1, 0, 0], [1, 1, 0]], [[1, 0, 0], [1, 0, 1]],
-      [[0, 1, 0], [1, 1, 0]], [[0, 1, 0], [0, 1, 1]],
-      [[0, 0, 1], [1, 0, 1]], [[0, 0, 1], [0, 1, 1]]
-    ];
-    cube.forEach(function (edge) {
-      var prev = null;
-      for (var i = 0; i <= M; i++) {
-        var t = i / M;
-        var rgb = [
-          edge[0][0] + (edge[1][0] - edge[0][0]) * t,
-          edge[0][1] + (edge[1][1] - edge[0][1]) * t,
-          edge[0][2] + (edge[1][2] - edge[0][2]) * t
-        ];
-        var p = pointFor(space, coord, rgb);
-        if (!p) { prev = null; continue; }
-        if (prev) pos.push(prev[0], prev[1], prev[2], p[0], p[1], p[2]);
-        prev = p;
-      }
-    });
-    return new Float32Array(pos);
-  }
-
   /* ---------- 坐标轴家具 ---------- */
 
-  function buildAxes(coord, extent) {
-    var pos = [];
+  function niceStep(range) {
+    var raw = range / 4;
+    var mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    var n = raw / mag;
+    var mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return mult * mag;
+  }
+
+  var AXIS_NAMES = { lab: ['a*', 'L*', 'b*'], xyz: ['X', 'Y', 'Z'], xyy: ['x', 'Y', 'y'] };
+
+  /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
+  function buildAxes(coord, bbox) {
+    var pad = 0.06;
+    var lo = [], hi = [];
+    for (var k = 0; k < 3; k++) {
+      var span = (bbox[1][k] - bbox[0][k]) || 1;
+      lo.push(bbox[0][k] - span * pad);
+      hi.push(bbox[1][k] + span * pad);
+    }
+    var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
+    var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+    var pos = [], labels = [];
     function seg(a, b) { pos.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
-    if (coord === 'lab') {
-      var R2 = extent * 0.8;
-      for (var gx2 = -R2; gx2 <= R2 + 1e-9; gx2 += R2 / 4) seg([gx2, 0, -R2], [gx2, 0, R2]);
-      for (var gz2 = -R2; gz2 <= R2 + 1e-9; gz2 += R2 / 4) seg([-R2, 0, gz2], [R2, 0, gz2]);
-      seg([0, 0, 0], [0, 100, 0]);
-      for (var L = 0; L <= 100; L += 20) seg([-2.2, L, 0], [2.2, L, 0]);
-      return new Float32Array(pos);
+    function fmt(v) {
+      var a = Math.abs(v);
+      if (a >= 10) return String(Math.round(v));
+      if (a >= 1) return String(Math.round(v * 10) / 10);
+      return String(Math.round(v * 100) / 100);
     }
-    if (coord === 'xyz') {
-      var E = extent * 0.9, st = E / 4;
-      for (var gx = 0; gx <= E + 1e-9; gx += st) seg([gx, 0, 0], [gx, 0, E]);
-      for (var gz = 0; gz <= E + 1e-9; gz += st) seg([0, 0, gz], [E, 0, gz]);
-      seg([0, 0, 0], [extent, 0, 0]);
-      seg([0, 0, 0], [0, extent, 0]);
-      seg([0, 0, 0], [0, 0, extent]);
-      return new Float32Array(pos);
+
+    // 地面网格（y = 0，即 L*=0 / Y=0 平面）
+    var gx0 = bbox[0][0], gx1 = bbox[1][0], gz0 = bbox[0][2], gz1 = bbox[1][2];
+    var gstep = niceStep(Math.max(gx1 - gx0, gz1 - gz0));
+    for (var gx = Math.ceil(gx0 / gstep) * gstep; gx <= gx1 + 1e-9; gx += gstep) {
+      seg([gx, 0, gz0], [gx, 0, gz1]);
     }
-    var R = 0.8, step = 0.2;
-    for (var x = 0; x <= R + 1e-9; x += step) seg([x, 0, 0], [x, 0, R]);
-    for (var y = 0; y <= R + 1e-9; y += step) seg([0, 0, y], [R, 0, y]);
-    seg([0, 0, 0], [0, 1, 0]);
-    return new Float32Array(pos);
+    for (var gz = Math.ceil(gz0 / gstep) * gstep; gz <= gz1 + 1e-9; gz += gstep) {
+      seg([gx0, 0, gz], [gx1, 0, gz]);
+    }
+
+    // 三轴都放在靠近观察者的下左角，标签不会压在色体后面
+    var axes = [
+      { i: 0, from: lo[0], to: hi[0], at: [0, lo[1], hi[2]], tickAxis: 1, dx: 0, dy: 15 },
+      { i: 1, from: lo[1], to: hi[1], at: [lo[0], 0, hi[2]], tickAxis: 0, dx: -16, dy: 0 },
+      { i: 2, from: lo[2], to: hi[2], at: [lo[0], lo[1], 0], tickAxis: 0, dx: -16, dy: 10 }
+    ];
+    axes.forEach(function (ax, idx) {
+      var p0 = ax.at.slice(); p0[ax.i] = ax.from;
+      var p1 = ax.at.slice(); p1[ax.i] = ax.to;
+      seg(p0, p1);
+
+      var step = niceStep(ax.to - ax.from);
+      for (var v = Math.ceil(ax.from / step) * step; v <= ax.to + 1e-9; v += step) {
+        var base = ax.at.slice(); base[ax.i] = v;
+        var tip = base.slice();
+        tip[ax.tickAxis] -= tick;
+        seg(base, tip);
+        labels.push({ t: fmt(v), p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
+      }
+
+      var nameP = ax.at.slice();
+      nameP[ax.i] = ax.to + (ax.to - ax.from) * 0.04;
+      labels.push({ t: names[idx], p: nameP, cls: 'is-axis-name', dx: ax.dx * 1.6, dy: ax.dy * 1.6 });
+    });
+
+    return { pos: new Float32Array(pos), labels: labels };
   }
 
   /* ---------- 4×4 矩阵 ---------- */
@@ -366,14 +387,13 @@
 
   var state = {
     primary: cfg.defaultPrimary || spaces[0].slug,
-    ref: cfg.defaultRef || '',
     coord: 'lab',
     neutral: false,
     grid: true,
     cull: false,
-    yaw: 0.95,
-    pitch: 0.30,
-    dist: 3.0,
+    yaw: 0.72,
+    pitch: 0.34,
+    dist: 4.2,
     auto: false,
     bounds: null,
     labels: []
@@ -409,8 +429,9 @@
   );
 
   var lineProg = program(
-    'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP;' +
-    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0); gl_Position = uVP * vec4(aPos, 1.0); }',
+    'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP; uniform float uBias;' +
+    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0);' +
+    'gl_Position = uVP * vec4(aPos, 1.0); gl_Position.z -= uBias * gl_Position.w; }',
     'precision mediump float; varying vec4 vCol;' +
     'void main(){ gl_FragColor = vCol; }'
   );
@@ -424,7 +445,8 @@
   var lineLoc = {
     pos: gl.getAttribLocation(lineProg, 'aPos'),
     col: gl.getAttribLocation(lineProg, 'aCol'),
-    vp: gl.getUniformLocation(lineProg, 'uVP')
+    vp: gl.getUniformLocation(lineProg, 'uVP'),
+    bias: gl.getUniformLocation(lineProg, 'uBias')
   };
 
   var buffers = { solid: {}, ref: {}, axes: {} };
@@ -494,57 +516,28 @@
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
 
     var mesh = buildSurface(primary, coord, N, state.neutral);
-    var frame = computeFrame([mesh]);
+    var axes = buildAxes(coord, mesh.bbox);
+    var frame = computeFrame([mesh, { pos: axes.pos }]);
 
     applyFrame(mesh.pos, frame);
+    applyFrame(axes.pos, frame);
 
     uploadSolid('primary', mesh);
 
     if (state.grid) {
       var grid = buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)));
       applyFrame(grid.pos, frame);
-      for (var gi = 0; gi < grid.pos.length; gi += 3) {
-        grid.pos[gi] += grid.nor[gi] * 0.006;
-        grid.pos[gi + 1] += grid.nor[gi + 1] * 0.006;
-        grid.pos[gi + 2] += grid.nor[gi + 2] * 0.006;
-      }
-      uploadLines('grid', grid.pos, [0.14, 0.14, 0.16, 0.20]);
+      uploadLines('grid', grid.pos, [0.16, 0.16, 0.18, 0.30]);
     } else if (buffers.grid) {
       buffers.grid.count = 0;
     }
 
-    var refMesh = null;
-    if (state.ref && spaceBySlug[state.ref]) {
-      refMesh = buildEdges(spaceBySlug[state.ref], coord, 56);
-      applyFrame(refMesh, frame);
-      uploadLines('ref', refMesh, [0.34, 0.34, 0.38, 0.55]);
-    } else if (buffers.ref.pos) {
-      buffers.ref.count = 0;
-    }
+    uploadLines('axes', axes.pos, [0.45, 0.45, 0.48, 1]);
 
-    var extent = 1 / frame.scale;
-    var axes = buildAxes(coord, Math.max(extent * 0.75, 0.5));
-    applyFrame(axes, frame);
-    uploadLines('axes', axes, coord === 'lab' ? [0.72, 0.72, 0.74, 1] : [0.76, 0.76, 0.78, 1]);
-
-    // 标签锚点（未变换的显示坐标 → 同一 frame）
-    var anchors = [];
-    if (coord === 'lab') {
-      anchors.push({ t: 'L*', p: [0, 104, 0] });
-      anchors.push({ t: 'a*', p: [72, 0, 0] });
-      anchors.push({ t: 'b*', p: [0, 0, 72] });
-    } else if (coord === 'xyz') {
-      anchors.push({ t: 'X', p: [extent, 0, 0] });
-      anchors.push({ t: 'Y', p: [0, extent, 0] });
-      anchors.push({ t: 'Z', p: [0, 0, extent] });
-    } else {
-      anchors.push({ t: 'x', p: [0.82, 0, 0] });
-      anchors.push({ t: 'y', p: [0, 0, 0.82] });
-      anchors.push({ t: 'Y', p: [0, 1.02, 0] });
-    }
+    var anchors = axes.labels.slice();
     [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
       var p = pointFor(primary, coord, v[1]);
-      if (p) anchors.push({ t: v[0], p: p, small: true });
+      if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
     });
 
     state.labels = anchors.map(function (a) {
@@ -553,13 +546,13 @@
         (a.p[1] - frame.center[1]) * frame.scale,
         (a.p[2] - frame.center[2]) * frame.scale
       ];
-      return { t: a.t, p: p, small: !!a.small };
+      return { t: a.t, p: p, cls: a.cls || '', dx: a.dx || 0, dy: a.dy || 0 };
     });
     ensureLabels(state.labels.length);
     labelEls.forEach(function (el, i) {
       var l = state.labels[i];
       el.textContent = l ? l.t : '';
-      el.className = 'c-vol-label' + (l && l.small ? ' is-vertex' : '');
+      el.className = 'c-vol-label' + (l && l.cls ? ' ' + l.cls : '');
     });
 
     state.frame = frame;
@@ -621,8 +614,8 @@
     dirty = false;
     var aspect = canvas.width / Math.max(1, canvas.height);
     var eye = cameraEye();
-    var near = Math.max(0.02, state.dist - 2.2);
-    var proj = perspective(40 * Math.PI / 180, aspect, near, state.dist + 3.2);
+    var near = Math.max(0.05, state.dist - 1.35);
+    var proj = perspective(30 * Math.PI / 180, aspect, near, state.dist + 2.4);
     var view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
     VP = mul4(proj, view);
 
@@ -657,7 +650,6 @@
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     drawLines('grid');
     drawLines('axes');
-    drawLines('ref');
     gl.disable(gl.BLEND);
 
     updateLabels(proj, view);
@@ -669,6 +661,7 @@
     if (!b || !b.count || !b.pos) return;
     gl.useProgram(lineProg);
     gl.uniformMatrix4fv(lineLoc.vp, false, VP);
+    gl.uniform1f(lineLoc.bias, key === 'grid' ? 0.0009 : 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
     gl.enableVertexAttribArray(lineLoc.pos);
     gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
@@ -695,8 +688,8 @@
       var s = project(l.p, w, h);
       if (!s) { el.style.opacity = '0'; return; }
       el.style.opacity = '1';
-      el.style.left = s[0].toFixed(1) + 'px';
-      el.style.top = s[1].toFixed(1) + 'px';
+      el.style.left = (s[0] + (l.dx || 0)).toFixed(1) + 'px';
+      el.style.top = (s[1] + (l.dy || 0)).toFixed(1) + 'px';
     });
   }
 
@@ -734,7 +727,7 @@
       var it = Array.from(pointers.values());
       var d = Math.hypot(it[0].x - it[1].x, it[0].y - it[1].y);
       if (pinchStart > 0) {
-        state.dist = Math.min(8, Math.max(1.2, pinchDist * pinchStart / Math.max(1, d)));
+        state.dist = Math.min(12, Math.max(1.5, pinchDist * pinchStart / Math.max(1, d)));
         requestRender();
       }
       return;
@@ -754,16 +747,16 @@
 
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    state.dist = Math.min(8, Math.max(1.2, state.dist * Math.exp(e.deltaY * 0.0012)));
+    state.dist = Math.min(8, Math.max(1.5, state.dist * Math.exp(e.deltaY * 0.0012)));
     requestRender();
   }, { passive: false });
 
   canvas.addEventListener('dblclick', function () { resetView(); });
 
   function resetView() {
-    state.yaw = 0.95;
-    state.pitch = 0.30;
-    state.dist = 3.0;
+    state.yaw = 0.72;
+    state.pitch = 0.34;
+    state.dist = 4.2;
     requestRender();
   }
 
@@ -777,11 +770,6 @@
 
   var primarySel = bind('vol-space', 'change', function (e) {
     state.primary = e.target.value;
-    rebuild();
-  });
-
-  var refSel = bind('vol-ref', 'change', function (e) {
-    state.ref = e.target.value;
     rebuild();
   });
 
@@ -813,7 +801,6 @@
 
   // 默认值来自页面
   if (primarySel) { primarySel.value = state.primary; }
-  if (refSel) { refSel.value = state.ref; }
 
   try {
     resize();

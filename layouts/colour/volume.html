@@ -31,7 +31,6 @@
         "spaces" $spaces
         "srgbMatrix" $srgbMatrix
         "defaultPrimary" "srgb"
-        "defaultRef" "p3-d65"
         "ui" (dict "error" "WebGL 初始化失败")
       | jsonify | safeJS }}</script>
 
@@ -49,12 +48,6 @@
               <option value="xyy">xyY</option>
             </select>
           </label>
-          <label>叠加
-            <select id="vol-ref">
-              <option value="">无</option>
-              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
-            </select>
-          </label>
           <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> 网格线</label>
           <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> 中性表面</label>
           <label class="c-vol-check"><input type="checkbox" id="vol-auto"> 自动旋转</label>
@@ -70,8 +63,9 @@
         <p class="c-vol-cap">拖动旋转 · 滚轮或双指缩放 · 双击复位</p>
 
         <div class="c-vol-note">
-          <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，叠加体使用与主空间相同的中心和尺度，所以形状大小可以横向比较。</p>
+          <p><strong>这个视图是什么：</strong>把归一化线性 RGB 立方体 [0,1]³ 经各空间自己的 RGB→XYZ 矩阵映射后，再换到选定坐标。参考白统一取 Y = 1，三轴等比例，不做拉伸。</p>
           <p><strong>它不是什么：</strong>相机与工作空间的色体是“约定的 RGB 单位立方体”，不代表传感器能记录的亮度范围；显示亮度色体与 ICC 配置文件色域需要另外的亮度和测量条件，本页没有做。</p>
+          <p><strong>坐标轴：</strong>三条轴摆在色体包围盒的底边上，刻度朝外，地面网格落在 L\* = 0（XYZ 为 Y = 0）的平面上。</p>
           <p><strong>Lab 的条件：</strong>Lab 的参考白取各空间自己的白点——这三个空间都是 D65，所以不做任何色适应，和上面的 XYZ、xyY 完全一致。（印刷与 ICC 体系用 D50，那是另一套约定，这里不采用；ACES 的白点约 D60，将来接入时再单独处理。）</p>
           <p><strong>颜色：</strong>表面颜色只是屏幕示意——超出 sRGB 的部分已裁掉，想看真实形状请勾选「中性表面」。</p>
           <p><strong>已知限制：</strong>xyY 中黑点 (0,0,0) 的色度未定义，那里不会生成面；试验页面，尚未做截面与拾取。</p>
