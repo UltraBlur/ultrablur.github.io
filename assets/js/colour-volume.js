@@ -1076,8 +1076,13 @@
 
   var condBox = document.querySelector('[data-vol-cond]');
   function updateCondVisibility() {
-    if (!condBox) return;
-    condBox.hidden = state.coord !== 'cam02';
+    if (condBox) condBox.hidden = state.coord !== 'cam02';
+    // 白点亮度只对建立在绝对亮度上的坐标有意义
+    var lumBox = document.querySelector('[data-vol-lum]');
+    if (lumBox) {
+      var abs = state.coord === 'ictcp' || state.coord === 'jzazbz' || state.coord === 'cam02';
+      lumBox.hidden = !abs;
+    }
   }
 
   bind('vol-neutral', 'change', function (e) {

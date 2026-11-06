@@ -17,7 +17,7 @@ variant = "en"
 
 **Axes:** the three axes sit on the bottom edges of the bounding box with ticks facing outwards, and the ground grid lies on the L\* = 0 plane (Y = 0 for XYZ).
 
-**HDR models:** ICtCp and JzAzBz need a reference white level, 100 cd/m² by default, switchable between 48 / 203 / 1000.
+**HDR models:** ICtCp and JzAzBz are absolute-luminance spaces (PQ takes L/10000 as input), so a reference white level is required — 100 cd/m² by default, switchable between 48 / 203 / 1000. **Lab, Luv, Oklab, XYZ and xyY are relative**, where white is always L\* = 100 / L = 1 regardless of luminance, so the control is hidden for those coordinates.
 
 **Colour:** surface colour is a screen approximation — anything outside sRGB is clipped. Tick "Neutral surface" to judge the shape without it.
 
