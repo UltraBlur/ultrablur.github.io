@@ -17,7 +17,10 @@
 {{ $slugs := slice }}
 {{ range hugo.Data.colourspaces }}
   {{ if eq .label "Display Referred" }}
-    {{ range .items }}{{ $slugs = $slugs | append .slug }}{{ end }}
+    {{ range .items }}
+      {{/* PQ / HLG 是传递函数，原色借自 BT.2020，不作为独立色域列出 */}}
+      {{ if and (ne .slug "st2084") (ne .slug "hlg") }}{{ $slugs = $slugs | append .slug }}{{ end }}
+    {{ end }}
   {{ end }}
 {{ end }}
 {{ $srgbMatrix := slice }}
