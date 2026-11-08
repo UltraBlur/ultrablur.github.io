@@ -12,6 +12,7 @@
   (dict "slug" "gamut-volume" "zh" "色体积" "en" "Gamut volume" "zhd" "显示空间的三维色体，8 种坐标" "end" "3D volume of a display space in 8 coordinate systems")
   (dict "slug" "compare" "zh" "色域比对" "en" "Gamut comparison" "zhd" (printf "全部 %d 个色域任选两个对比" $gamutCount) "end" (printf "Any two of the %d gamuts, side by side" $gamutCount))
   (dict "slug" "transfer" "zh" "传递函数比对" "en" "Transfer function comparison" "zhd" "多条编码曲线叠在一张图上对比" "end" "Overlay encoding curves from several spaces")
+  (dict "slug" "convert" "zh" "码值换算" "en" "Code value conversion" "zhd" "两端各自指定色域、传递函数与码值范围，列出中间过程" "end" "Pick primaries, transfer function and code range at both ends, with the intermediate steps")
   (dict "slug" "inspector" "zh" "取色工具" "en" "Colour picker" "zhd" "HSV / LCH / OKLCH / JMH / JzCH 五种选色方式" "end" "HSV, LCH, OKLCH, JMH and JzCH picking")
 }}
 <div class="c-page" data-lang="{{ $lang }}">

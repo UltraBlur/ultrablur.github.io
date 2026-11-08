@@ -159,3 +159,40 @@ body:has(.c-page) .bottom-menu a { color: #315e80; }
 .c-tf-param-name { min-width: 11rem; color: #666; }
 .c-tf-param-row input { font: inherit; font-size: .82rem; padding: .15rem .3rem; border: 1px solid #ddd; width: 5em; }
 .c-tf-ymax { width: 5em !important; }
+
+/* ---- 码值换算 ---- */
+.c-cvt { margin: 1.4rem 0 2rem; }
+.c-cvt-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem 2rem; margin-bottom: 1rem; }
+.c-cvt-panel { border: 1px solid #e4e4e4; background: #fcfcfc; padding: .9rem 1rem 1rem; }
+.c-cvt-panel h2 { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: #888; margin: 0 0 .7rem; font-weight: 600; }
+.c-cvt-panel label { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .35rem 0; font-size: .84rem; color: #444; }
+.c-cvt-panel select { flex: 1 1 9rem; min-width: 0; font: inherit; font-size: .82rem; padding: .2rem .3rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-cvt-params-src, .c-cvt-params-dst { font-size: .82rem; color: #555; }
+.c-cvt-param { margin: .2rem 0 .2rem .9rem; }
+.c-cvt-param input { width: 5em; font: inherit; font-size: .82rem; padding: .12rem .28rem; border: 1px solid #ddd; }
+.c-cvt-bridge { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.4rem; font-size: .82rem; color: #444; padding: .6rem .8rem; border: 1px dashed #ddd; background: #fafafa; margin-bottom: 1rem; }
+.c-cvt-bridge input[type=number] { width: 5.5em; font: inherit; font-size: .82rem; padding: .12rem .28rem; border: 1px solid #ddd; }
+.c-cvt-bridge select { font: inherit; font-size: .82rem; padding: .12rem .28rem; border: 1px solid #ddd; }
+.c-cvt-input { margin-bottom: 1.2rem; }
+.c-cvt-pane { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .7rem 0 .2rem; font-size: .84rem; }
+.c-cvt-pane[hidden] { display: none; }
+.c-cvt-pane input[type=number], .c-cvt-pane input[type=text] { width: 6.5em; font: inherit; font-size: .84rem; padding: .15rem .3rem; border: 1px solid #ddd; }
+.c-cvt-pane textarea { flex: 1 1 100%; min-height: 6rem; font: .8rem/1.6 var(--mono); padding: .5rem; border: 1px solid #ddd; }
+.c-cvt-note { flex: 1 1 100%; margin: .2rem 0 0; font-size: .78rem; color: #777; }
+.c-cvt-warn { margin: .8rem 0 0; padding: .6rem .8rem; background: #fbf7e8; border: 1px solid #e8dcb5; color: #4a3f22; font-size: .84rem; line-height: 1.7; }
+.c-cvt-warn[hidden] { display: none; }
+.c-cvt-result h2 { font-size: 1.1rem; margin: 1.6rem 0 .6rem; }
+.c-cvt-table { width: 100%; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.c-cvt-table th, .c-cvt-table td { padding: .4rem .6rem; border-bottom: 1px solid #e6e6e6; text-align: left; vertical-align: top; }
+.c-cvt-table th { color: #666; font-weight: 500; width: 40%; }
+.c-cvt-table td { font-family: var(--mono); font-size: .82rem; }
+.c-cvt-batchout th { width: auto; }
+.c-cvt-batchout[hidden] { display: none; }
+.c-cvt-flags { display: flex; flex-wrap: wrap; gap: .4rem; margin: .7rem 0; }
+.c-cvt-flag { font-size: .74rem; padding: .1rem .45rem; border: 1px solid #ddd; color: #555; }
+.c-cvt-flag.is-bad { border-color: #d9a3a3; color: #a33; }
+.c-cvt-flag.is-warn { border-color: #ddc48a; color: #8a6d1f; }
+.c-cvt-flag.is-note { border-color: #c3d2dc; color: #365d78; }
+.c-cvt-steps { margin-top: 1.4rem; font-size: .85rem; }
+.c-cvt-steps summary { cursor: pointer; color: #555; }
+.c-cvt-steps .c-cvt-table { margin-top: .6rem; }

@@ -1,17 +1,29 @@
 {{ define "head_resources" }}
 {{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
-{{ $tjs := resources.Get "js/tool-convert.js" | minify | fingerprint }}
-<script defer src="{{ $tjs.RelPermalink }}" integrity="{{ $tjs.Data.Integrity }}"></script>
+{{ $codec := resources.Get "js/lib/colour-codec.js" | minify | fingerprint }}
+<script defer src="{{ $codec.RelPermalink }}" integrity="{{ $codec.Data.Integrity }}"></script>
+{{ $js := resources.Get "js/tool-convert.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
 {{ end }}
 {{ define "section_title" }}<!-- -->{{ end }}
 {{ define "section_content" }}
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
-{{ $data := partial "tool-spaces.html" (dict "scope" "dr" "en" $en) }}
-{{ $spaces := slice }}
-{{ range $data.spaces }}
-  {{ $spaces = $spaces | append (dict "slug" .slug "title" .title "matrix" .matrix) }}
+{{ $data := partial "tool-spaces.html" (dict "scope" "all" "en" $en) }}
+{{ $curves := dict }}
+{{ range hugo.Data.colourspaces }}
+  {{ range .items }}
+    {{ $slug := .slug }}
+    {{/* 施工中的胶片条目在正式环境不进工具，曲线也不下发 */}}
+    {{ if or (not .wip) (eq hugo.Environment "development") }}
+    {{ with (index hugo.Data.curves $slug) }}
+      {{ $pairs := slice }}
+      {{ range . }}{{ $pairs = $pairs | append (dict "c" (index . 1) "s" (index . 0)) }}{{ end }}
+      {{ $curves = merge $curves (dict $slug $pairs) }}
+    {{ end }}
+    {{ end }}
+  {{ end }}
 {{ end }}
 <div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
@@ -21,25 +33,88 @@
         <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
       </nav>
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
-      <script type="application/json" id="convert-data">{{ dict "spaces" $spaces "lang" $lang | jsonify | safeJS }}</script>
+      <p class="c-intro">{{ cond $en
+        "Convert code values between any two RGB spaces in the catalogue. The two ends are configured independently: primaries, transfer function and code value range. Intermediate values are kept as they are; nothing is clipped, tone mapped or gamut mapped."
+        "在目录里任意两个 RGB 空间之间换算码值。两端独立指定：原色、传递函数、码值范围。中间值原样保留，不做裁剪、tone mapping 或色域压缩。" }}</p>
       <div class="c-cvt" data-convert>
-        <div class="c-vol-controls">
-          <label>{{ cond $en "From" "源空间" }}<select id="cvt-a"></select></label>
-          <label>{{ cond $en "To" "目标空间" }}<select id="cvt-b"></select></label>
+        <div class="c-cvt-cols">
+          <section class="c-cvt-panel">
+            <h2>{{ cond $en "Input" "输入" }}</h2>
+            <label>{{ cond $en "Preset" "预设" }}<select class="c-cvt-preset-src"></select></label>
+            <label>{{ cond $en "Gamut" "色域" }}<select class="c-cvt-gamut-src"></select></label>
+            <label>{{ cond $en "Transfer function" "传递函数" }}<select class="c-cvt-tf-src"></select></label>
+            <div class="c-cvt-params-src"></div>
+            <label>{{ cond $en "Encoding" "编码" }}<select class="c-cvt-enc-src"></select></label>
+          </section>
+          <section class="c-cvt-panel">
+            <h2>{{ cond $en "Output" "输出" }}</h2>
+            <label>{{ cond $en "Preset" "预设" }}<select class="c-cvt-preset-dst"></select></label>
+            <label>{{ cond $en "Gamut" "色域" }}<select class="c-cvt-gamut-dst"></select></label>
+            <label>{{ cond $en "Transfer function" "传递函数" }}<select class="c-cvt-tf-dst"></select></label>
+            <div class="c-cvt-params-dst"></div>
+            <label>{{ cond $en "Encoding" "编码" }}<select class="c-cvt-enc-dst"></select></label>
+          </section>
         </div>
-        <div class="c-cvt-grid">
-          <label>R <input id="cvt-r" type="number" step="0.01" value="1"></label>
-          <label>G <input id="cvt-g" type="number" step="0.01" value="0"></label>
-          <label>B <input id="cvt-b-in" type="number" step="0.01" value="0"></label>
+
+        <div class="c-cvt-bridge">
+          <label class="c-cvt-check"><input type="checkbox" class="c-cvt-bridge-on"> {{ cond $en "Direct linear calibration (no tone mapping)" "直接线性标定（不含 tone mapping）" }}</label>
+          <label>{{ cond $en "scene linear 1.0 →" "场景线性 1.0 →" }} <input type="number" class="c-cvt-bridge-nits" value="100" min="0" step="10"> cd/m²</label>
+          <label>{{ cond $en "White adaptation" "白点适应" }}
+            <select class="c-cvt-cat">
+              <option value="auto">{{ cond $en "Bradford (when whites differ)" "Bradford（白点不同时）" }}</option>
+              <option value="none">{{ cond $en "None, keep XYZ" "不做，保留 XYZ" }}</option>
+            </select>
+          </label>
         </div>
-        <table class="c-cmp-table">
-          <tbody>
-            <tr><td>XYZ</td><td id="cvt-xyz"></td></tr>
-            <tr><td>{{ cond $en "Result" "结果" }}</td><td id="cvt-out"></td></tr>
-            <tr><td>{{ cond $en "Range" "范围" }}</td><td id="cvt-flag"></td></tr>
-          </tbody>
-        </table>
+
+        <div class="c-cvt-input">
+          <div class="c-seg c-cvt-modes">
+            <button type="button" class="c-cvt-tab is-on" data-mode="triple">{{ cond $en "Channels" "三通道" }}</button>
+            <button type="button" class="c-cvt-tab" data-mode="batch">{{ cond $en "Batch" "批量" }}</button>
+            <button type="button" class="c-cvt-tab" data-mode="hex">{{ cond $en "Hex" "十六进制" }}</button>
+          </div>
+          <div class="c-cvt-pane" data-pane="triple">
+            <label>R <input type="number" class="c-cvt-r" step="0.01" value="0.18"></label>
+            <label>G <input type="number" class="c-cvt-g" step="0.01" value="0.18"></label>
+            <label>B <input type="number" class="c-cvt-b" step="0.01" value="0.18"></label>
+            <button type="button" class="c-btn c-cvt-grey">{{ cond $en "Neutral grey" "中性灰" }}</button>
+          </div>
+          <div class="c-cvt-pane" data-pane="batch" hidden>
+            <textarea class="c-cvt-batchtext" rows="5" spellcheck="false" placeholder="{{ cond $en "one RGB per line: name, r, g, b" "每行一组：名称, R, G, B" }}"></textarea>
+            <button type="button" class="c-btn c-cvt-run">{{ cond $en "Convert" "换算" }}</button>
+            <button type="button" class="c-btn c-cvt-csv">{{ cond $en "Copy CSV" "复制 CSV" }}</button>
+          </div>
+          <div class="c-cvt-pane" data-pane="hex" hidden>
+            <label># <input type="text" class="c-cvt-hexval" value="808080" spellcheck="false"></label>
+            <p class="c-cvt-note">{{ cond $en "Hex is read as an sRGB web colour, whatever the input settings say." "十六进制按 sRGB 网页颜色解释，不受输入设置影响。" }}</p>
+          </div>
+          <p class="c-cvt-warn" hidden></p>
+        </div>
+
+        <div class="c-cvt-result">
+          <h2>{{ cond $en "Result" "结果" }}</h2>
+          <table class="c-cvt-table">
+            <tbody>
+              <tr><th>{{ cond $en "Float (normalised)" "浮点（归一化）" }}</th><td class="c-cvt-out-norm">-</td></tr>
+              <tr><th>{{ cond $en "Integer code value" "整数码值" }}</th><td class="c-cvt-out-pack">-</td></tr>
+              <tr><th>xy</th><td class="c-cvt-out-xy">-</td></tr>
+            </tbody>
+          </table>
+          <p class="c-cvt-flags"></p>
+          <button type="button" class="c-btn c-cvt-copy">{{ cond $en "Copy result" "复制结果" }}</button>
+          <table class="c-cvt-table c-cvt-batchout" hidden></table>
+        </div>
+
+        <details class="c-cvt-steps">
+          <summary>{{ cond $en "Calculation steps" "计算过程" }}</summary>
+          <table class="c-cvt-table"><tbody class="c-cvt-trace"></tbody></table>
+        </details>
       </div>
+      <script type="application/json" id="convert-data">{{ dict
+        "spaces" $data.spaces
+        "curves" $curves
+        "lang" $lang
+      | jsonify | safeJS }}</script>
     </div>
   </div>
   <script>document.documentElement.lang = "{{ $lang }}";</script>

@@ -23,6 +23,7 @@
               "slug" $slug
               "title" $itemTitle
               "group" $label
+              "category" (.Params.category | default "")
               "primaries" .Params.primaries
               "white" .Params.whitePoint
               "matrix" .Params.matrix) }}
