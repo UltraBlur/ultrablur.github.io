@@ -15,6 +15,7 @@
       {{/* PQ / HLG 是传递函数，原色借自 BT.2020，不单列 */}}
       {{ if and (ne .slug "st2084") (ne .slug "hlg") }}
         {{ $itemTitle := cond $en (.titleEn | default .title) .title }}
+        {{ $itemKind := .group | default "" }}
         {{ with site.GetPage (printf "/colour/%s" .slug) }}
           {{ if and .Params.primaries (or (not .Params.wip) (eq hugo.Environment "development")) }}
             {{ $slug := path.Base .File.Dir }}
@@ -23,6 +24,7 @@
               "slug" $slug
               "title" $itemTitle
               "group" $label
+              "kind" $itemKind
               "category" (.Params.category | default "")
               "primaries" .Params.primaries
               "white" .Params.whitePoint

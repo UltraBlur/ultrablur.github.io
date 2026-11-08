@@ -7,8 +7,8 @@
   var C = window.ColourCodec;
   var lang = cfg.lang || 'zh';
   var T = lang === 'en'
-    ? { src: 'Input', dst: 'Output', preset: 'Preset', gamut: 'Gamut', tf: 'Transfer function', lw: 'Reference white', lb: 'Black level', enc: 'Encoding', value: 'Code value', grey: 'Neutral grey', calc: 'Convert', batch: 'Batch', hex: 'Hex', triple: 'Channels', csv: 'Copy CSV', copy: 'Copy result', trace: 'Calculation', result: 'Result', float: 'Float 0–1', invalid: 'Not a number', gamutOut: 'Outside target gamut', overWhite: 'Above white', rangeOut: 'Outside nominal range', approx: 'Approximate (sampled curve)', custom: 'Custom combination', hlgbad: 'HLG can only be used with BT.2020 primaries', mixedRef: 'Scene-referred to display-referred needs a rendering transform, which this tool does not provide.', cat: 'White adaptation', catAuto: 'Bradford (when whites differ)', catNone: 'None, keep XYZ', noResult: 'No result' }
-    : { src: '输入', dst: '输出', preset: '预设', gamut: '色域', tf: '传递函数', lw: '参考白', lb: '黑位', enc: '编码', value: '码值', grey: '中性灰', calc: '换算', batch: '批量', hex: '十六进制', triple: '三通道', csv: '复制 CSV', copy: '复制结果', trace: '计算过程', result: '结果', float: '浮点 0–1', invalid: '不是数字', gamutOut: '超出目标色域', overWhite: '高于白位', rangeOut: '超出标称范围', approx: '近似（采样曲线）', custom: '自定义组合', hlgbad: 'HLG 只能配 BT.2020 原色', mixedRef: '场景参考到显示参考需要渲染变换，本工具不做渲染，因此不提供这条换算。', cat: '白点适应', catAuto: 'Bradford（白点不同时）', catNone: '不适应，保留 XYZ', noResult: '无结果' };
+    ? { src: 'Input', dst: 'Output', gamut: 'Gamut', tf: 'Transfer function', lw: 'Reference white', lb: 'Black level', enc: 'Encoding', value: 'Code value', grey: 'Neutral grey', calc: 'Convert', batch: 'Batch', hex: 'Hex', triple: 'Channels', csv: 'Copy CSV', copy: 'Copy result', trace: 'Calculation', result: 'Result', float: 'Float 0–1', invalid: 'Not a number', gamutOut: 'Outside target gamut', overWhite: 'Above white', rangeOut: 'Outside nominal range', approx: 'Approximate (sampled curve)', custom: 'Custom combination', hlgbad: 'HLG can only be used with BT.2020 primaries', mixedRef: 'Scene-referred to display-referred needs a rendering transform, which this tool does not provide.', cat: 'White adaptation', catAuto: 'Bradford (when whites differ)', catNone: 'None, keep XYZ', noResult: 'No result' }
+    : { src: '输入', dst: '输出', gamut: '色域', tf: '传递函数', lw: '参考白', lb: '黑位', enc: '编码', value: '码值', grey: '中性灰', calc: '换算', batch: '批量', hex: '十六进制', triple: '三通道', csv: '复制 CSV', copy: '复制结果', trace: '计算过程', result: '结果', float: '浮点 0–1', invalid: '不是数字', gamutOut: '超出目标色域', overWhite: '高于白位', rangeOut: '超出标称范围', approx: '近似（采样曲线）', custom: '自定义组合', hlgbad: 'HLG 只能配 BT.2020 原色', mixedRef: '场景参考到显示参考需要渲染变换，本工具不做渲染，因此不提供这条换算。', cat: '白点适应', catAuto: 'Bradford（白点不同时）', catNone: '不适应，保留 XYZ', noResult: '无结果' };
 
   var spaces = (cfg.spaces || []).filter(function (s) { return s.matrix && s.primaries; });
   if (spaces.length < 2) return;
@@ -17,8 +17,6 @@
   spaces.forEach(function (s) { byId[s.slug] = s; });
 
   var els = {
-    srcPreset: host.querySelector('.c-cvt-preset-src'),
-    dstPreset: host.querySelector('.c-cvt-preset-dst'),
     srcGamut: host.querySelector('.c-cvt-gamut-src'),
     dstGamut: host.querySelector('.c-cvt-gamut-dst'),
     srcTf: host.querySelector('.c-cvt-tf-src'),
@@ -51,14 +49,97 @@
     o.textContent = text;
     sel.appendChild(o);
   }
+  function group(sel, text) {
+    var g = document.createElement('optgroup');
+    g.label = text;
+    sel.appendChild(g);
+    return g;
+  }
+  function optIn(g, value, text) {
+    var o = document.createElement('option');
+    o.value = value;
+    o.textContent = text;
+    g.appendChild(o);
+  }
   function label(t) { return lang === 'en' ? (t.label.en || t.label.zh) : t.label.zh; }
 
+  /* 相机与工作空间的标题是「色域 / 传递函数」合写，显示原色的标题不是；
+     个别条目顺序相反，单独列出 */
+  var CURVE_FIRST = { 'apple-log': 1, 'apple-log2': 1, 'oppo-log': 1, 'oppo-log2': 1, 'nikon-nlog': 1 };
+  function kindOf(space) { return space.kind || 'camera'; }
+  function splitName(space) {
+    var title = (space.title || '').trim();
+    if (kindOf(space) === 'display-gamut') return { gamut: title, curve: null };
+    if (CURVE_FIRST[space.slug]) {
+      var p = title.split(' / ');
+      return { gamut: (p[1] || p[0]).trim(), curve: (p[0] || title).trim() };
+    }
+    var parts = title.split(' / ');
+    if (parts.length === 2) return { gamut: parts[0].trim(), curve: parts[1].trim() };
+    return { gamut: title, curve: title };
+  }
+  var GROUP_NAMES = {
+    camera: { zh: '相机色域', en: 'Camera gamuts' },
+    aces: { zh: 'ACES', en: 'ACES' },
+    working: { zh: '工作空间', en: 'Working spaces' },
+    'display-gamut': { zh: '显示原色', en: 'Display primaries' }
+  };
+  function groupName(g) {
+    var n = GROUP_NAMES[g];
+    return n ? (lang === 'en' ? n.en : n.zh) : g;
+  }
+
+  /* 色域：同一组原色 + 白点只列一次（Canon Rec.2020 与 Rec.2020 合为一项） */
+  function primKey(s) {
+    return (s.primaries || []).map(function (p) { return p.map(function (v) { return v.toFixed(5); }).join(','); }).join(';')
+      + '|' + (s.white || []).map(function (v) { return v.toFixed(5); }).join(',');
+  }
+  var gamutList = [];
+  var seenGamut = {};
+  var usedLabel = {};
   spaces.forEach(function (s) {
-    var t = s.title;
-    [els.srcGamut, els.dstGamut].forEach(function (sel) { opt(sel, s.slug, t); });
+    var nm = splitName(s);
+    /* 只在本组内去重：显示原色与相机色域即使原色相同也各自成项 */
+    var key = kindOf(s) + '|' + primKey(s);
+    if (seenGamut[key]) return;
+    seenGamut[key] = true;
+    var text = nm.gamut;
+    if (usedLabel[text]) text = text + ' · ' + nm.curve;  /* 同名不同原色，用曲线名区分 */
+    usedLabel[text] = true;
+    usedLabel[nm.gamut] = true;
+    gamutList.push({ slug: s.slug, text: text, group: kindOf(s) });
   });
+  var gamutGroups = {};
+  gamutList.forEach(function (g) {
+    [els.srcGamut, els.dstGamut].forEach(function (sel) {});
+    if (!gamutGroups[g.group]) {
+      gamutGroups[g.group] = [els.srcGamut, els.dstGamut].map(function (sel) { return group(sel, groupName(g.group)); });
+    }
+    gamutGroups[g.group].forEach(function (grp) { optIn(grp, g.slug, g.text); });
+  });
+
+  /* 场景曲线的标签只用曲线名，避免与色域下拉重名 */
   transfers.forEach(function (t) {
-    [els.srcTf, els.dstTf].forEach(function (sel) { opt(sel, t.id, label(t) + (t.approx ? ' ·≈' : '')); });
+    if (t.kind === 'scene' && t.space && byId[t.space]) {
+      var nm = splitName(byId[t.space]);
+      if (nm.curve) t.label = { zh: nm.curve, en: nm.curve };
+    }
+  });
+
+  /* 传递函数：同一条曲线只列一次；内置曲线在前，采样曲线在后 */
+  var tfGroups = {};
+  var tfSeen = {};
+  transfers.forEach(function (t) {
+    var key = t.kind === 'scene' ? 'curve:' + label(t) : t.id;
+    if (tfSeen[key]) return;
+    tfSeen[key] = true;
+    var band = t.kind === 'scene' ? 'scene' : 'display';
+    var gname = band === 'scene'
+      ? (lang === 'en' ? 'Scene and log encodings' : '场景 / 对数编码')
+      : (lang === 'en' ? 'Display EOTFs and linear' : '显示 EOTF 与线性');
+    if (!tfGroups[band]) tfGroups[band] = [els.srcTf, els.dstTf].map(function (sel) { return group(sel, gname); });
+    var text = label(t) + (t.approx ? ' *' : '');
+    tfGroups[band].forEach(function (grp) { optIn(grp, t.id, text); });
   });
   var encs = [{ id: 'float', text: T.float }];
   [8, 10, 12, 16].forEach(function (bits) {
@@ -73,20 +154,6 @@
     var m = /^(full|video)(\d+)$/.exec(id);
     return { mode: 'int', range: m[1], bits: parseInt(m[2], 10) };
   }
-
-  /* 预设：每个带曲线的空间配自己的传递函数 */
-  var presets = [];
-  transfers.forEach(function (t) {
-    if (t.id.indexOf('scene:') === 0) presets.push({ id: t.id, gamut: t.space, tf: t.id, text: t.label.zh });
-  });
-  presets.push({ id: 'srgb', gamut: 'primaries-srgb-rec709', tf: 'srgb', text: lang === 'en' ? 'sRGB / Rec.709, sRGB curve' : 'sRGB / Rec.709，sRGB 曲线' });
-  presets.push({ id: 'pq2020', gamut: 'primaries-rec2020', tf: 'pq', text: lang === 'en' ? 'Rec.2020, PQ' : 'Rec.2020，PQ' });
-  presets.push({ id: 'hlg2020', gamut: 'primaries-rec2020', tf: 'hlg', text: lang === 'en' ? 'Rec.2020, HLG' : 'Rec.2020，HLG' });
-  presets.push({ id: 'p3d65', gamut: 'primaries-p3-d65', tf: 'g26', text: lang === 'en' ? 'P3-D65, gamma 2.6' : 'P3-D65，γ 2.6' });
-  presets = presets.filter(function (p) { return byId[p.gamut]; });
-  presets.forEach(function (p) {
-    [els.srcPreset, els.dstPreset].forEach(function (sel) { opt(sel, p.id, p.text); });
-  });
 
   /* ---------- 参数面板 ---------- */
   function tfById(id) {
@@ -310,16 +377,6 @@
   function syncParams(side) {
     paramBox(tfById(side === 'src' ? els.srcTf.value : els.dstTf.value), side);
   }
-  function onPreset(sel, side) {
-    var p = presets.filter(function (x) { return x.id === sel.value; })[0];
-    if (!p) return;
-    (side === 'src' ? els.srcGamut : els.dstGamut).value = p.gamut;
-    (side === 'src' ? els.srcTf : els.dstTf).value = p.tf;
-    syncParams(side);
-    run();
-  }
-  els.srcPreset.addEventListener('change', function () { onPreset(els.srcPreset, 'src'); });
-  els.dstPreset.addEventListener('change', function () { onPreset(els.dstPreset, 'dst'); });
   els.srcGamut.addEventListener('change', run);
   els.dstGamut.addEventListener('change', run);
   els.srcTf.addEventListener('change', function () { syncParams('src'); run(); });
@@ -353,9 +410,15 @@
   });
 
   /* ---------- 初始状态 ---------- */
-  els.srcPreset.value = presets.some(function (p) { return p.id === 'srgb'; }) ? 'srgb' : presets[0].id;
-  els.dstPreset.value = presets.some(function (p) { return p.id === 'pq2020'; }) ? 'pq2020' : presets[1] && presets[1].id;
-  onPreset(els.srcPreset, 'src');
-  onPreset(els.dstPreset, 'dst');
+  function setIfPresent(sel, value) {
+    var found = Array.prototype.some.call(sel.options, function (o) { return o.value === value; });
+    if (found) sel.value = value;
+  }
+  setIfPresent(els.srcGamut, 'primaries-srgb-rec709');
+  setIfPresent(els.srcTf, 'srgb');
+  setIfPresent(els.dstGamut, 'primaries-rec2020');
+  setIfPresent(els.dstTf, 'pq');
+  syncParams('src');
+  syncParams('dst');
   run();
 })();
