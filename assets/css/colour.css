@@ -196,3 +196,4 @@ body:has(.c-page) .bottom-menu a { color: #315e80; }
 .c-cvt-steps { margin-top: 1.4rem; font-size: .85rem; }
 .c-cvt-steps summary { cursor: pointer; color: #555; }
 .c-cvt-steps .c-cvt-table { margin-top: .6rem; }
+.c-cvt-scope { flex: 1 1 100%; color: #777; font-size: .78rem; line-height: 1.6; }

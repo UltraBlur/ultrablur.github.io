@@ -124,20 +124,29 @@ const p3GreenInSrgb = C.convert([0, 1, 0], {
 }, {});
 ok('P3 绿在 sRGB 外', p3GreenInSrgb.ok && p3GreenInSrgb.out.inGamut === false);
 
-/* 7. 场景 → 显示：未标定必须阻断 */
+/* 7. 场景 ↔ 显示：一律阻断（本工具不做渲染） */
 const blocked = C.convert([0.4, 0.4, 0.4], {
   space: awg3, transfer: logc3, params: {}, enc: { mode: 'float' }
 }, {
   space: bt2020, transfer: pq, params: {}, enc: { mode: 'float' }
 }, {});
-ok('场景→显示 未标定被阻断', blocked.ok === false && blocked.problems.some((p) => p.key === 'bridge'));
+ok('场景→显示 被阻断', blocked.ok === false && blocked.problems.some((p) => p.key === 'mixedRef'));
 
-const bridged = C.convert([0.4, 0.4, 0.4], {
+const back = C.convert([0.5, 0.5, 0.5], {
+  space: bt2020, transfer: pq, params: {}, enc: { mode: 'float' }
+}, {
+  space: awg3, transfer: logc3, params: {}, enc: { mode: 'float' }
+}, {});
+ok('显示→场景 被阻断', back.ok === false && back.problems.some((p) => p.key === 'mixedRef'));
+
+/* 同体系仍可算：场景 LogC3 → 场景 ACEScct 风格保持有限值 */
+const sceneToScene = C.convert([0.39, 0.39, 0.39], {
   space: awg3, transfer: logc3, params: {}, enc: { mode: 'float' }
 }, {
-  space: bt2020, transfer: pq, params: {}, enc: { mode: 'float' }
-}, { bridge: { enabled: true, sceneToNits: 100 } });
-ok('场景→显示 标定后可以计算', bridged.ok && bridged.out.norm.every((v) => isFinite(v)));
+  space: awg3, transfer: logc3, params: {}, enc: { mode: 'float' }
+}, {});
+ok('场景→场景 仍可计算', sceneToScene.ok && sceneToScene.out.norm.every((v) => Math.abs(v - 0.39) < 5e-3),
+  sceneToScene.ok ? sceneToScene.out.norm.join(',') : 'blocked');
 
 /* 8. 负值与超白不被吞掉 */
 const neg = C.convert([0, 1, 0], {

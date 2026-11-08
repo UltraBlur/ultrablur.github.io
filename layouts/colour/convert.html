@@ -34,8 +34,8 @@
       </nav>
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <p class="c-intro">{{ cond $en
-        "Convert code values between any two RGB spaces in the catalogue. The two ends are configured independently: primaries, transfer function and code value range. Intermediate values are kept as they are; nothing is clipped, tone mapped or gamut mapped."
-        "在目录里任意两个 RGB 空间之间换算码值。两端独立指定：原色、传递函数、码值范围。中间值原样保留，不做裁剪、tone mapping 或色域压缩。" }}</p>
+        "Convert code values between any two RGB spaces in the catalogue. The two ends are configured independently: primaries, transfer function and code value range. Intermediate values are kept as they are; nothing is clipped, gamut mapped or rendered."
+        "在目录里任意两个 RGB 空间之间换算码值。两端独立指定：原色、传递函数、码值范围。中间值原样保留，不裁剪，也不做色域压缩或任何渲染。" }}</p>
       <div class="c-cvt" data-convert>
         <div class="c-cvt-cols">
           <section class="c-cvt-panel">
@@ -57,14 +57,13 @@
         </div>
 
         <div class="c-cvt-bridge">
-          <label class="c-cvt-check"><input type="checkbox" class="c-cvt-bridge-on"> {{ cond $en "Direct linear calibration (no tone mapping)" "直接线性标定（不含 tone mapping）" }}</label>
-          <label>{{ cond $en "scene linear 1.0 →" "场景线性 1.0 →" }} <input type="number" class="c-cvt-bridge-nits" value="100" min="0" step="10"> cd/m²</label>
           <label>{{ cond $en "White adaptation" "白点适应" }}
             <select class="c-cvt-cat">
               <option value="auto">{{ cond $en "Bradford (when whites differ)" "Bradford（白点不同时）" }}</option>
               <option value="none">{{ cond $en "None, keep XYZ" "不做，保留 XYZ" }}</option>
             </select>
           </label>
+          <span class="c-cvt-scope">{{ cond $en "Two ends in the same reference system only. Scene-referred ↔ display-referred needs a rendering transform, which this tool does not provide." "只做同一参考体系内的换算。场景参考 ↔ 显示参考需要渲染变换，本工具不做。" }}</span>
         </div>
 
         <div class="c-cvt-input">

@@ -289,7 +289,7 @@
 
   /* ---------- 主流程 ---------- */
   /* src/dst: {space, transfer, params:{lw, lb}, enc}
-     opts: {cat:'auto'|'none'|'bradford', bridge:{enabled:bool, sceneToNits:number}} */
+     opts: {cat:'auto'|'none'}；场景参考与显示参考之间不换算 */
   function convert(rgb, src, dst, opts) {
     opts = opts || {};
     var trace = [];
@@ -321,32 +321,15 @@
       trace.push({ step: 'decode', label: tS.abs ? 'EOTF → 绝对亮度 cd/m²' : 'EOTF → 显示线性（× 参考白）', value: linS.map(fmt) });
     }
 
-    /* 3. 体系衔接 */
-    var linearFromScene = tS.kind === 'scene';
-    var linear = linS;
+    /* 3. 场景参考与显示参考之间需要渲染变换，本工具不提供 */
     if (mixed) {
-      var bridge = opts.bridge || {};
-      if (!bridge.enabled || !(bridge.sceneToNits > 0)) {
-        problems.push({ key: 'bridge', text: '场景参考与显示参考之间需要先指定线性标定' });
-        return { ok: false, problems: problems, trace: trace };
-      }
-      if (linearFromScene) {
-        linear = linS.map(function (v) { return v * bridge.sceneToNits; });
-        trace.push({ step: 'bridge', label: '场景线性 × ' + fmt(bridge.sceneToNits) + ' → cd/m²', value: linear.map(fmt) });
-      } else {
-        linear = linS.map(function (v) { return v / bridge.sceneToNits; });
-        trace.push({ step: 'bridge', label: 'cd/m² ÷ ' + fmt(bridge.sceneToNits) + ' → 场景线性', value: linear.map(fmt) });
-      }
+      problems.push({ key: 'mixedRef', text: '场景参考与显示参考之间需要渲染变换，本工具不做' });
+      return { ok: false, problems: problems, trace: trace };
     }
+    var linear = linS;
 
-    /* 4. 相对亮度 → 绝对亮度（内部统一用 cd/m²） */
-    var toAbsolute = tS.kind === 'display' && !tS.abs;
-    var fromAbsolute = tD.kind === 'display' && !tD.abs;
+    /* 4. 内部统一用 cd/m²（相对 EOTF 解码时已乘过参考白） */
     var absRGB = linear;
-    if (toAbsolute) {
-      /* 相对 EOTF 已经乘过参考白，linear 即 cd/m² */
-      absRGB = linear;
-    }
 
     /* 5. XYZ 与白点适应 */
     var M = flat(src.space.matrix), Mi = flat(dst.space.matrix);
@@ -380,12 +363,7 @@
     /* 6. 编码 */
     var codeOut;
     if (tD.kind === 'scene') {
-      var sceneLin = linearFromScene && !mixed ? linD : linD;
-      if (!linearFromScene && mixed) {
-        /* 显示 → 场景：已在上一步换算为场景线性 */
-        sceneLin = linD;
-      }
-      codeOut = sceneLin.map(function (v) { return tD.encode(v, dst.params); });
+      codeOut = linD.map(function (v) { return tD.encode(v, dst.params); });
       trace.push({ step: 'encode', label: '场景线性 → 编码', value: codeOut.map(fmt) });
     } else {
       codeOut = tD.vector ? tD.encode(linD, dst.params) : linD.map(function (v) { return tD.encode(v, dst.params); });
@@ -418,8 +396,7 @@
         negative: neg,
         overWhite: overWhite,
         outOfRange: outOfRange,
-        approx: !!(tS.approx || tD.approx),
-        mixed: mixed
+        approx: !!(tS.approx || tD.approx)
       }
     };
   }

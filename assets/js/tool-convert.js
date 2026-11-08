@@ -7,8 +7,8 @@
   var C = window.ColourCodec;
   var lang = cfg.lang || 'zh';
   var T = lang === 'en'
-    ? { src: 'Input', dst: 'Output', preset: 'Preset', gamut: 'Gamut', tf: 'Transfer function', lw: 'Reference white', lb: 'Black level', enc: 'Encoding', value: 'Code value', grey: 'Neutral grey', calc: 'Convert', batch: 'Batch', hex: 'Hex', triple: 'Channels', csv: 'Copy CSV', copy: 'Copy result', trace: 'Calculation', result: 'Result', float: 'Float 0–1', invalid: 'Not a number', gamutOut: 'Outside target gamut', overWhite: 'Above white', rangeOut: 'Outside nominal range', approx: 'Approximate (sampled curve)', custom: 'Custom combination', hlgbad: 'HLG can only be used with BT.2020 primaries', bridge: 'Scene and display need a linear calibration', needBridge: 'Scene-referred input to display-referred output is not uniquely defined without a calibration or a rendering transform. Enable the calibration below to do a plain linear mapping (no tone mapping).', bridgeOn: 'Direct linear calibration', bridgeNits: 'scene linear 1.0 →', cat: 'White adaptation', catAuto: 'Bradford (when whites differ)', catNone: 'None, keep XYZ', noResult: 'No result' }
-    : { src: '输入', dst: '输出', preset: '预设', gamut: '色域', tf: '传递函数', lw: '参考白', lb: '黑位', enc: '编码', value: '码值', grey: '中性灰', calc: '换算', batch: '批量', hex: '十六进制', triple: '三通道', csv: '复制 CSV', copy: '复制结果', trace: '计算过程', result: '结果', float: '浮点 0–1', invalid: '不是数字', gamutOut: '超出目标色域', overWhite: '高于白位', rangeOut: '超出标称范围', approx: '近似（采样曲线）', custom: '自定义组合', hlgbad: 'HLG 只能配 BT.2020 原色', bridge: '场景与显示之间需要线性标定', needBridge: '场景参考输入到显示参考输出不能唯一确定，需要先指定线性标定或渲染变换。打开下面的标定可以做纯线性换算（不含 tone mapping）。', bridgeOn: '直接线性标定', bridgeNits: '场景线性 1.0 →', cat: '白点适应', catAuto: 'Bradford（白点不同时）', catNone: '不适应，保留 XYZ', noResult: '无结果' };
+    ? { src: 'Input', dst: 'Output', preset: 'Preset', gamut: 'Gamut', tf: 'Transfer function', lw: 'Reference white', lb: 'Black level', enc: 'Encoding', value: 'Code value', grey: 'Neutral grey', calc: 'Convert', batch: 'Batch', hex: 'Hex', triple: 'Channels', csv: 'Copy CSV', copy: 'Copy result', trace: 'Calculation', result: 'Result', float: 'Float 0–1', invalid: 'Not a number', gamutOut: 'Outside target gamut', overWhite: 'Above white', rangeOut: 'Outside nominal range', approx: 'Approximate (sampled curve)', custom: 'Custom combination', hlgbad: 'HLG can only be used with BT.2020 primaries', mixedRef: 'Scene-referred to display-referred needs a rendering transform, which this tool does not provide.', cat: 'White adaptation', catAuto: 'Bradford (when whites differ)', catNone: 'None, keep XYZ', noResult: 'No result' }
+    : { src: '输入', dst: '输出', preset: '预设', gamut: '色域', tf: '传递函数', lw: '参考白', lb: '黑位', enc: '编码', value: '码值', grey: '中性灰', calc: '换算', batch: '批量', hex: '十六进制', triple: '三通道', csv: '复制 CSV', copy: '复制结果', trace: '计算过程', result: '结果', float: '浮点 0–1', invalid: '不是数字', gamutOut: '超出目标色域', overWhite: '高于白位', rangeOut: '超出标称范围', approx: '近似（采样曲线）', custom: '自定义组合', hlgbad: 'HLG 只能配 BT.2020 原色', mixedRef: '场景参考到显示参考需要渲染变换，本工具不做渲染，因此不提供这条换算。', cat: '白点适应', catAuto: 'Bradford（白点不同时）', catNone: '不适应，保留 XYZ', noResult: '无结果' };
 
   var spaces = (cfg.spaces || []).filter(function (s) { return s.matrix && s.primaries; });
   if (spaces.length < 2) return;
@@ -32,8 +32,6 @@
     b: host.querySelector('.c-cvt-b'),
     hex: host.querySelector('.c-cvt-hexval'),
     batch: host.querySelector('.c-cvt-batchtext'),
-    bridgeOn: host.querySelector('.c-cvt-bridge-on'),
-    bridgeNits: host.querySelector('.c-cvt-bridge-nits'),
     cat: host.querySelector('.c-cvt-cat'),
     outNorm: host.querySelector('.c-cvt-out-norm'),
     outPack: host.querySelector('.c-cvt-out-pack'),
@@ -190,7 +188,6 @@
     if (res.out.negative) out.push({ cls: 'is-warn', text: '负值' });
     if (res.out.outOfRange) out.push({ cls: 'is-warn', text: T.rangeOut });
     if (res.out.approx) out.push({ cls: 'is-note', text: T.approx });
-    if (res.out.mixed) out.push({ cls: 'is-note', text: T.bridgeOn });
     return out;
   }
   function renderFlags(list) {
@@ -218,10 +215,7 @@
 
   function solve(rgb) {
     var src = endpoint('src'), dst = endpoint('dst');
-    var opts = {
-      cat: els.cat.value,
-      bridge: { enabled: !!els.bridgeOn.checked, sceneToNits: parseFloat(els.bridgeNits.value) || 0 }
-    };
+    var opts = { cat: els.cat.value };
     return C.convert(rgb, src, dst, opts);
   }
 
@@ -294,7 +288,7 @@
     if (!res.ok) {
       els.warn.hidden = false;
       els.warn.textContent = res.problems.map(function (p) {
-        if (p.key === 'bridge') return T.needBridge;
+        if (p.key === 'mixedRef') return T.mixedRef;
         if (p.key === 'hlgGamut') return T.hlgbad;
         return p.text;
       }).join('；');
@@ -335,8 +329,6 @@
   [els.r, els.g, els.b].forEach(function (i) { i.addEventListener('input', run); });
   els.hex.addEventListener('input', function () { if (mode === 'hex') run(); });
   els.batch.addEventListener('input', function () { if (mode === 'batch') run(); });
-  els.bridgeOn.addEventListener('change', run);
-  els.bridgeNits.addEventListener('input', run);
   els.cat.addEventListener('change', run);
 
   var greyBtn = host.querySelector('.c-cvt-grey');
