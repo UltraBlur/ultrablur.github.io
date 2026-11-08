@@ -1,0 +1,63 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $vol := resources.Get "css/colour-volume.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $vol.RelPermalink }}" integrity="{{ $vol.Data.Integrity }}">
+{{ $models := resources.Get "js/colour-models.js" | minify | fingerprint }}
+<script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
+{{ $polar := resources.Get "js/colour-polar.js" | minify | fingerprint }}
+<script defer src="{{ $polar.RelPermalink }}" integrity="{{ $polar.Data.Integrity }}"></script>
+{{ $tjs := resources.Get "js/tool-inspector.js" | minify | fingerprint }}
+<script defer src="{{ $tjs.RelPermalink }}" integrity="{{ $tjs.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+<div class="c-page" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="breadcrumb">
+        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
+      </nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <script type="application/json" id="inspect-data">{{ dict "lang" $lang | jsonify | safeJS }}</script>
+      <div class="c-ins" data-inspector>
+        <div class="c-pick">
+          <canvas id="ins-plane" width="240" height="180"></canvas>
+          <div class="c-pick-side">
+            <label class="c-pick-model">{{ cond $en "Model" "选色模型" }}
+              <select id="ins-model">
+                <option value="hsv">HSV</option>
+                <option value="lch">LCH（Lab）</option>
+                <option value="oklch">OKLCH</option>
+                <option value="jmh">JMH（CAM02）</option>
+                <option value="jzch">JzCH</option>
+              </select>
+            </label>
+            <input id="ins-hue" type="range" min="0" max="360" step="1" value="0">
+            <label class="c-pick-model">{{ cond $en "Reference white" "参考白" }}
+              <select id="ins-lum">
+                <option value="48">48 cd/m²</option>
+                <option value="100" selected>100 cd/m²</option>
+                <option value="203">203 cd/m²</option>
+                <option value="1000">1000 cd/m²</option>
+              </select>
+            </label>
+            <div class="c-pick-hex">
+              <span class="c-ins-swatch" id="ins-swatch"></span>
+              <input id="ins-hex" type="text" value="#FF0000" spellcheck="false" size="8">
+            </div>
+            <div class="c-pick-axes" id="ins-axes"></div>
+          </div>
+        </div>
+        <table class="c-cmp-table c-ins-table">
+          <tbody id="ins-coord"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}

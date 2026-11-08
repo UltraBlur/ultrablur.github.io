@@ -1,0 +1,62 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $js := resources.Get "js/tool-transfer.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $curves := hugo.Data.curves }}
+{{ $list := slice }}
+{{ range hugo.Data.colourspaces }}
+  {{ range .items }}
+    {{ $c := index $curves .slug }}
+    {{/* 施工中的条目（胶片）在正式环境不进工具，本地预览仍然可见 */}}
+    {{ if and $c (or (not .wip) (eq hugo.Environment "development")) }}
+      {{ $pts := slice }}
+      {{ range $i, $p := $c }}
+        {{ if eq (mod $i 2) 0 }}{{ $pts = $pts | append (dict "x" (index $p 0) "y" (index $p 1)) }}{{ end }}
+      {{ end }}
+      {{ $list = $list | append (dict "slug" .slug "title" .title "group" (.group | default "") "curve" $pts) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+<div class="c-page" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="breadcrumb">
+        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
+      </nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <script type="application/json" id="transfer-data">{{ dict "spaces" $list "lang" $lang | jsonify | safeJS }}</script>
+      <div class="c-tf" data-tf>
+        <div class="c-ctl c-tf-controls">
+          <div class="c-seg c-tf-modes">
+            <button type="button" data-mode="encode" class="is-on">OETF</button>
+            <button type="button" data-mode="display">EOTF</button>
+          </div>
+          <label class="c-tf-auto">{{ cond $en "Y axis" "纵轴" }}
+            <select class="c-tf-yaxis">
+              <option value="abs">{{ cond $en "cd/m² (linear)" "cd/m²（线性）" }}</option>
+              <option value="log">{{ cond $en "cd/m² (log)" "cd/m²（对数）" }}</option>
+              <option value="rel">{{ cond $en "Relative to peak" "相对各自峰值" }}</option>
+              <option value="stops">{{ cond $en "Stops below peak" "峰值以下的档位" }}</option>
+              <option value="pq">{{ cond $en "PQ code" "PQ 码值" }}</option>
+            </select>
+          </label>
+          <label class="c-tf-auto">{{ cond $en "Y max" "纵轴上限" }} <input class="c-tf-ymax" type="number" min="0" step="10" placeholder="{{ cond $en "auto" "自动" }}"> cd/m²</label>
+          <button type="button" class="c-btn c-tf-toggle">{{ cond $en "Choose curves" "选择曲线" }}</button>
+        </div>
+        <div class="c-tf-picks" hidden></div>
+        <div class="c-tf-params"></div>
+        <svg class="c-tf-svg" viewBox="0 0 720 420" aria-label="{{ .Title }}"></svg>
+        <ul class="c-tf-legend"></ul>
+      </div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}

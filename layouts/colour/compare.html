@@ -1,0 +1,53 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $chart := resources.Get "js/chart2d.js" | minify | fingerprint }}
+<script defer src="{{ $chart.RelPermalink }}" integrity="{{ $chart.Data.Integrity }}"></script>
+{{ $locus := resources.Get "js/colour-locus.js" | minify | fingerprint }}
+<script defer src="{{ $locus.RelPermalink }}" integrity="{{ $locus.Data.Integrity }}"></script>
+{{ $js := resources.Get "js/tool-compare.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $t := index hugo.Data.i18n $lang }}
+{{ $data := partial "tool-spaces.html" (dict "scope" "all") }}
+{{ $spaces := slice }}
+{{ range $data.spaces }}
+  {{ $spaces = $spaces | append (dict "slug" .slug "title" .title "primaries" .primaries "white" .white) }}
+{{ end }}
+<div class="c-page" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
+    <div class="c-main">
+      <nav class="c-crumb" aria-label="breadcrumb">
+        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
+      </nav>
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <script type="application/json" id="compare-data">{{ dict "spaces" $spaces "lang" $lang | jsonify | safeJS }}</script>
+      <div class="c-cmp" data-compare>
+        <div class="c-vol-controls c-ctl">
+          <label>{{ cond $en "Space A" "空间 A" }}
+            <select id="cmp-a"></select>
+          </label>
+          <label>{{ cond $en "Space B" "空间 B" }}
+            <select id="cmp-b"></select>
+          </label>
+        </div>
+        <svg class="c-cmp-svg" viewBox="0 0 640 560" aria-label="{{ .Title }}"></svg>
+        <table class="c-cmp-table">
+          <thead><tr>
+            <th></th>
+            <th>{{ cond $en "Area in xy" "xy 面积" }}</th>
+            <th>{{ cond $en "White" "白点" }}</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}

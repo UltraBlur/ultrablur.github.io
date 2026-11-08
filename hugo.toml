@@ -33,9 +33,17 @@ pygmentsCodefences       = true
     text = "colour"
 
 [[params.mainMenu]]
+    link = "/tools/"
+    text = "tools"
+
+[[params.mainMenu]]
     link = "/archive"
     text = "archive"
 
 [[params.mainMenu]]
     link = "/about"
     text = "Gao Huyuchen"
+
+[markup.highlight]
+  noClasses = true
+  style = "friendly"

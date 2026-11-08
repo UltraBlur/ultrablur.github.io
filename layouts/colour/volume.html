@@ -13,24 +13,10 @@
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
 {{ $t := index hugo.Data.i18n $lang }}
-{{ $spaces := slice }}
-{{ $slugs := slice }}
-{{ range hugo.Data.colourspaces }}
-  {{ if eq .label "Display Referred" }}
-    {{ range .items }}
-      {{/* PQ / HLG 是传递函数，原色借自 BT.2020，不作为独立色域列出 */}}
-      {{ if and (ne .slug "st2084") (ne .slug "hlg") }}{{ $slugs = $slugs | append .slug }}{{ end }}
-    {{ end }}
-  {{ end }}
-{{ end }}
-{{ $srgbMatrix := slice }}
-{{ range $slugs }}
-  {{ with site.GetPage (printf "/colour/%s" .) }}
-    {{ $slug := path.Base .File.Dir }}
-    {{ if eq $slug "srgb" }}{{ $srgbMatrix = .Params.matrix }}{{ end }}
-    {{ $spaces = $spaces | append (dict "slug" $slug "title" .Title "matrix" .Params.matrix "white" .Params.whitePoint) }}
-  {{ end }}
-{{ end }}
+{{ $data := partial "tool-spaces.html" . }}
+{{ $spaces := $data.spaces }}
+{{ $srgbMatrix := $data.srgbMatrix }}
+
 <div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
@@ -38,21 +24,21 @@
       <nav class="c-crumb" aria-label="breadcrumb">
         <a href="{{ if $en }}{{ "/en/colour/" | relURL }}{{ else }}{{ "colour/" | relURL }}{{ end }}">{{ $t.colourTitle }}</a> / {{ .Title }}
         {{ if $en }}
-        <a class="c-lang" href="{{ "/colour/volume/" | relURL }}" hreflang="zh">中文</a>
+        <a class="c-lang" href="{{ "/tools/gamut-volume/" | relURL }}" hreflang="zh">中文</a>
         {{ else }}
-        <a class="c-lang" href="{{ "/en/colour/volume/" | relURL }}" hreflang="en">English</a>
+        <a class="c-lang" href="{{ "/en/tools/gamut-volume/" | relURL }}" hreflang="en">English</a>
         {{ end }}
       </nav>
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="volume-data">{{ dict
         "spaces" $spaces
         "srgbMatrix" $srgbMatrix
-        "defaultPrimary" "srgb"
+        "defaultPrimary" "primaries-srgb-rec709"
         "ui" (dict "error" (cond $en "WebGL initialisation failed" "WebGL 初始化失败"))
       | jsonify | safeJS }}</script>
 
       <div class="c-vol" data-volume>
-        <div class="c-vol-controls">
+        <div class="c-vol-controls c-ctl">
           <label>{{ cond $en "Space" "主空间" }}
             <select id="vol-space">
               {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
