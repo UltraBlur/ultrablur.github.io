@@ -114,3 +114,48 @@ body:has(.c-page) .bottom-menu a { color: #315e80; }
 .c-entry-list { padding-left: 1.4rem; }
 .c-entry-list li { margin: .6rem 0; }
 @media (max-width: 600px) { .c-page { font-size: 15px; padding-top: 1rem; } .c-prose pre { font-size: .7rem; } .c-prose th, .c-prose td { padding: .4rem; } }
+
+/* 页面顶部说明框 */
+.c-note { margin: 0 0 1.5rem; padding: .9rem 1.1rem; background: #fbf7e8; border: 1px solid #e8dcb5; border-left: 3px solid #c8a94a; color: #4a3f22; font-size: .9rem; line-height: 1.75; }
+
+/* 施工中 */
+.c-note.c-wip { background: #f4f4f4; border-color: #d6d6d6; border-left-color: #9a9a9a; color: #555; }
+.c-wip-tag { display: inline-block; white-space: nowrap; margin-left: .45rem; padding: 0 .35rem; border: 1px solid #cbb26a; border-radius: 2px; font-size: .62rem; line-height: 1.5; color: #8a6d1f; letter-spacing: .02em; vertical-align: baseline; }
+.c-nav .c-wip-tag { margin-left: .3rem; }
+
+/* 传递函数比对 */
+.c-tf { margin-top: .5rem; }
+.c-tf-controls { margin: .5rem 0 1rem; }
+.c-tf-toggle { font: inherit; padding: .35rem .8rem; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+.c-tf-picks { margin-top: .8rem; columns: 2; column-gap: 2rem; font-size: .86rem; }
+.c-tf-picks[hidden] { display: none; }
+.c-tf-group { margin: .6rem 0 .2rem; color: #888; font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; break-after: avoid; }
+.c-tf-pick { display: block; margin: .18rem 0; }
+.c-tf-svg { width: 100%; height: auto; display: block; }
+.c-tf-svg line { stroke: #e6e6e6; stroke-width: 1; }
+.c-tf-svg .c-tf-axis text { fill: #666; font-size: 11px; }
+.c-tf-svg .c-tf-ref line { stroke: #bbb; }
+.c-tf-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; padding: 0; margin: .8rem 0 0; font-size: .85rem; }
+.c-tf-legend li { display: flex; align-items: center; gap: .4rem; }
+.c-tf-swatch { width: 1.6rem; height: 2px; display: inline-block; }
+.c-tf-auto { margin-left: 1rem; font-size: .85rem; color: #555; }
+.c-tf-modes { display: inline-flex; gap: .4rem; margin-right: 1rem; }
+.c-tf-modes button { font: inherit; padding: .35rem .8rem; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+.c-tf-modes button.is-on { border-color: #888; background: #f0f0f0; font-weight: 600; }
+
+/* ---- 工具控件统一外观 ---- */
+.c-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem 1.1rem; font-size: .82rem; color: #444; margin-bottom: .9rem; }
+.c-ctl label { display: inline-flex; align-items: center; gap: .35rem; margin: 0; }
+.c-ctl select, .c-ctl input[type=number], .c-ctl input[type=text] { font: inherit; font-size: .82rem; padding: .15rem .3rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-ctl input[type=number] { width: 5em; }
+.c-seg { display: inline-flex; border: 1px solid #ddd; background: #fff; }
+.c-seg button { font: inherit; font-size: .82rem; padding: .2rem .7rem; border: 0; background: transparent; color: #555; cursor: pointer; }
+.c-seg button + button { border-left: 1px solid #eee; }
+.c-seg button.is-on { background: #eef1f4; color: #111; font-weight: 600; }
+.c-btn { font: inherit; font-size: .82rem; padding: .2rem .7rem; border: 1px solid #ddd; background: #fff; color: #444; cursor: pointer; }
+.c-btn:hover { background: #f7f7f7; }
+.c-tf-params { margin: 0 0 1rem; font-size: .82rem; color: #555; }
+.c-tf-param-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; font-size: .82rem; color: #444; margin: .25rem 0; }
+.c-tf-param-name { min-width: 11rem; color: #666; }
+.c-tf-param-row input { font: inherit; font-size: .82rem; padding: .15rem .3rem; border: 1px solid #ddd; width: 5em; }
+.c-tf-ymax { width: 5em !important; }

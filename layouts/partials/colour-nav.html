@@ -1,25 +1,41 @@
-{{ $current := .current }}
+{{ $current := .ctx.RelPermalink }}
 {{ $en := .en | default false }}
 {{ $t := index hugo.Data.i18n (cond $en "en" "zh") }}
-{{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working }}
+{{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working "display-gamut" $t.displayGamut "display-tf" $t.displayTf }}
 <nav class="c-nav" aria-label="{{ $t.navTitle }}">
   <details class="c-nav-wrap" open>
     <summary>{{ $t.navTitle }}</summary>
     <div class="c-nav-body">
+      <div class="c-nav-group">
+        <p class="c-nav-label">{{ cond $en "Tools" "工具" }}</p>
+        <ul>
+          {{ $index := site.GetPage (printf "%stools/" (cond $en "/en/" "/")) }}
+          {{ with $index }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All tools" "全部工具" }}</a></li>
+          {{ end }}
+          {{ range slice "gamut-volume" "compare" "transfer" "inspector" }}
+          {{ with site.GetPage (printf "%stools/%s" (cond $en "/en/" "/") .) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
+          {{ end }}
+          {{ end }}
+        </ul>
+      </div>
       {{ range hugo.Data.colourspaces }}
       <div class="c-nav-group">
         <p class="c-nav-label">{{ .label }}</p>
         <ul>
           {{ $lastGroup := "" }}
+          {{ $wipGroups := slice }}
+          {{ range .items }}{{ if .wip }}{{ $wipGroups = $wipGroups | append (.group | default "") }}{{ end }}{{ end }}
           {{ range .items }}
           {{ $g := .group | default "" }}
           {{ if and $g (ne $g $lastGroup) }}
-          <li class="c-nav-sub">{{ index $subNames $g }}</li>
+          <li class="c-nav-sub">{{ index $subNames $g }}{{ if in $wipGroups $g }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
           {{ $lastGroup = $g }}
           {{ end }}
           {{ $page := site.GetPage (printf "%scolour/%s" (cond $en "/en/" "/") .slug) }}
           {{ if $page }}
-          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .title }}</a></li>
+          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .title }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
           {{ else }}
           <li class="is-pending" title="{{ $t.pending }}">{{ .title }}</li>
           {{ end }}

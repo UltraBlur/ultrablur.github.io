@@ -2,6 +2,7 @@
 title = "FilmLight Cineon PD Log / Generic Negative"
 date = 2026-11-06T10:00:00+08:00
 draft = false
+wip = true
 intro = "通用摄影负片的近似响应：扫描仪按 Cineon 校准、假定理想 SMPTE 印刷密度；光谱灵敏度取自一种通用现代底片。"
 category = "Scene Referred"
 sourceSpace = "FilmLight_CPD_GenericNegative.flspace"

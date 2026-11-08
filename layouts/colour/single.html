@@ -18,7 +18,7 @@
 {{ $slug := path.Base .File.Dir }}
 {{ $curve := index hugo.Data.curves $slug }}
 {{ $anchors := index hugo.Data.anchors $slug }}
-{{ $chart := dict "primaries" $d.primaries "white" $d.whitePoint "whiteName" $d.whiteName "curve" $curve }}
+{{ $chart := dict "primaries" $d.primaries "white" $d.whitePoint "whiteName" $d.whiteName "curve" $curve "relUnits" $d.eotfRel "yMax" $d.curveYMax "cinityCurve" (index hugo.Data.curves "cinity-log") }}
 <div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink "en" $en) }}
@@ -39,42 +39,51 @@
         "xEncoded" (cond $en "Encoded value (0–1)" "编码值（0–1）")
         "xNorm" (cond $en "Normalised code value (0–1)" "归一化码值（0–1）")
         "xCode" (cond $en "Quantised code value ({b}-bit, {m})" "量化码值（{b}-bit，{m}）")
-        "yLum" (cond $en "Luminance (cd/m²)" "亮度（cd/m²）")
+        "yLum" (cond $en (cond $d.eotfRel "Relative luminance (peak = 1)" "Luminance (cd/m²)") (cond $d.eotfRel "相对亮度（峰值 = 1）" "亮度（cd/m²）"))
         "tipStops" (cond $en "Stops" "档位")
         "tipCode" (cond $en "Code" "码值")
         "tipNorm" (cond $en "Normalised" "归一化")
         "tipLum" (cond $en "Luminance" "亮度")
         "tipLinear" (cond $en "Linear" "线性")
         "tipEncoded" (cond $en "Encoded" "编码")
+        "yLinear" (cond $en "Linear value" "线性值")
       | jsonify | safeJS }}</script>
-      {{ with .Content }}
-      <div class="c-prose">{{ . }}</div>
-      {{ else }}
       <div class="c-prose">
+        {{ if and .Params.wip (ne hugo.Environment "development") }}
+        <aside class="c-note c-wip">{{ if $en }}Under construction — this page is being reworked; its previous content is withdrawn in the meantime.{{ else }}施工中：本页正在重做，原有内容暂不发布。{{ end }}</aside>
+        {{ else }}
+        {{ with .Params.noteBox }}<aside class="c-note">{{ . }}</aside>{{ end }}
         {{ with .Params.intro }}<p class="c-intro">{{ . }}</p>{{ end }}
-        {{ $figNo := 2 }}{{ if not $d.primaries }}{{ $figNo = 1 }}{{ end }}
+        {{ $showGamut := and $d.primaries (not $d.transferOnly) }}
+        {{ $figNo := 2 }}{{ if not $showGamut }}{{ $figNo = 1 }}{{ end }}
         <div class="c-figs">
-          {{ if $d.primaries }}
+          {{ if $showGamut }}
           {{ partial "colour-figure.html" (dict
             "kind" "gamut"
             "label" (printf $t.labelGamut .Title)
             "caption" (printf $t.figGamut .Title)) }}
           {{ end }}
-          {{ if eq $d.category "Display Referred" }}
+          {{ if and $d.curveFigure $curve }}
+          {{ partial "colour-figure.html" (dict
+            "kind" "curve"
+            "label" (printf $t.labelCurve .Title)
+            "caption" (printf (cond (eq $figNo 1) $t.figCurve1 $t.figCurve2) .Title)) }}
+          {{ else if and (not $d.gamutOnly) (eq $d.category "Display Referred") }}
           {{ partial "colour-figure.html" (dict
             "kind" "eotf"
             "en" $en
             "default" ($d.eotfDefault | default "srgb")
+            "lwDefault" (cond $d.eotfRel 1 100)
             "label" (printf $t.labelEotf .Title)
-            "caption" $t.figEotf) }}
-          {{ else if $curve }}
+            "caption" (cond $showGamut $t.figEotf $t.figEotfSolo)) }}
+          {{ else if and (not $d.gamutOnly) $curve }}
           {{ partial "colour-figure.html" (dict
             "kind" "curve"
             "label" (printf $t.labelCurve .Title)
             "caption" (printf (cond (eq $figNo 1) $t.figCurve1 $t.figCurve2) .Title)) }}
           {{ end }}
         </div>
-        {{ with $d.primaries }}
+        {{ if $showGamut }}{{ with $d.primaries }}
         <table>
           <thead><tr><th></th><th>x</th><th>y</th></tr></thead>
           <tbody>
@@ -84,7 +93,7 @@
             {{ with $d.whitePoint }}<tr><td>White ({{ $d.whiteName }})</td><td>{{ printf "%.4f" (index . 0) }}</td><td>{{ printf "%.4f" (index . 1) }}</td></tr>{{ end }}
           </tbody>
         </table>
-        {{ end }}
+        {{ end }}{{ end }}
         {{ with .Params.gamutNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
         {{ with .Params.whiteNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
         {{ with .Params.transferNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
@@ -109,9 +118,9 @@
         {{ end }}
         {{ end }}
         {{ if $d.eiTable }}{{ partial "colour-logc-ei.html" (dict "t" $t) }}{{ end }}
-        {{ with $d.matrix }}
+        {{ if not $d.transferOnly }}{{ with $d.matrix }}
         <h2>{{ if $d.matrixInverse }}{{ $t.matricesHeading }}{{ else }}{{ $t.matrixHeading }}{{ end }}</h2>
-        <pre>RGB → XYZ
+        <pre>{{ if $en }}{{ $d.matrixLabelEn | default "RGB → XYZ" }}{{ else }}{{ $d.matrixLabel | default "RGB → XYZ" }}{{ end }}
 [ {{ printf "%14.12f" (index (index . 0) 0) }} {{ printf "%14.12f" (index (index . 0) 1) }} {{ printf "%14.12f" (index (index . 0) 2) }} ]
 [ {{ printf "%14.12f" (index (index . 1) 0) }} {{ printf "%14.12f" (index (index . 1) 1) }} {{ printf "%14.12f" (index (index . 1) 2) }} ]
 [ {{ printf "%14.12f" (index (index . 2) 0) }} {{ printf "%14.12f" (index (index . 2) 1) }} {{ printf "%14.12f" (index (index . 2) 2) }} ]</pre>
@@ -122,9 +131,11 @@
 [ {{ printf "%14.12f" (index (index . 1) 0) }} {{ printf "%14.12f" (index (index . 1) 1) }} {{ printf "%14.12f" (index (index . 1) 2) }} ]
 [ {{ printf "%14.12f" (index (index . 2) 0) }} {{ printf "%14.12f" (index (index . 2) 1) }} {{ printf "%14.12f" (index (index . 2) 2) }} ]</pre>
         {{ end }}
+        {{ end }}
+        {{ with .Content }}{{ . }}{{ end }}
         {{ partial "colour-sources.html" (dict "ctx" . "heading" $t.sourcesHeading) }}
+        {{ end }}
       </div>
-      {{ end }}
     </div>
   </div>
   <script>document.documentElement.lang = "{{ $lang }}";</script>

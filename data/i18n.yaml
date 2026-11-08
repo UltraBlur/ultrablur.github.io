@@ -6,6 +6,8 @@ zh:
   colourTitle: 色彩空间
   pending: 尚未收录
   camera: 相机
+  displayGamut: 原色
+  displayTf: 传递函数
   film: 胶片
   aces: ACES
   working: 工作空间
@@ -24,6 +26,7 @@ zh:
   figCurve1: 图 1：%s 编码曲线，L = 0.18 × 2^stops。
   figCurve2: 图 2：%s 编码曲线，L = 0.18 × 2^stops。
   figEotf: 图 2：显示传递函数（EOTF）。横轴可切换归一化码值与按位深/范围换算的量化码值，纵轴为亮度（cd/m²）。原色与传递函数相互独立，可切换对照。
+  figEotfSolo: 图 1：显示传递函数（EOTF）。横轴可切换归一化码值与按位深/范围换算的量化码值，纵轴为亮度（cd/m²）。
   labelGamut: "%s，CIE 1931 xy 色度图"
   labelCurve: "%s 编码曲线，横轴为相对 18% 灰的档位，纵轴为编码值"
   labelEotf: "%s 显示传递函数：横轴为码值，纵轴为亮度（cd/m²）"
@@ -47,6 +50,8 @@ en:
   colourTitle: Colour Spaces
   pending: Not yet documented
   camera: Cameras
+  displayGamut: Primaries
+  displayTf: Transfer functions
   film: Film
   aces: ACES
   working: Working spaces
@@ -65,6 +70,7 @@ en:
   figCurve1: "Fig. 1: %s encoding curve, L = 0.18 × 2^stops."
   figCurve2: "Fig. 2: %s encoding curve, L = 0.18 × 2^stops."
   figEotf: "Fig. 2: Display transfer function (EOTF). The horizontal axis can show the normalised code value or a quantised code value derived from bit depth and range; the vertical axis is luminance (cd/m²). Primaries and transfer function are independent and can be compared side by side."
+  figEotfSolo: "Fig. 1: Display transfer function (EOTF). The horizontal axis can show the normalised code value or a quantised code value derived from bit depth and range; the vertical axis is luminance (cd/m²)."
   labelGamut: "%s, CIE 1931 xy chromaticity diagram"
   labelCurve: "%s encoding curve, stops relative to 18% grey against encoded value"
   labelEotf: "%s display transfer function: code value against luminance (cd/m²)"

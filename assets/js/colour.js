@@ -28,6 +28,7 @@
     var fallback = {
       xStops: '相对 18% 灰的档位（stops）',
       xEncoded: '编码值（0–1）',
+      yLinear: '线性值',
       xNorm: '归一化码值（0–1）',
       xCode: '量化码值（{b}-bit，{m}）',
       yLum: '亮度（cd/m²）',
@@ -594,7 +595,9 @@
     var M = { l: 62, b: 52, t: 16, r: 18 };
     var valid = [];
     var maxStop = 0;
-    var X0 = pts[0][0], X1 = pts[pts.length - 1][0], Y0 = 0, Y1 = 1;
+    var X0 = pts[0][0], X1 = pts[pts.length - 1][0], Y0 = 0;
+    var Y1 = (data.yMax && data.yMax > 1) ? Number(data.yMax) : 1;
+    var yStep = Y1 <= 1.2 ? 0.2 : Y1 / 5;
     var geo = null;
 
     function draw() {
@@ -618,7 +621,7 @@
       for (i = Math.ceil(X0 / 4) * 4; i <= X1; i += 4) {
         grid.appendChild(svgEl('line', { x1: sx(i), y1: sy(Y0), x2: sx(i), y2: sy(Y1) }));
       }
-      for (i = 0; i <= 1.001; i += 0.2) {
+      for (i = 0; i <= Y1 + 1e-6; i += yStep) {
         grid.appendChild(svgEl('line', { x1: sx(X0), y1: sy(i), x2: sx(X1), y2: sy(i) }));
       }
       svg.appendChild(grid);
@@ -669,10 +672,10 @@
         t.textContent = i > 0 ? '+' + i : String(i);
         axis.appendChild(t);
       }
-      for (i = 0; i <= 1.001; i += 0.2) {
+      for (i = 0; i <= Y1 + 1e-6; i += yStep) {
         axis.appendChild(svgEl('line', { x1: sx(X0) - 4, y1: sy(i), x2: sx(X0), y2: sy(i) }));
         var t2 = svgEl('text', { x: sx(X0) - 9, y: sy(i) + 4, 'text-anchor': 'end' });
-        t2.textContent = i.toFixed(1);
+        t2.textContent = Y1 <= 1.2 ? i.toFixed(1) : String(Math.round(i * 100) / 100);
         axis.appendChild(t2);
       }
       svg.appendChild(axis);
@@ -688,7 +691,7 @@
         x: 17, y: sy(Y0) - plotH / 2, 'text-anchor': 'middle', 'class': 'c-axtitle',
         transform: 'rotate(-90 17 ' + (sy(Y0) - plotH / 2) + ')'
       });
-      ly.textContent = UI.xEncoded;
+      ly.textContent = (Y1 > 1.2) ? (UI.yLinear || UI.xEncoded) : UI.xEncoded;
       svg.appendChild(ly);
 
       var cross = svgEl('g', { 'class': 'c-cross', opacity: '0' });
@@ -762,6 +765,34 @@
 
   /* ====================== 显示传递函数 EOTF ====================== */
 
+  /* CINITY Log：由采样曲线反推 EOTF（锚定峰值白） */
+  var CINITY_PTS = null;
+
+  function cinityEotf(v, lw) {
+    if (!CINITY_PTS || CINITY_PTS.length < 2) return lw * v;
+    var pts = CINITY_PTS, i;
+    /* 峰值白位置：编码首次到达 1.0 的档位（曲线在高光处钳位） */
+    var sMax = pts[pts.length - 1][0];
+    for (i = 0; i < pts.length; i++) { if (pts[i][1] >= 0.999) { sMax = pts[i][0]; break; } }
+    var stops;
+    if (v <= pts[0][1]) {
+      var a0 = pts[0], b0 = pts[1];
+      var slope = (b0[0] - a0[0]) / (b0[1] - a0[1]);
+      stops = a0[0] + (v - a0[1]) * slope;
+    } else {
+      stops = pts[pts.length - 1][0];
+      for (i = 1; i < pts.length; i++) {
+        if (pts[i][1] >= v) {
+          var a = pts[i - 1], b = pts[i];
+          var t = b[1] > a[1] ? (v - a[1]) / (b[1] - a[1]) : 0;
+          stops = a[0] + t * (b[0] - a[0]);
+          break;
+        }
+      }
+    }
+    return lw * Math.pow(2, stops - sMax);
+  }
+
   var PQ_M1 = 2610 / 16384, PQ_M2 = 2523 / 4096 * 128;
   var PQ_C1 = 3424 / 4096, PQ_C2 = 2413 / 4096 * 32, PQ_C3 = 2392 / 4096 * 32;
 
@@ -778,6 +809,10 @@
     var svg = fig.querySelector('svg');
     var tip = fig.querySelector('.c-tip');
     var sel = fig.querySelector('.c-eotf-sel');
+    var cdata = parseData(fig);
+    if (cdata && cdata.cinityCurve && cdata.cinityCurve.length) {
+      CINITY_PTS = cdata.cinityCurve.map(function (p) { return [p[0], p[1]]; });
+    } else { CINITY_PTS = null; }
     var lwInput = fig.querySelector('.c-eotf-lw');
     var lbInput = fig.querySelector('.c-eotf-lb');
     var logBox = fig.querySelector('.c-eotf-log');
@@ -812,8 +847,22 @@
       };
     }
 
+    function hlgEotf(v, lw) {
+      /* BT.2100：OETF 反变换 + OOTF（中性通道，γ 随显示亮度变化） */
+      var a = 0.17883277, b = 0.28466892, c = 0.55991073;
+      var e = v <= 0.5 ? (v * v) / 3 : (Math.exp((v - c) / a) + b) / 12;
+      /* BT.2100 表 5 注 5f：400–2000 cd/m² 用对数式，超出范围用扩展式 */
+      var lwv = Math.max(lw, 1);
+      var g = (lwv >= 400 && lwv <= 2000)
+        ? 1.2 + 0.42 * Math.log10(lwv / 1000)
+        : 1.2 * Math.pow(1.111, Math.log(lwv / 1000) / Math.LN2);
+      return lw * Math.pow(Math.max(e, 0), g);
+    }
+
     function eotf(type, v, lw, lb) {
       if (type === 'pq') return pqEotf(v);
+      if (type === 'hlg') return hlgEotf(v, lw);
+      if (type === 'cinity') return cinityEotf(v, lw);
       if (type === 'srgb') {
         var r = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
         return lw * r;
@@ -824,7 +873,7 @@
         var b = Math.pow(lb, 1 / g) / (Math.pow(lw, 1 / g) - Math.pow(lb, 1 / g));
         return a * Math.pow(Math.max(v + b, 0), g);
       }
-      var gam = { gamma22: 2.2, gamma24: 2.4, gamma26: 2.6, gamma1961: 1.961, gamma18: 1.8 }[type] || 2.2;
+      var gam = { gamma22: 2.2, gamma24: 2.4, gamma26: 2.6, gamma1961: 1.961, gamma18: 1.8, gamma563: 563 / 256 }[type] || 2.2;
       return lw * Math.pow(v, gam);
     }
 

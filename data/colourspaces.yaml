@@ -136,22 +136,36 @@
       group: camera
       whiteName: D65
       primaries: [[0.7759, 0.2745], [0.1887, 0.8287], [0.1013, -0.0892]]
+    - title: "BT.709 OETF"
+      slug: tf-bt709
+      group: camera
+      transfer: BT.709 OETF（编码，0.018 线性段）
+      transferEn: "BT.709 OETF (encoding, linear below 0.018)"
+    - title: "BT.2020 OETF"
+      slug: tf-bt2020
+      group: camera
+      transfer: BT.2020 OETF（10 位编码）
+      transferEn: "BT.2020 OETF (10-bit encoding)"
     - title: "ADX10"
       slug: adx10
       group: film
+      wip: true
       whiteName: ACES D60
       primaries: [[0.6637, 0.3224], [0.1509, 0.7451], [0.1276, 0.0635]]
     - title: "ADX16"
       slug: adx16
       group: film
+      wip: true
       whiteName: ACES D60
       primaries: [[0.6637, 0.3224], [0.1509, 0.7451], [0.1276, 0.0635]]
     - title: "FilmLight Cineon PD Log / Generic Negative"
       slug: filmlight-generic-negative
       group: film
+      wip: true
     - title: "FilmLight Academy PD Log / ~ADX"
       slug: filmlight-pdlog-adx
       group: film
+      wip: true
       whiteName: ACES D60
       primaries: [[0.6637, 0.3224], [0.1509, 0.7451], [0.1276, 0.0635]]
     - title: "ACES2065-1"
@@ -192,57 +206,69 @@
 - key: display
   label: Display Referred
   items:
-    - title: "sRGB"
-      slug: srgb
+    - title: "sRGB / Rec.709 原色（D65）"
+      slug: primaries-srgb-rec709
+      group: display-gamut
       whiteName: D65
-      transfer: sRGB 分段（编码）/ ≈Gamma 2.2（显示）
-      transferEn: "sRGB piecewise (encoding) / ≈Gamma 2.2 (display)"
       primaries: [[0.6400, 0.3300], [0.3000, 0.6000], [0.1500, 0.0600]]
-    - title: "Rec.709"
-      slug: rec709
+    - title: "Rec.2020 原色（D65）"
+      slug: primaries-rec2020
+      group: display-gamut
       whiteName: D65
-      transfer: BT.1886
-      transferEn: "BT.1886"
-      primaries: [[0.6400, 0.3300], [0.3000, 0.6000], [0.1500, 0.0600]]
-    - title: "Rec.2020"
-      slug: rec2020
-      whiteName: D65
-      transfer: BT.1886
-      transferEn: "BT.1886"
       primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
-    - title: "ST.2084 (PQ)"
-      slug: st2084
+    - title: "P3 原色（D65）"
+      slug: primaries-p3-d65
+      group: display-gamut
       whiteName: D65
-      transfer: ST 2084（PQ，绝对亮度）
-      transferEn: "ST 2084 (PQ, absolute luminance)"
-      primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
-    - title: "HLG"
-      slug: hlg
-      whiteName: D65
-      transfer: HLG
-      transferEn: "HLG"
-      primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
-    - title: "P3-DCI"
-      slug: p3-dci
+      primaries: [[0.6800, 0.3200], [0.2650, 0.6900], [0.1500, 0.0600]]
+    - title: "P3 原色（DCI 白点）"
+      slug: primaries-p3-dci
+      group: display-gamut
       whiteName: P3-DCI
-      transfer: Gamma 2.6
-      transferEn: "Gamma 2.6"
       primaries: [[0.6800, 0.3200], [0.2650, 0.6900], [0.1500, 0.0600]]
-    - title: "P3-D65 / Display P3"
-      slug: p3-d65
+    - title: "Adobe RGB 原色（D65）"
+      slug: primaries-adobe-rgb
+      group: display-gamut
       whiteName: D65
-      transfer: Gamma 2.2（显示）/ sRGB 分段（编码）
-      transferEn: "Gamma 2.2 (display) / sRGB piecewise (encoding)"
-      primaries: [[0.6800, 0.3200], [0.2650, 0.6900], [0.1500, 0.0600]]
-    - title: "Adobe RGB (1998)"
-      slug: adobe-rgb
-      whiteName: D65
-      transfer: Gamma 563/256 ≈ 2.199
-      transferEn: "Gamma 563/256 ≈ 2.199"
       primaries: [[0.6400, 0.3300], [0.2100, 0.7100], [0.1500, 0.0600]]
-    - title: "CINITY Log / Cinity RGB D65"
-      slug: cinity-log
+    - title: "Cinity RGB 原色（D65）"
+      slug: cinity-rgb-d65
+      group: display-gamut
       whiteName: D65
+      primaries: [[0.7050, 0.2872], [0.1205, 0.8029], [0.1557, 0.0288]]
+    - title: "sRGB 分段曲线"
+      slug: tf-srgb
+      group: display-tf
+      transfer: sRGB 分段（编码与解码互逆）
+      transferEn: "sRGB piecewise (encode and decode are inverses)"
+    - title: "BT.1886 EOTF"
+      slug: tf-bt1886
+      group: display-tf
+      transfer: BT.1886（显示参考 EOTF，γ 2.4）
+      transferEn: "BT.1886 (reference display EOTF, γ 2.4)"
+    - title: "纯幂函数 Gamma"
+      slug: tf-power
+      group: display-tf
+      transfer: 幂函数 2.2 / 2.4 / 2.6（无线性段）
+      transferEn: "Power law 2.2 / 2.4 / 2.6 (no linear segment)"
+    - title: "Adobe RGB Gamma 563/256"
+      slug: tf-adobe-rgb-gamma
+      group: display-tf
+      transfer: 563/256 ≈ 2.199
+      transferEn: "563/256 ≈ 2.199"
+    - title: "ST 2084（PQ）"
+      slug: st2084
+      group: display-tf
+      transfer: ST 2084（PQ）——传递函数
+      transferEn: "ST 2084 (PQ) — transfer function"
+    - title: "HLG（BT.2100）"
+      slug: hlg
+      group: display-tf
+      transfer: HLG（BT.2100）——传递函数
+      transferEn: "HLG (BT.2100) — transfer function"
+    - title: "CINITY Log"
+      slug: cinity-log
+      group: display-tf
       transfer: Cinity Log（100 nit 白）
       transferEn: "Cinity Log (100 nit white)"
-      primaries: [[0.7050, 0.2872], [0.1205, 0.8029], [0.1557, 0.0288]]
+

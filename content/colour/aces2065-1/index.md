@@ -2,6 +2,7 @@
 title = "ACES2065-1"
 date = 2026-11-06T10:00:00+08:00
 draft = false
+curveYMax = 2.88
 category = "Scene Referred"
 primaries = [[0.7347, 0.2653], [0.0000, 1.0000], [0.0001, -0.0770]]
 whitePoint = [0.32168, 0.33767]

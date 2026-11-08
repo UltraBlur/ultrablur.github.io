@@ -16,16 +16,19 @@
           <option value="srgb"{{ if eq .default "srgb" }} selected{{ end }}>{{ $t.optSrgb }}</option>
           <option value="gamma22"{{ if eq .default "gamma22" }} selected{{ end }}>Gamma 2.2</option>
           <option value="gamma24"{{ if eq .default "gamma24" }} selected{{ end }}>Gamma 2.4</option>
+          <option value="gamma563"{{ if eq .default "gamma563" }} selected{{ end }}>Gamma 563/256 (2.1992)</option>
           <option value="gamma26"{{ if eq .default "gamma26" }} selected{{ end }}>Gamma 2.6</option>
           <option value="gamma1961"{{ if eq .default "gamma1961" }} selected{{ end }}>Gamma 1.961</option>
           <option value="bt1886"{{ if eq .default "bt1886" }} selected{{ end }}>BT.1886</option>
+          <option value="hlg"{{ if eq .default "hlg" }} selected{{ end }}>HLG (BT.2100)</option>
+          <option value="cinity"{{ if eq .default "cinity" }} selected{{ end }}>CINITY Log</option>
           <option value="pq"{{ if eq .default "pq" }} selected{{ end }}>ST 2084 (PQ)</option>
         </select>
       </label>
       <label class="c-eotf-check"><input class="c-eotf-log" type="checkbox"> {{ $t.logAxis }}</label>
     </div>
     <div class="c-eotf-group">
-      <label>{{ $t.peakWhite }} <input class="c-eotf-lw" type="number" value="100" min="1" max="10000" step="10"> cd/m²</label>
+      <label>{{ $t.peakWhite }} <input class="c-eotf-lw" type="number" value="{{ .lwDefault | default 100 }}" min="1" max="10000" step="10"> cd/m²</label>
       <label>{{ $t.blackLevel }} <input class="c-eotf-lb" type="number" value="0" min="0" max="10" step="0.01" disabled> cd/m²</label>
     </div>
     <div class="c-eotf-group c-eotf-group--x">
