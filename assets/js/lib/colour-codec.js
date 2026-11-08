@@ -217,6 +217,16 @@
       }
     });
 
+    /* 场景线性：ACES2065-1 / ACEScg 这类线性编码用一条通用项代表，
+       不再按空间重复列出（归一化基准同为 18% 灰 = 0.18） */
+    list.push({
+      id: 'scene-lin',
+      label: { zh: '场景线性（18% 灰 = 0.18）', en: 'Scene linear (18% grey = 0.18)' },
+      kind: 'scene', abs: false,
+      decode: function (v) { return v; },
+      encode: function (L) { return L; }
+    });
+
     /* 采样曲线：场景 Log 与 CINITY */
     Object.keys(curves || {}).forEach(function (slug) {
       var sp = (spaces || []).filter(function (s) { return s.slug === slug; })[0];
@@ -234,6 +244,11 @@
         return;
       }
       if (!sp || sp.category !== 'Scene Referred') return;
+      /* 线性编码不再单列，统一由「场景线性」代表 */
+      var isLinear = [0.05, 0.18, 0.5, 2].every(function (v) {
+        return Math.abs(0.18 * Math.pow(2, cv.codeToStops(v)) - v) <= 1e-3 * Math.max(1, v);
+      });
+      if (isLinear) return;
       list.push({
         id: 'scene:' + slug,
         label: { zh: sp.title, en: sp.title },
@@ -315,7 +330,7 @@
     var linS;
     if (tS.kind === 'scene') {
       linS = norm.map(function (v) { return tS.decode(v, src.params); });
-      trace.push({ step: 'decode', label: '逆编码 → 场景线性（18% = 0.18）', value: linS.map(fmt) });
+      trace.push({ step: 'decode', label: '解码 → 场景线性（18% 灰 = 0.18）', value: linS.map(fmt) });
     } else {
       linS = tS.vector ? tS.decode(norm, src.params) : norm.map(function (v) { return tS.decode(v, src.params); });
       trace.push({ step: 'decode', label: tS.abs ? 'EOTF → 绝对亮度 cd/m²' : 'EOTF → 显示线性（× 参考白）', value: linS.map(fmt) });
