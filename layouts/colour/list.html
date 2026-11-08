@@ -37,7 +37,7 @@
           {{ $last = $g }}
           {{ end }}
           <li>
-            <a href="{{ printf "%s%s/" $base .slug | relURL }}">{{ .title }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}
+            <a href="{{ printf "%s%s/" $base .slug | relURL }}">{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}
             {{ if and $isDR .transfer }}<span class="c-entry-note">{{ if $en }}{{ .transferEn | default .transfer }}{{ else }}{{ .transfer }}{{ end }}</span>{{ end }}
           </li>
           {{ end }}

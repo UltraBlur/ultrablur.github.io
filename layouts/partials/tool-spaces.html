@@ -1,6 +1,10 @@
-{{/* 色域清单：scope = "dr"（显示空间，默认）或 "all"（所有定义过原色的条目） */}}
+{{/* 色域清单：scope = "dr"（显示空间，默认）或 "all"（所有定义过原色的条目）；en 决定标题用哪一版 */}}
 {{ $scope := "dr" }}
-{{ if reflect.IsMap . }}{{ $scope = .scope | default "dr" }}{{ end }}
+{{ $en := false }}
+{{ if reflect.IsMap . }}
+  {{ $scope = .scope | default "dr" }}
+  {{ $en = .en | default false }}
+{{ end }}
 {{ $spaces := slice }}
 {{ $srgbMatrix := slice }}
 {{ range hugo.Data.colourspaces }}
@@ -10,13 +14,14 @@
     {{ range .items }}
       {{/* PQ / HLG 是传递函数，原色借自 BT.2020，不单列 */}}
       {{ if and (ne .slug "st2084") (ne .slug "hlg") }}
+        {{ $itemTitle := cond $en (.titleEn | default .title) .title }}
         {{ with site.GetPage (printf "/colour/%s" .slug) }}
           {{ if and .Params.primaries (or (not .Params.wip) (eq hugo.Environment "development")) }}
             {{ $slug := path.Base .File.Dir }}
             {{ if eq $slug "primaries-srgb-rec709" }}{{ $srgbMatrix = .Params.matrix }}{{ end }}
             {{ $spaces = $spaces | append (dict
               "slug" $slug
-              "title" .Title
+              "title" $itemTitle
               "group" $label
               "primaries" .Params.primaries
               "white" .Params.whitePoint

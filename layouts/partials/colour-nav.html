@@ -35,9 +35,9 @@
           {{ end }}
           {{ $page := site.GetPage (printf "%scolour/%s" (cond $en "/en/" "/") .slug) }}
           {{ if $page }}
-          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .title }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
+          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
           {{ else }}
-          <li class="is-pending" title="{{ $t.pending }}">{{ .title }}</li>
+          <li class="is-pending" title="{{ $t.pending }}">{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</li>
           {{ end }}
           {{ end }}
         </ul>

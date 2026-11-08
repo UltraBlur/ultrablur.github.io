@@ -19,7 +19,7 @@
       {{ range $i, $p := $c }}
         {{ if eq (mod $i 2) 0 }}{{ $pts = $pts | append (dict "x" (index $p 0) "y" (index $p 1)) }}{{ end }}
       {{ end }}
-      {{ $list = $list | append (dict "slug" .slug "title" .title "group" (.group | default "") "curve" $pts) }}
+      {{ $list = $list | append (dict "slug" .slug "title" (cond $en (.titleEn | default .title) .title) "group" (.group | default "") "curve" $pts) }}
     {{ end }}
   {{ end }}
 {{ end }}

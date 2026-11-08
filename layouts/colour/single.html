@@ -97,7 +97,9 @@
         {{ with .Params.gamutNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
         {{ with .Params.whiteNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
         {{ with .Params.transferNote }}<p class="c-gamutnote">{{ . }}</p>{{ end }}
-        {{ with $anchors }}
+        {{/* 显示空间的这一块来自 FilmLight 的显示预设（1000 nit / 100 nit 白 之类），
+             不是标准内容，display-tf 条目只保留标准曲线与来源 */}}
+        {{ if ne $d.category "Display Referred" }}{{ with $anchors }}
         <h2>{{ $t.transferHeading }}</h2>
         <table class="c-kv">
           <tbody>
@@ -116,7 +118,7 @@
         <h3>{{ $t.decHeading }}</h3>
         <pre>{{ . }}</pre>
         {{ end }}
-        {{ end }}
+        {{ end }}{{ end }}
         {{ if $d.eiTable }}{{ partial "colour-logc-ei.html" (dict "t" $t) }}{{ end }}
         {{ if not $d.transferOnly }}{{ with $d.matrix }}
         <h2>{{ if $d.matrixInverse }}{{ $t.matricesHeading }}{{ else }}{{ $t.matrixHeading }}{{ end }}</h2>

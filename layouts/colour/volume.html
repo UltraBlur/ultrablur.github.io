@@ -13,7 +13,7 @@
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
 {{ $t := index hugo.Data.i18n $lang }}
-{{ $data := partial "tool-spaces.html" . }}
+{{ $data := partial "tool-spaces.html" (dict "scope" "dr" "en" $en) }}
 {{ $spaces := $data.spaces }}
 {{ $srgbMatrix := $data.srgbMatrix }}
 

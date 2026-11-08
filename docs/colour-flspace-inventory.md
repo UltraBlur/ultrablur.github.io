@@ -20,7 +20,7 @@
 | `ACEScc` | ACEScc: ACEScc / AP1 | [`acescc`](../content/colour/acescc/index.md) |
 | `ACEScct` | ACEScct: ACEScct / AP1 | [`acescct`](../content/colour/acescct/index.md) |
 | `ACEScg` | ACEScg: Linear / AP1 | [`acescg`](../content/colour/acescg/index.md) |
-| `AdobeRGB` | Adobe: 2.2 Gamma / Adobe RGB (1998) | [`adobe-rgb`](../content/colour/adobe-rgb/index.md) |
+| `AdobeRGB` | Adobe: 2.2 Gamma / Adobe RGB (1998) | [`primaries-adobe-rgb`](../content/colour/primaries-adobe-rgb/index.md) + [`tf-adobe-rgb-gamma`](../content/colour/tf-adobe-rgb-gamma/index.md) |
 | `ARRI_LogC_WG_full` | ARRI: LogC3 / ARRI Wide Gamut 3 | [`arri-logc3`](../content/colour/arri-logc3/index.md) |
 | `BMD_BMDFilm_GammaGen5_BMD_Wide_GamutRGB` | BMD: BMD Film Gen5 / BMD Wide GamutRGB | [`blackmagic-film-gen5`](../content/colour/blackmagic-film-gen5/index.md) |
 | `BMD_Intermediate_DaVinci_Wide_Gamut` | BMD: DaVinci Intermediate / DaVinci Wide Gamut | [`davinci-intermediate`](../content/colour/davinci-intermediate/index.md) |
@@ -31,13 +31,13 @@
 | `Fujifilm_FLog2_FGamut` | Fujifilm: F-Log2 / F-Gamut | [`flog2`](../content/colour/flog2/index.md) |
 | `Rec2100_HLG_2020_1000` | Rec.2100: HLG 1.2 Gamma / Rec.2020 / 1000 nits | [`hlg`](../content/colour/hlg/index.md) |
 | `Red_Log3G10_REDWideGamut` | RED: Log3G10 / REDWideGamutRGB | [`log3g10`](../content/colour/log3g10/index.md) |
-| `Apple_Display_P3D65` | Apple: 2.2 Gamma / P3 D65 | [`p3-d65`](../content/colour/p3-d65/index.md) |
-| `P3` | DCI: 2.6 Gamma / P3 DCI | [`p3-dci`](../content/colour/p3-dci/index.md) |
-| `Rec2020_lin` | CGI: Linear / Rec.2020 | [`rec2020`](../content/colour/rec2020/index.md) |
-| `Rec709_lin` | CGI: Linear / Rec.709 | [`rec709`](../content/colour/rec709/index.md) |
+| `Apple_Display_P3D65` | Apple: 2.2 Gamma / P3 D65 | [`primaries-p3-d65`](../content/colour/primaries-p3-d65/index.md) |
+| `P3` | DCI: 2.6 Gamma / P3 DCI | [`primaries-p3-dci`](../content/colour/primaries-p3-dci/index.md) |
+| `Rec2020_lin` | CGI: Linear / Rec.2020 | [`primaries-rec2020`](../content/colour/primaries-rec2020/index.md) |
+| `Rec709_lin` | CGI: Linear / Rec.709 | [`primaries-srgb-rec709`](../content/colour/primaries-srgb-rec709/index.md) + [`tf-bt709`](../content/colour/tf-bt709/index.md) |
 | `Sony_SLog3_Gam3` | Sony: S-Log3 / S-Gamut3 | [`slog3`](../content/colour/slog3/index.md) |
 | `Sony_SLog3_Gam3Cine` | Sony: S-Log3 / S-Gamut3.Cine | [`slog3-cine`](../content/colour/slog3-cine/index.md) |
-| `sRGB` | sRGB: ~2.2 Gamma / Rec.709 | [`srgb`](../content/colour/srgb/index.md) |
+| `sRGB` | sRGB: ~2.2 Gamma / Rec.709 | [`tf-srgb`](../content/colour/tf-srgb/index.md) |
 | `Rec2084_Rec2020` | Rec.2100: ST 2084 PQ / Rec.2020 / 1000 nits | [`st2084`](../content/colour/st2084/index.md) |
 | `FilmLight_TLog_EGamut` | FilmLight: T-Log / E-Gamut | [`tlog-egamut`](../content/colour/tlog-egamut/index.md) |
 | `Panasonic_VLog_VGamut` | Panasonic: V-Log / V-Gamut | [`vlog`](../content/colour/vlog/index.md) |

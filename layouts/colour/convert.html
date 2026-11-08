@@ -8,7 +8,7 @@
 {{ define "section_content" }}
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
-{{ $data := partial "tool-spaces.html" . }}
+{{ $data := partial "tool-spaces.html" (dict "scope" "dr" "en" $en) }}
 {{ $spaces := slice }}
 {{ range $data.spaces }}
   {{ $spaces = $spaces | append (dict "slug" .slug "title" .title "matrix" .matrix) }}

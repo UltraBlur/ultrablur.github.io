@@ -13,7 +13,7 @@
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
 {{ $t := index hugo.Data.i18n $lang }}
-{{ $data := partial "tool-spaces.html" (dict "scope" "all") }}
+{{ $data := partial "tool-spaces.html" (dict "scope" "all" "en" $en) }}
 {{ $spaces := slice }}
 {{ range $data.spaces }}
   {{ $spaces = $spaces | append (dict "slug" .slug "title" .title "primaries" .primaries "white" .white) }}
