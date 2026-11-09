@@ -13,7 +13,7 @@
           {{ with $index }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All tools" "全部工具" }}</a></li>
           {{ end }}
-          {{ range slice "gamut-volume" "compare" "transfer" "convert" "inspector" }}
+          {{ range slice "gamut-volume" "compare" "transfer" "inspector" }}
           {{ with site.GetPage (printf "%stools/%s" (cond $en "/en/" "/") .) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
