@@ -4,7 +4,7 @@
 <h2>{{ $heading }}</h2>
 <ol class="c-src">
   {{ range . }}
-  <li><a href="{{ .url }}" rel="noopener">{{ .title }}</a></li>
+  <li>{{ if .url }}<a href="{{ .url }}" rel="noopener">{{ .title }}</a>{{ else }}{{ .title }}{{ end }}</li>
   {{ end }}
 </ol>
 {{ end }}

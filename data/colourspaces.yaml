@@ -136,6 +136,26 @@
       group: camera
       whiteName: D65
       primaries: [[0.7759, 0.2745], [0.1887, 0.8287], [0.1013, -0.0892]]
+    - title: "Insta360 I-Log / BT.2020"
+      slug: insta360-ilog
+      group: camera
+      whiteName: D65
+      primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
+    - title: "Leica L-Log / Rec.2020"
+      slug: leica-llog
+      group: camera
+      whiteName: D65
+      primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
+    - title: "vivo Log / vivo Wide Gamut"
+      slug: vivolog
+      group: camera
+      whiteName: D65
+      primaries: [[0.7063, 0.2957], [0.1913, 0.9623], [0.1115, -0.0492]]
+    - title: "Z CAM Z-Log2 / Z-RGB"
+      slug: zcam-zlog2
+      group: camera
+      whiteName: D60
+      primaries: [[0.6805, 0.2474], [0.2806, 1.0151], [0.0813, -0.0960]]
     - title: "BT.709 OETF"
       slug: tf-bt709
       group: camera

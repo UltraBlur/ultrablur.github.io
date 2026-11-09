@@ -59,7 +59,7 @@ assets/js/lib/viewer3d.js       色体积渲染器（从 colour-volume.js 拆出
 | 1 抽数据层 | 完成：`layouts/partials/tool-spaces.html`，返回色域清单（slug / title / primaries / white / matrix），色体积页已改为调用它 |
 | 2 迁页 | 完成：`/tools/gamut-volume/` |
 | 3 抽 chart2d | 部分完成：`assets/js/chart2d.js` 提供比例/网格/轨迹/三角形图元，比对页已改用它；单空间页仍走 `colour.js` |
-| 4.1 比对 | 完成：色域任选两个，CIE 1931 轨迹背景、面积与交集；正式环境 40 个色域（施工中条目不计入） |
+| 4.1 比对 | 完成：色域任选两个，CIE 1931 轨迹背景、面积与交集；正式环境 44 个色域（施工中条目不计入） |
 | 4.2 码值换算 | 完成：`/tools/convert/`，内核在 `assets/js/lib/colour-codec.js`，自检 `tests/colour-codec.test.mjs`；场景 ↔ 显示不做（需要渲染变换），HLG 只允许 BT.2020，采样曲线标为近似 |
 | 4.3 取色工具 | 完成：HSV / LCH / OKLCH / JMH / JzCH 五种选色平面（含色相滑杆与十六进制输入），右侧同时给出五种模型的坐标；越界区域显示为灰 |
 | 4.4 色差 | 已删除：色差工具与 `tool-deltae.js` 一并移除，输入模块完善后再做 |

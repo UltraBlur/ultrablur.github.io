@@ -6,8 +6,8 @@
 | --- | --- |
 | `/tools/` | 五个工具条目，中英各一份 |
 | `/tools/gamut-volume/` | WebGL 画布渲染；空间 6 项、坐标 8 项；纵轴 0–1 |
-| `/tools/compare/` | 光谱轨迹背景 + 两个三角形；正式环境 40 个色域（施工中条目不计入） |
-| `/tools/transfer/` | OETF / EOTF 切换；5 种纵轴；正式环境 39 条曲线 |
+| `/tools/compare/` | 光谱轨迹背景 + 两个三角形；正式环境 44 个色域（施工中条目不计入） |
+| `/tools/transfer/` | OETF / EOTF 切换；5 种纵轴；正式环境 43 条曲线 |
 | `/tools/inspector/` | `#FF0000` → Lab 53.24 / 80.09 / 67.20 |
 | `/colour/` | 只保留数据页，44 条目录，无三维入口 |
 | `/colour/tf-srgb/` | 只有传递函数曲线，不画色域 |
