@@ -46,6 +46,17 @@
     svg.appendChild(el('polygon', { points: pts, fill: '#f2f2f2', stroke: '#d8d8d8', 'stroke-width': 1 }));
   }
 
+  function addPolygon(svg, s, points, color, width, opts) {
+    opts = opts || {};
+    var pts = points.map(function (p) { return s.sx(p[0]) + ',' + s.sy(p[1]); }).join(' ');
+    var attrs = {
+      points: pts, fill: color, 'fill-opacity': opts.fillOpacity == null ? 0.08 : opts.fillOpacity,
+      stroke: color, 'stroke-width': width
+    };
+    if (opts.dash) attrs['stroke-dasharray'] = opts.dash;
+    svg.appendChild(el('polygon', attrs));
+  }
+
   function addTriangle(svg, s, space, color, width) {
     var pts = space.primaries.map(function (p) { return s.sx(p[0]) + ',' + s.sy(p[1]); }).join(' ');
     svg.appendChild(el('polygon', { points: pts, fill: color, 'fill-opacity': 0.12, stroke: color, 'stroke-width': width }));
@@ -56,5 +67,5 @@
     svg.appendChild(el('circle', { cx: s.sx(w[0]), cy: s.sy(w[1]), r: 3, fill: 'none', stroke: color, 'stroke-width': 1.5 }));
   }
 
-  root.Chart2D = { el: el, makeScales: makeScales, addGrid: addGrid, addLocus: addLocus, addTriangle: addTriangle };
+  root.Chart2D = { el: el, makeScales: makeScales, addGrid: addGrid, addLocus: addLocus, addTriangle: addTriangle, addPolygon: addPolygon };
 })(typeof window !== 'undefined' ? window : globalThis);

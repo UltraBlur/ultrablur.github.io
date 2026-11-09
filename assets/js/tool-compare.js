@@ -1,4 +1,4 @@
-/* 色域比对：两个空间的 xy 三角形、白点与面积 */
+/* 色域比对：两个空间的 xy 三角形、白点与面积；可叠 Pointer's Gamut */
 (function () {
   'use strict';
   var host = document.querySelector('[data-compare]');
@@ -7,10 +7,19 @@
   var spaces = cfg.spaces || [];
   if (!spaces.length) return;
 
+  var isEn = cfg.lang === 'en';
+  var PTR = cfg.pointer && cfg.pointer.hull && cfg.pointer.hull.length > 2 ? cfg.pointer : null;
+  var COL_A = '#1f5f8b';
+  var COL_B = '#b06a00';
+  var COL_P = '#b03a4a';
+
   var svg = host.querySelector('svg');
   var table = host.querySelector('tbody');
+  var thead = host.querySelector('thead tr');
   var selA = document.getElementById('cmp-a');
   var selB = document.getElementById('cmp-b');
+  var chkPtr = document.getElementById('cmp-pointer');
+  var note = host.querySelector('.c-cmp-note');
 
   spaces.forEach(function (s) {
     [selA, selB].forEach(function (sel) {
@@ -31,37 +40,54 @@
   var X0 = 0, X1 = 0.8;
   var S = C.makeScales(W, H, M, X0, X1);
 
-  /* 凸多边形裁剪（Sutherland–Hodgman） */
-  function clip(subject, clipPoly) {
-    var out = subject.slice();
-    for (var i = 0; i < clipPoly.length && out.length; i++) {
-      var a = clipPoly[i], b = clipPoly[(i + 1) % clipPoly.length];
-      var input = out;
-      out = [];
-      for (var j = 0; j < input.length; j++) {
-        var p = input[j], q = input[(j + 1) % input.length];
-        var side = function (pt) { return (b[0] - a[0]) * (pt[1] - a[1]) - (b[1] - a[1]) * (pt[0] - a[0]); };
-        var sp = side(p), sq = side(q);
-        if (sp >= 0) out.push(p);
-        if ((sp >= 0) !== (sq >= 0)) {
-          var t = sp / (sp - sq);
-          out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
-        }
-      }
-    }
-    return out;
+  var G = window.Geom2D;
+  var clip = G.clipPolygon;
+  var polyArea = G.polygonArea;
+  var triArea = G.triangleArea;
+  function pct(v) { return (v * 100).toFixed(1) + '%'; }
+
+  function cell(tr, text, cls) {
+    var td = document.createElement('td');
+    td.textContent = text;
+    if (cls) td.className = cls;
+    tr.appendChild(td);
+    return td;
   }
-  function polyArea(pts) {
-    var s2 = 0;
-    for (var i = 0; i < pts.length; i++) {
-      var a = pts[i], b = pts[(i + 1) % pts.length];
-      s2 += a[0] * b[1] - b[0] * a[1];
+  function swatchCell(tr, color, label) {
+    var td = document.createElement('td');
+    if (color) {
+      var dot = document.createElement('span');
+      dot.className = 'c-cmp-dot';
+      dot.style.background = color;
+      td.appendChild(dot);
     }
-    return Math.abs(s2) / 2;
+    td.appendChild(document.createTextNode(label));
+    tr.appendChild(td);
+    return td;
   }
-  function area(tri) {
-    var a = tri[0], b = tri[1], c = tri[2];
-    return Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+  function row() {
+    var tr = document.createElement('tr');
+    table.appendChild(tr);
+    return tr;
+  }
+
+  function header(showPtr) {
+    thead.innerHTML = '';
+    var ths = ['', isEn ? 'Area in xy' : 'xy 面积', isEn ? 'White' : '白点'];
+    if (showPtr) ths.push(isEn ? "Coverage of Pointer's Gamut" : "覆盖 Pointer's Gamut");
+    ths.forEach(function (text) {
+      var th = document.createElement('th');
+      th.textContent = text;
+      thead.appendChild(th);
+    });
+  }
+
+  function pointerCoverage(space) {
+    var inter = polyArea(clip(space.primaries, PTR.hull));
+    return {
+      ofPointer: inter / polyArea(PTR.hull),
+      inside: inter / triArea(space.primaries)
+    };
   }
 
   function draw() {
@@ -69,35 +95,56 @@
     var a = spaces.filter(function (s) { return s.slug === selA.value; })[0];
     var b = spaces.filter(function (s) { return s.slug === selB.value; })[0];
     if (!a || !b) return;
+    var showPtr = !!(PTR && chkPtr && chkPtr.checked);
+    if (note) note.hidden = !showPtr;
 
     C.addLocus(svg, S);
     C.addGrid(svg, S, W, H, M, X0, X1, 0.1);
-    function tri(space, color, width) { C.addTriangle(svg, S, space, color, width); }
-    tri(b, '#b06a00', 1.5);
-    tri(a, '#1f5f8b', 2);
+    if (showPtr) C.addPolygon(svg, S, PTR.hull, COL_P, 2, { fillOpacity: 0.07, dash: '6 4' });
+    C.addTriangle(svg, S, b, COL_B, 1.5);
+    C.addTriangle(svg, S, a, COL_A, 2);
 
+    header(showPtr);
     table.innerHTML = '';
-    [[a, '#1f5f8b'], [b, '#b06a00']].forEach(function (pair) {
-      var tr = document.createElement('tr');
-      var name = document.createElement('td');
-      name.textContent = pair[0].title;
-      var ar = document.createElement('td');
-      ar.textContent = (area(pair[0].primaries) * 100).toFixed(1) + '%';
-      var wh = document.createElement('td');
-      wh.textContent = pair[0].white[0].toFixed(4) + ', ' + pair[0].white[1].toFixed(4);
-      tr.appendChild(name); tr.appendChild(ar); tr.appendChild(wh);
-      table.appendChild(tr);
+
+    [[a, COL_A], [b, COL_B]].forEach(function (pair) {
+      var tr = row();
+      swatchCell(tr, pair[1], pair[0].title);
+      cell(tr, pct(triArea(pair[0].primaries)));
+      cell(tr, pair[0].white[0].toFixed(4) + ', ' + pair[0].white[1].toFixed(4));
+      if (showPtr) {
+        var cov = pointerCoverage(pair[0]);
+        var td = document.createElement('td');
+        td.textContent = pct(cov.ofPointer);
+        var sub = document.createElement('span');
+        sub.className = 'c-cmp-sub';
+        sub.textContent = isEn
+          ? '(' + pct(cov.inside) + ' inside)'
+          : '（自身 ' + pct(cov.inside) + ' 在内）';
+        td.appendChild(sub);
+        tr.appendChild(td);
+      }
     });
+
+    if (showPtr) {
+      var trP = row();
+      swatchCell(trP, COL_P, PTR.title);
+      cell(trP, pct(polyArea(PTR.hull)));
+      cell(trP, isEn ? 'C illuminant' : 'C 光源');
+      cell(trP, '100.0%');
+    }
+
     var inter = clip(a.primaries, b.primaries);
     var interArea = inter.length > 2 ? polyArea(inter) : 0;
-    var trI = document.createElement('tr');
-    trI.innerHTML = '<td>' + (document.documentElement.lang === 'en' ? 'Overlap' : '交集') + '</td>' +
-      '<td>' + (interArea * 100).toFixed(1) + '%</td>' +
-      '<td>' + (area(a.primaries) > 0 ? (interArea / area(a.primaries) * 100).toFixed(1) + '% of A' : '') + '</td>';
-    table.appendChild(trI);
+    var trI = row();
+    cell(trI, isEn ? 'Overlap' : '交集');
+    cell(trI, pct(interArea));
+    cell(trI, triArea(a.primaries) > 0 ? pct(interArea / triArea(a.primaries)) + (isEn ? ' of A' : ' / A') : '');
+    if (showPtr) cell(trI, '');
   }
 
   selA.addEventListener('change', draw);
   selB.addEventListener('change', draw);
+  if (chkPtr) chkPtr.addEventListener('change', draw);
   draw();
 })();
