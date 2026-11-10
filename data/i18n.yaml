@@ -9,6 +9,7 @@ zh:
   displayGamut: 原色
   displayTf: 传递函数
   film: 胶片
+  filmNote: 密度域的编码与近似，不是色彩空间；四条仍在重写。
   aces: ACES
   working: 工作空间
   transferHeading: 传递函数
@@ -53,6 +54,7 @@ en:
   displayGamut: Primaries
   displayTf: Transfer functions
   film: Film
+  filmNote: Density-domain encodings and approximations, not colour spaces; all four are being rewritten.
   aces: ACES
   working: Working spaces
   transferHeading: Transfer function

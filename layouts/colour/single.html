@@ -121,9 +121,9 @@
         {{ end }}{{ end }}
         {{ if $d.eiTable }}{{ partial "colour-logc-ei.html" (dict "t" $t) }}{{ end }}
         {{ if not $d.transferOnly }}{{ with $d.matrix }}
-        <h2>{{ if $d.matrixInverse }}{{ $t.matricesHeading }}{{ else }}{{ $t.matrixHeading }}{{ end }}</h2>
-        <pre>{{ if $en }}{{ $d.matrixLabelEn | default "RGB → XYZ" }}{{ else }}{{ $d.matrixLabel | default "RGB → XYZ" }}{{ end }}
-[ {{ printf "%14.12f" (index (index . 0) 0) }} {{ printf "%14.12f" (index (index . 0) 1) }} {{ printf "%14.12f" (index (index . 0) 2) }} ]
+        {{ $mLabel := cond $en ($d.matrixLabelEn | default "") ($d.matrixLabel | default "") }}
+        <h2>{{ if $d.matrixInverse }}{{ $t.matricesHeading }}{{ else }}{{ $mLabel | default $t.matrixHeading }}{{ end }}</h2>
+        <pre>{{ if not $mLabel }}{{ "RGB → XYZ\n" }}{{ end }}[ {{ printf "%14.12f" (index (index . 0) 0) }} {{ printf "%14.12f" (index (index . 0) 1) }} {{ printf "%14.12f" (index (index . 0) 2) }} ]
 [ {{ printf "%14.12f" (index (index . 1) 0) }} {{ printf "%14.12f" (index (index . 1) 1) }} {{ printf "%14.12f" (index (index . 1) 2) }} ]
 [ {{ printf "%14.12f" (index (index . 2) 0) }} {{ printf "%14.12f" (index (index . 2) 1) }} {{ printf "%14.12f" (index (index . 2) 2) }} ]</pre>
         {{ end }}
