@@ -13,7 +13,8 @@
           {{ with $index }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All tools" "全部工具" }}</a></li>
           {{ end }}
-          {{ range slice "gamut-volume" "compare" "transfer" "inspector" }}
+          {{/* 列全部工具；公开分支上没有的内部页会被下面的 with 跳过，不会留死链 */}}
+          {{ range slice "gamut-volume" "compare" "transfer" "inspector" "smpte" "drt" "davinci-drt" "baselight-drt" "aces-drt" }}
           {{ with site.GetPage (printf "%stools/%s" (cond $en "/en/" "/") .) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}

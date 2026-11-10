@@ -8,3 +8,10 @@ resources/_gen/
 
 # 中间过程文件（临时脚本、截图、转换产物等），不提交
 .tmp/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# SMPTE build cache
+.cache/

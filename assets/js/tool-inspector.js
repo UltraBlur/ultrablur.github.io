@@ -117,7 +117,7 @@
     var xyz = P.xyzFromRgb(rgb);
     var lab = P.labFromXyz(xyz);
     row('HEX / sRGB', hexOf(rgb) + '   ' + rgb.map(function (v) { return Math.round(v * 255); }).join(', '));
-    var models = ['hsv', 'lch', 'oklch', 'jmh', 'jzch'];
+    var models = ['hsv', 'lch', 'oklch', 'jmh', 'jmhh', 'jzch'];
     models.forEach(function (id) {
       var mm = P.models[id];
       var p = mm.fromRgb(rgb);

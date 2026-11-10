@@ -5,6 +5,20 @@
 <link rel="stylesheet" href="{{ $vol.RelPermalink }}" integrity="{{ $vol.Data.Integrity }}">
 {{ $models := resources.Get "js/colour-models.js" | minify | fingerprint }}
 <script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
+{{ $geom := resources.Get "js/colour-volume-geom.js" | minify | fingerprint }}
+<script defer src="{{ $geom.RelPermalink }}" integrity="{{ $geom.Data.Integrity }}"></script>
+{{/* ACES 2.0 的 Hellwig JMh 内核：与 /tools/aces-drt/ 同一份移植，避免两套公式漂移 */}}
+{{ $jmh := resources.Get "js/lib/aces-jmh.js" | minify | fingerprint }}
+<script defer src="{{ $jmh.RelPermalink }}" integrity="{{ $jmh.Data.Integrity }}"></script>
+{{/* xyY 视图要在地面上画 CIE 1931 光谱轨迹（马蹄形）；与比对页共用同一张表 */}}
+{{ $locus := resources.Get "js/colour-locus.js" | minify | fingerprint }}
+<script defer src="{{ $locus.RelPermalink }}" integrity="{{ $locus.Data.Integrity }}"></script>
+{{/* 本地私有坐标扩展：仅 hugo server 且文件存在时注入，构建产物里永远没有。
+     走 os.FileExists + readFile，不用 resources.Get，避免资产缓存把“文件不存在”记死。 */}}
+{{ if hugo.IsServer }}{{ $local := "assets/js/local/volume-ext.js" }}{{ if os.FileExists $local }}
+{{ $ext := resources.FromString "js/local/volume-ext.js" (readFile $local) | minify | fingerprint }}
+<script defer src="{{ $ext.RelPermalink }}" integrity="{{ $ext.Data.Integrity }}"></script>
+{{ end }}{{ end }}
 {{ $js := resources.Get "js/colour-volume.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
 {{ end }}
@@ -33,6 +47,7 @@
       <script type="application/json" id="volume-data">{{ dict
         "spaces" $spaces
         "srgbMatrix" $srgbMatrix
+        "pointer" hugo.Data.pointerGamut
         "defaultPrimary" "primaries-srgb-rec709"
         "ui" (dict "error" (cond $en "WebGL initialisation failed" "WebGL 初始化失败"))
       | jsonify | safeJS }}</script>
@@ -42,6 +57,9 @@
           <label>{{ cond $en "Space" "主空间" }}
             <select id="vol-space">
               {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+              <optgroup label="{{ cond $en "Reference volume" "参考色体" }}">
+                <option value="pointer-gamut" title="Pointer (1980) 的 576 个真实表面色采样（16 个 L* × 36 色相，照明体 C）搭成的闭合色体；不是设备 RGB 立方体">{{ cond $en "Pointer's Gamut (real surface colours)" "Pointer's Gamut（真实表面色）" }}</option>
+              </optgroup>
             </select>
           </label>
           <label>{{ cond $en "Coordinates" "坐标" }}
@@ -52,8 +70,17 @@
               <option value="luv">CIE Luv (D65)</option>
               <option value="oklab">Oklab</option>
               <option value="cam02">CAM02-UCS</option>
+              <option value="cam16">CAM16-UCS</option>
+              <option value="jmh" title="ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h">Hellwig JMh (ACES 2.0)</option>
               <option value="ictcp">ICtCp (PQ)</option>
               <option value="jzazbz">JzAzBz</option>
+              <option value="zcam" title="ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz">ZCAM (Safdar 2021)</option>
+            </select>
+          </label>
+          <label>{{ cond $en "Projection" "投影" }}
+            <select id="vol-proj">
+              <option value="persp" selected>{{ cond $en "Perspective" "透视" }}</option>
+              <option value="ortho">{{ cond $en "Orthographic" "正交" }}</option>
             </select>
           </label>
           <label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
@@ -68,6 +95,7 @@
           <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Mesh" "网格线" }}</label>
           <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> {{ cond $en "Neutral surface" "中性表面" }}</label>
           <label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
+          <button type="button" id="vol-top" class="c-vol-btn">{{ cond $en "Top view" "俯视" }}</button>
           <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
         </div>
 

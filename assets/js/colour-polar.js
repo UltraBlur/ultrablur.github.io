@@ -185,6 +185,14 @@
 
   var CAM_OPTS = { la: 20, yb: 20, F: 1, c: 0.69, Nc: 1 };
 
+  /* ---- Hellwig JMh（ACES 2.0）：与色体积、DRT 页同一个内核 ---- */
+  var JMH = root.AcesJMh || null;
+  var JMH_PARAMS = null;
+  if (JMH) {
+    try { JMH_PARAMS = JMH.init([[0.64, 0.33], [0.30, 0.60], [0.15, 0.06]], [0.3127, 0.329]); }
+    catch (e) { JMH_PARAMS = null; }
+  }
+
   /* 参考白亮度：JzAzBz 用 Lw，CAM02 的 L_A / Y_b 取白点的 20% */
   function setWhite(v) {
     Lw = v;
@@ -251,6 +259,22 @@
       fromRgb: function (rgb) {
         var jz = jzazbzFromXyz(xyzFromRgb(rgb));
         return [(Math.atan2(jz[2], jz[1])*180/Math.PI + 360) % 360, Math.hypot(jz[1], jz[2]), jz[0]];
+      }
+    },
+    jmhh: {
+      id: 'jmhh', label: 'JMH (Hellwig)',
+      cLabel: 'M', lLabel: 'J',
+      ranges: { c: [0, 120], l: [0, 100] },
+      toRgb: function (h, c, l) {
+        if (!JMH_PARAMS) return null;
+        /* CTL 的 JMh 以 1.0 = 100 cd/m² 标定，jmhToRGB 直接回显示线性的 sRGB */
+        var lin = JMH.jmhToRGB([l, c, h], JMH_PARAMS);
+        return rgbFromXyz(mv(SRGB, lin));
+      },
+      fromRgb: function (rgb) {
+        if (!JMH_PARAMS) return [0, 0, 0];
+        var v = JMH.rgbToJMh(rgb.map(decode), JMH_PARAMS);
+        return [v[2], v[1], v[0]]; // [h, M, J]
       }
     },
     jmh: {

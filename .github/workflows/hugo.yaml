@@ -41,6 +41,9 @@ jobs:
 
       - name: 安装 Node 依赖
         run: npm ci
+
+      - name: 公开测试
+        run: npm test
       
       - name: 安装Hugo CLI
         run: |
@@ -63,6 +66,9 @@ jobs:
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/"          
+      - name: 公开边界检查
+        run: bash scripts/verify/public-boundary.sh
+
       - name: 上传构建产物
         uses: actions/upload-pages-artifact@v3
         with:

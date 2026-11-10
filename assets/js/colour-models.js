@@ -1,5 +1,5 @@
 /*
- * 色彩外观 / UCS 模型（试验页用）
+ * 色貌 / UCS 模型（试验页用）
  * 输入：XYZ（相对量，参考白 Y = 1）+ 参考白亮度 Lw（cd/m²）
  * 输出：显示三元组 [水平, 竖直, 深度]，竖直方向统一是明度类轴
  *
@@ -200,9 +200,12 @@
     var z = 1.48 + Math.sqrt(n);
     var Nbb = 0.725 * Math.pow(1 / n, 0.2);
 
+    /* 负值处理按 Luo (2013)：压缩前取 |v|，符号留在外面。
+       广色域原色（例如 Rec.2020 / P3 的红，Z 恰为 0）会让 CAT02 绿通道为负，
+       直接对负数求 0.42 次幂会得 NaN，整条 R 轴的面就没了。 */
     function adapt(v) {
-      var t = Math.pow(FL * v / 100, 0.42);
-      return signPow(400 * t / (t + 27.13), 1) + 0.1;
+      var t = Math.pow(FL * Math.abs(v) / 100, 0.42);
+      return (v < 0 ? -1 : 1) * 400 * t / (t + 27.13) + 0.1;
     }
 
     var rgbP = mulv(HPE, mulv(CAT02_INV, rgbC));
@@ -217,14 +220,150 @@
     var et = 0.25 * (Math.cos(h + 2) + 3.8);
     var A = (2 * Ra + Ga + Ba / 20 - 0.305) * Nbb;
 
-    var J = 100 * Math.pow(A / Aw, c * z);
-    var t = (50000 / 13 * Nc * Nbb * et * Math.sqrt(a * a + b * b)) / (Ra + Ga + 21 / 20 * Ba);
-    var C = Math.pow(t, 0.9) * Math.sqrt(J / 100) * Math.pow(1.64 - Math.pow(0.29, n), 0.73);
-    var M = C * Math.pow(FL, 0.25);
+    /* J / C / M 都用保号幂（Luo 2013 的负值约定）：A 变负、t 变负时仍有定义、
+       且与正半轴连续，不会把曲面打出洞来。分母为 0 时取 0（同 colour-science 的 sdiv）。 */
+    var J = 100 * signPow(A / Aw, c * z);
+    var denT = Ra + Ga + 21 / 20 * Ba;
+    var t = Math.abs(denT) > 1e-12
+      ? (50000 / 13 * Nc * Nbb * et * Math.sqrt(a * a + b * b)) / denT
+      : 0;
+    var C = signPow(t, 0.9) * signPow(J / 100, 0.5) * signPow(1.64 - Math.pow(0.29, n), 0.73);
+    var M = C * signPow(FL, 0.25);
 
     var Jp = 1.7 * J / (1 + 0.007 * J);
     var Mp = Math.log(1 + 0.0228 * M) / 0.0228;
     return [Mp * Math.cos(h), Jp, Mp * Math.sin(h)]; // [a', J', b']
+  }
+
+  /* ---------- CAM16（Li et al. 2017）+ CAM16-UCS ---------- */
+
+  var CAT16 = [0.401288, 0.650173, -0.051461,
+               -0.250268, 1.204414, 0.045854,
+               -0.002079, 0.048952, 0.953127];
+
+  function cam16ucs(xyzAbs, whiteAbs, opts) {
+    var La = opts.La, Yb = opts.Yb, F = opts.F, c = opts.c;
+    /* CAM16 的昏暗环绕 N_c = 0.9（CIE 159 的 CAM02 是 0.95），所以单独取 */
+    var Nc = opts.Nc16 === undefined ? opts.Nc : opts.Nc16;
+
+    var RGBw = mulv(CAT16, whiteAbs);
+    var D = F * (1 - (1 / 3.6) * Math.exp((-La - 42) / 92));
+    D = Math.max(0, Math.min(1, D));
+    var Yw = whiteAbs[1];
+    var DRGB = [
+      D * Yw / RGBw[0] + 1 - D,
+      D * Yw / RGBw[1] + 1 - D,
+      D * Yw / RGBw[2] + 1 - D
+    ];
+
+    var k = 1 / (5 * La + 1);
+    var FL = 0.2 * Math.pow(k, 4) * 5 * La + 0.1 * Math.pow(1 - Math.pow(k, 4), 2) * Math.cbrt(5 * La);
+    var n = Yb / Yw;
+    var z = 1.48 + Math.sqrt(n);
+    var Nbb = 0.725 * Math.pow(1 / n, 0.2);
+
+    /* 同 CAM02：负值按 Luo 2013 处理，A 为负时不产生 NaN */
+    function adapt(v) {
+      var t = Math.pow(FL * Math.abs(v) / 100, 0.42);
+      return (v < 0 ? -1 : 1) * 400 * t / (t + 27.13) + 0.1;
+    }
+
+    var RGBaw = [adapt(DRGB[0] * RGBw[0]), adapt(DRGB[1] * RGBw[1]), adapt(DRGB[2] * RGBw[2])];
+    var Aw = (2 * RGBaw[0] + RGBaw[1] + RGBaw[2] / 20 - 0.305) * Nbb;
+
+    var RGB = mulv(CAT16, xyzAbs);
+    var Ra = adapt(DRGB[0] * RGB[0]);
+    var Ga = adapt(DRGB[1] * RGB[1]);
+    var Ba = adapt(DRGB[2] * RGB[2]);
+
+    var a = Ra - 12 * Ga / 11 + Ba / 11;
+    var b = (Ra + Ga - 2 * Ba) / 9;
+    var h = Math.atan2(b, a);
+    var et = 0.25 * (Math.cos(h + 2) + 3.8);
+    var A = (2 * Ra + Ga + Ba / 20 - 0.305) * Nbb;
+
+    var J = 100 * signPow(A / Aw, c * z);
+    var denT = Ra + Ga + 21 / 20 * Ba;
+    var t = Math.abs(denT) > 1e-12
+      ? (50000 / 13 * Nc * Nbb * et * Math.sqrt(a * a + b * b)) / denT
+      : 0;
+    var C = signPow(t, 0.9) * signPow(J / 100, 0.5) * signPow(1.64 - Math.pow(0.29, n), 0.73);
+    var M = C * signPow(FL, 0.25);
+
+    var Jp = 1.7 * J / (1 + 0.007 * J);
+    var Mp = Math.log(1 + 0.0228 * M) / 0.0228;
+    return [Mp * Math.cos(h), Jp, Mp * Math.sin(h)]; // [a', J', b']
+  }
+
+  /* ---------- ZCAM（Safdar et al. 2021） ---------- */
+
+  var D65_XYZ = [0.9504559270516716, 1, 1.0890577507598784];
+  var JZ21 = { b: 1.15, g: 0.66, d0: 3.7035226210190005e-11 };
+  var JZ_XYZ_LMS21 = [0.41478972, 0.579999, 0.014648,
+                      -0.20151, 1.120649, 0.0531008,
+                      -0.0166008, 0.2648, 0.6684799];
+  var JZ_LMS_IZAZBZ21 = [0, 1, 0,
+                         3.524, -4.066708, 0.542708,
+                         0.199076, 1.096799, -1.295875];
+  var JZ_M1 = 0.1593017578125, JZ_M2_21 = 134.034375;
+  var JZ_C1 = 0.8359375, JZ_C2 = 18.8515625, JZ_C3 = 18.6875;
+
+  /* JzAzBz 的 Safdar 2021 变体：比 2017 版多减一个 d0，矩阵也不同 */
+  function pqJz21(x) {
+    var y = signPow(Math.abs(x) / 10000, JZ_M1);
+    var q = (JZ_C1 + JZ_C2 * y) / (1 + JZ_C3 * y);
+    return signPow(q, JZ_M2_21);
+  }
+
+  function jzazbz21(xyz) {
+    var Xp = JZ21.b * xyz[0] - (JZ21.b - 1) * xyz[2];
+    var Yp = JZ21.g * xyz[1] - (JZ21.g - 1) * xyz[0];
+    var lms = mulv(JZ_XYZ_LMS21, [Xp, Yp, xyz[2]]);
+    var out = mulv(JZ_LMS_IZAZBZ21, [pqJz21(lms[0]), pqJz21(lms[1]), pqJz21(lms[2])]);
+    return [out[0] - JZ21.d0, out[1], out[2]]; // [Iz, az, bz]
+  }
+
+  /* Zhai & Luo 2018 的 CAT02 色适应：白点 XYZ_w → D65（D_b = D_d = D） */
+  function adaptZhai(xyz, xyzW, D) {
+    var rgbB = mulv(CAT02, xyz);
+    var rgbWb = mulv(CAT02, xyzW);
+    var rgbWo = mulv(CAT02, D65_XYZ);
+    var Ywb = xyzW[1], Ywo = D65_XYZ[1];
+    /* 目标白点就是 D65，D_RGB_d 恒为 1，只剩源方向那一半 */
+    var DRGB = [0, 1, 2].map(function (i) {
+      return D * (Ywb / Ywo) * (rgbWo[i] / rgbWb[i]) + 1 - D;
+    });
+    var rgbD = [DRGB[0] * rgbB[0], DRGB[1] * rgbB[1], DRGB[2] * rgbB[2]];
+    return mulv(CAT02_INV, rgbD);
+  }
+
+  function zcam(xyzAbs, whiteAbs, opts) {
+    var La = opts.La, Yb = opts.Yb, F = opts.F;
+    var Fs = opts.Fs === undefined ? 0.69 : opts.Fs;
+    var Yw = whiteAbs[1];
+
+    var D = Math.max(0, Math.min(1, F * (1 - (1 / 3.6) * Math.exp((-La - 42) / 92))));
+    var xyzD65 = adaptZhai(xyzAbs, whiteAbs, D);
+    var iz = jzazbz21(xyzD65);
+    var izw = jzazbz21(whiteAbs);
+
+    var Fb = Math.sqrt(Yb / Yw);
+    var FL = 0.171 * Math.cbrt(La) * (1 - Math.exp(-48 / 9 * La));
+
+    var hDeg = (Math.atan2(iz[2], iz[1]) * 180 / Math.PI + 360) % 360;
+    var ez = 1.015 + Math.cos((89.038 + hDeg) * Math.PI / 180);
+
+    var Qp = 1.6 * Fs / Math.pow(Fb, 0.12);
+    var Qm = Math.pow(Fs, 2.2) * Math.pow(Fb, 0.5) * Math.pow(FL, 0.2);
+    var Qz = 2700 * signPow(iz[0], Qp) * Qm;
+    var Qzw = 2700 * signPow(izw[0], Qp) * Qm;
+    var Jz = 100 * Qz / Qzw;
+
+    var Mz = 100 * Math.pow(iz[1] * iz[1] + iz[2] * iz[2], 0.37) *
+      ((Math.pow(ez, 0.068) * Math.pow(FL, 0.2)) / (Math.pow(Fb, 0.1) * Math.pow(izw[0], 0.78)));
+
+    var hr = hDeg * Math.PI / 180;
+    return [Mz * Math.cos(hr), Jz, Mz * Math.sin(hr)]; // [az, Jz, bz]
   }
 
   root.ColourModels = {
@@ -236,7 +375,9 @@
     jzazbz: jzazbz,
     oklab: oklab,
     luv: luv,
-    cam02ucs: cam02ucs
+    cam02ucs: cam02ucs,
+    cam16ucs: cam16ucs,
+    zcam: zcam
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.ColourModels;
 })(typeof window !== 'undefined' ? window : globalThis);

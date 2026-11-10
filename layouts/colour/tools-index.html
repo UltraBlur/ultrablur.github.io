@@ -8,12 +8,26 @@
 {{ $lang := cond $en "en" "zh" }}
 {{/* 色域数量取自实际入表的空间，施工中条目在正式环境不计入 */}}
 {{ $gamutCount := len (partial "tool-spaces.html" (dict "scope" "all")).spaces }}
+{{/* 标题一律取页面自己的 .Title；这里只维护一句话说明，按 slug 挂上去。
+     页面不存在（未建、draft、内部页不在公开分支）就不渲染条目，避免死链。
+     所以新增工具时：写好页面，再往下面两个 slice 里加一行说明即可。 */}}
 {{ $tools := slice
-  (dict "slug" "gamut-volume" "zh" "色体积" "en" "Gamut volume" "zhd" "显示空间的三维色体，8 种坐标" "end" "3D volume of a display space in 8 coordinate systems")
-  (dict "slug" "compare" "zh" "色域比对" "en" "Gamut comparison" "zhd" (printf "全部 %d 个色域任选两个对比，可叠 Pointer's Gamut" $gamutCount) "end" (printf "Any two of the %d gamuts, side by side, with Pointer's Gamut" $gamutCount))
-  (dict "slug" "transfer" "zh" "传递函数比对" "en" "Transfer function comparison" "zhd" "多条编码曲线叠在一张图上对比" "end" "Overlay encoding curves from several spaces")
-  (dict "slug" "inspector" "zh" "取色工具" "en" "Colour picker" "zhd" "HSV / LCH / OKLCH / JMH / JzCH 五种选色方式" "end" "HSV, LCH, OKLCH, JMH and JzCH picking")
+  (dict "slug" "gamut-volume" "zhd" "6 个显示空间的 3D 色体 · 11 种坐标（含 CAM16 / Hellwig JMh / ZCAM）· 可叠 Pointer's Gamut 参考色体" "end" "3D volumes of 6 display spaces · 11 coordinate systems (CAM16, Hellwig JMh, ZCAM…) · Pointer's Gamut reference")
+  (dict "slug" "compare" "zhd" (printf "全部 %d 个色域任选两个 · CIE 1931 轨迹上的原色三角形 · xy 面积、交集与 Pointer's Gamut 覆盖率" $gamutCount) "end" (printf "Any two of the %d gamuts · primaries triangles on CIE 1931 · xy area, intersection and Pointer's Gamut coverage" $gamutCount))
+  (dict "slug" "transfer" "zhd" "编码 / 解码双向叠加 · 纵轴线性、对数、相对峰值、档位或 PQ 码值 · 曲线自选、参数可读" "end" "OETF and EOTF overlaid · y axis in cd/m², log, relative, stops or PQ code · curves picked per space")
+  (dict "slug" "inspector" "zhd" "六种选色平面：HSV / LCH / OKLCH / JMH（CAM02）/ JMH（Hellwig）/ JzCH · 全模型坐标、越界灰显" "end" "Six picking planes: HSV, LCH, OKLCH, JMH (CAM02), JMH (Hellwig), JzCH · every model's coordinates, out-of-gamut greyed")
+  (dict "slug" "smpte" "zhd" "905 部标准 / 1,234 个版本 · 全文检索、关键词索引、目录浏览 · 一键直达 pub.smpte.org" "end" "905 standards in 1,234 versions · full-text search, keyword index, catalogue · straight to pub.smpte.org")
 }}
+{{/* 内部页面：内容不进公开仓库，公开分支上没有这些文件，条目随之消失 */}}
+{{ $internal := slice
+  (dict "slug" "drt" "zhd" "ACES 2.0 / Baselight TCAM / Resolve CST 的中性灰曲线叠图 · 曲线可增删 · 锚点与峰值表" "end" "Neutral-axis curves from ACES 2.0, Baselight TCAM and Resolve CST · add or drop curves · anchor and peak table")
+  (dict "slug" "davinci-drt" "zhd" "Resolve CST 的有理曲线：公式与 s / q / 白点、三方法对照、参数曲面、Adaptation 扫描" "end" "Resolve CST's rational curve: formula, s / q / white point, the three methods, parameter surface, adaptation sweep")
+  (dict "slug" "baselight-drt" "zhd" "doDRT 七步公式、14 个观看条件、21 → 10 参数换算链与实时曲线" "end" "The seven doDRT steps, 14 viewing conditions, the 21 → 10 parameter chain and live curves")
+  (dict "slug" "aces-drt" "zhd" "Hellwig JMh、色调曲线、色度与色域压缩三步、可逆性" "end" "Hellwig JMh, the tone scale, the three chroma and gamut steps, invertibility")
+}}
+{{ $prefix := cond $en "/en/" "/" }}
+{{ $internalShown := 0 }}
+{{ range $internal }}{{ if site.GetPage (printf "%stools/%s" $prefix .slug) }}{{ $internalShown = add $internalShown 1 }}{{ end }}{{ end }}
 <div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
@@ -24,12 +38,32 @@
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <ul class="c-tools">
         {{ range $tools }}
+        {{ $page := site.GetPage (printf "%stools/%s" $prefix .slug) }}
+        {{ if $page }}
         <li>
-          <a href="{{ printf "%s/%s/" (cond $en "/en/tools" "/tools") .slug | relURL }}">{{ cond $en .en .zh }}</a>
+          <span class="c-tools-name"><a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a></span>
           <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
         </li>
         {{ end }}
+        {{ end }}
+        {{ range $internal }}
+        {{ $page := site.GetPage (printf "%stools/%s" $prefix .slug) }}
+        {{ if $page }}
+        <li>
+          <span class="c-tools-name">
+            <a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a>
+            <span class="c-internal-badge">{{ cond $en "Internal" "内部" }}</span>
+          </span>
+          <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
+        </li>
+        {{ end }}
+        {{ end }}
       </ul>
+      {{ if $internalShown }}
+      <p class="c-tools-note">{{ cond $en
+        "Pages marked Internal are built from the local branch only — they never reach the published site, and disappear from this list on the public branch."
+        "带「内部」标记的页面只存在于本地分支，不随站点发布；切到公开分支后这一组条目会自动消失。" }}</p>
+      {{ end }}
     </div>
   </div>
   <script>document.documentElement.lang = "{{ $lang }}";</script>

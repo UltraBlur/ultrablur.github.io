@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "hugo serve",
-    "build": "hugo --gc --minify"
+    "build": "hugo --gc --minify",
+    "test": "bash scripts/verify/tests.sh"
   },
   "repository": {
     "type": "git",
