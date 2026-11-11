@@ -310,18 +310,70 @@ ok('量程悬殊时退回各轴步长', Geom.sharedStep(skewLo, skewHi) === 0, G
 
 const pointerData = JSON.parse(readFileSync(path.join(root, 'data/pointerGamut.json'), 'utf8'));
 const pointer = Geom.makePointerSpace(pointerData, srgb && srgb.matrix, JMh);
-ok('Pointer：16 个 L* 环 × 36 个色相', pointer.rings.length === 16 && pointer.rings[0].length === 36,
+const PTR_FINE = 60;                       // 15 段实测区间 × 4
+ok('Pointer：L* 方向 4× 重采样（61 环 × 36 色相）',
+  pointer.rings.length === PTR_FINE + 1 && pointer.rings[0].length === 36,
   pointer.rings.length + ' × ' + (pointer.rings[0] && pointer.rings[0].length));
-ok('Pointer：L* 15–90', pointer.levels[0] === 15 && pointer.levels[pointer.levels.length - 1] === 90,
-  pointer.levels.join(','));
+ok('Pointer：实测仍是 16 档，ringStep = 4',
+  pointer.dataLevels.length === 16 && pointer.ringStep === 4,
+  pointer.dataLevels.length + ' 档 / step ' + pointer.ringStep);
+ok('Pointer：细环 L* 15–90、步长 1.25',
+  pointer.levels[0] === 15 && near(pointer.levels[1], 16.25, 1e-9) &&
+  pointer.levels[pointer.levels.length - 1] === 90, pointer.levels.slice(0, 3).join(','));
+
+/* 重采样只在实测环之间插值：第 4k 环必须原样等于表中的点 */
+{
+  let maxDev = 0;
+  for (let k = 0; k < pointer.dataLevels.length; k++) {
+    const L = pointer.dataLevels[k];
+    const rows = pointerData.lch.filter((r) => r[0] === L).sort((a, b) => a[2] - b[2]);
+    for (let j = 0; j < rows.length; j++) {
+      const ref = Geom.lchToXyz(L, rows[j][1], rows[j][2], pointer.white);
+      const got = pointer.rings[k * pointer.ringStep][j];
+      for (let c = 0; c < 3; c++) maxDev = Math.max(maxDev, Math.abs(ref[c] - got[c]));
+    }
+  }
+  ok('Pointer：实测环原样保留（不漂移）', maxDev < 1e-12, maxDev.toExponential(2));
+}
+
+/* 夹紧：三次样条在曲率大的地方会外凸，插值结果必须落在两端实测值之间。
+   同时确认这件事不是空转——不夹紧时确实会凸出去。 */
+{
+  const W = pointer.white;
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const labC = (xyz) => {
+    const fx = f(xyz[0] / W[0]), fy = f(xyz[1] / W[1]), fz = f(xyz[2] / W[2]);
+    return Math.hypot(500 * (fx - fy), 200 * (fy - fz));
+  };
+  const hues = pointerData.lch.filter((r) => r[0] === 15).map((r) => r[2]).sort((a, b) => a - b);
+  let maxOut = 0, maxOver = 0;
+  for (let j = 0; j < hues.length; j++) {
+    const col = pointerData.lch.filter((r) => r[2] === hues[j]).sort((a, b) => a[0] - b[0]);
+    for (let k = 0; k < col.length - 1; k++) {
+      const c1 = col[k][1], c2 = col[k + 1][1];
+      const lo = Math.min(c1, c2), hi = Math.max(c1, c2);
+      const c0 = col[Math.max(0, k - 1)][1], c3 = col[Math.min(col.length - 1, k + 2)][1];
+      for (let s = 1; s < pointer.ringStep; s++) {
+        const got = labC(pointer.rings[k * pointer.ringStep + s][j]);
+        maxOut = Math.max(maxOut, Math.max(lo - got, got - hi));
+        const t = s / pointer.ringStep, t2 = t * t, t3 = t2 * t;
+        const raw = 0.5 * (2 * c1 + (-c0 + c2) * t + (2 * c0 - 5 * c1 + 4 * c2 - c3) * t2
+                         + (-c0 + 3 * c1 - 3 * c2 + c3) * t3);
+        maxOver = Math.max(maxOver, Math.max(lo - raw, raw - hi));
+      }
+    }
+  }
+  ok('Pointer：所有重采样点都在实测区间内', maxOut < 1e-9, maxOut.toExponential(2));
+  ok('Pointer：夹紧确实在起作用（未夹紧时最大外凸 > 1）', maxOver > 1, maxOver.toFixed(2));
+}
 
 for (const coord of ['lab', 'jmh', 'cam16', 'zcam']) {
   const mesh = Geom.buildCustom(pointer, coord, opts);
   const tag = "Pointer/" + coord;
   ok(tag + ' 没有解不出的样本', mesh.missing === 0, 'missing=' + mesh.missing);
-  ok(tag + ' 三角数完整（15×36×2 + 两端封盖）',
-    mesh.idx.length === (15 * 36 * 2 + 2 * 36) * 3,
-    mesh.idx.length + ' vs ' + (15 * 36 * 2 + 2 * 36) * 3);
+  ok(tag + ' 三角数完整（60×36×2 + 两端封盖）',
+    mesh.idx.length === (60 * 36 * 2 + 2 * 36) * 3,
+    mesh.idx.length + ' vs ' + (60 * 36 * 2 + 2 * 36) * 3);
   const w = weldStats(mesh);
   ok(tag + ' 封闭：没有边界边', w.boundary === 0, 'boundary=' + w.boundary);
   ok(tag + ' 没有非流形边', w.nonManifold === 0, 'nonManifold=' + w.nonManifold);

@@ -310,6 +310,9 @@
   function rebuild() {
     var primary = spaceBySlug[state.primary];
     if (!primary) return;
+    /* Pointer 的色体只到 L* 15–90，两端平封——选中时把这件事说出来 */
+    var ptrNote = document.querySelector('[data-vol-pointer]');
+    if (ptrNote) ptrNote.hidden = state.primary !== 'pointer-gamut';
     var coord = state.coord;
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
     var opts = viewOpts();
@@ -343,8 +346,9 @@
     uploadSolid('primary', mesh);
 
     if (state.grid) {
+      /* 自定义色体的细环是重采样来的，网格线只画在实测环上（ringStep） */
       var grid = primary.custom
-        ? geom.buildCustomGrid(primary, coord, 4, 3, opts)
+        ? geom.buildCustomGrid(primary, coord, primary.ringStep || 4, 3, opts)
         : geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
       if (sy !== 1) for (var gk = 0; gk < grid.pos.length; gk++) grid.pos[gk] *= sy;
       applyFrame(grid.pos, frame);

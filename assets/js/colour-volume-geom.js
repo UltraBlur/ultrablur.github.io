@@ -329,6 +329,33 @@
     return [finv(fx) * W[0], finv(fy) * W[1], finv(fz) * W[2]];
   }
 
+  /* 每 4 条细环 = 1 条实测环（16 档 L* → 61 环，步长 1.25）。
+     加密到 1.25 L* 之后，中点弦偏差从最大的 4.0（色相 80°、L* 80 的黄区脊线）
+     降到 0.25 量级；色相仍保留实测的 36 段（10° 的弦高只有半径的 0.4%）。 */
+  var RING_STEP = 4;
+
+  /* 单调夹紧的 Catmull-Rom 重采样：把一列 C*(L*) 加密 step 倍。
+     三次样条一定会在曲率大的地方外凸（黄区尤其明显），所以逐段把结果夹紧到
+     两端实测值的区间内——宁可少长一点，也不凭空造出比实测更大的色域。 */
+  function resampleClamped(vals, step) {
+    var n = vals.length;
+    if (n < 2 || step < 2) return vals.slice();
+    function at(i) { return vals[i < 0 ? 0 : (i > n - 1 ? n - 1 : i)]; }
+    var out = [];
+    for (var k = 0; k < n - 1; k++) {
+      var p0 = at(k - 1), p1 = vals[k], p2 = vals[k + 1], p3 = at(k + 2);
+      var lo = Math.min(p1, p2), hi = Math.max(p1, p2);
+      for (var s = 0; s < step; s++) {
+        var t = s / step, t2 = t * t, t3 = t2 * t;
+        var c = 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2
+                     + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+        out.push(c < lo ? lo : (c > hi ? hi : c));
+      }
+    }
+    out.push(vals[n - 1]);
+    return out;
+  }
+
   /* 一个「非 RGB 立方体」的体积：rings = 由低到高的一圈圈 XYZ。
      颜色与 JMh 都用 XYZ 直接算；JMh 的原色参数只是脚手架（见 aces-jmh 注释：
      mConeXYZ 只依赖 XYZ 与白点，换哪组原色结果都一样）。 */
@@ -344,11 +371,29 @@
       (byL[key] = byL[key] || []).push(row);
     });
     var levels = Object.keys(byL).map(Number).sort(function (x, y) { return x - y; });
-    var rings = levels.map(function (L) {
-      return byL[String(L)]
-        .slice()
-        .sort(function (x, y) { return x[2] - y[2]; })
-        .map(function (row) { return lchToXyz(row[0], row[1], row[2], W); });
+    /* 每个 L* 环按色相排好——36 个色相位置固定，于是可以按色相取列 */
+    var rows = levels.map(function (L) {
+      return byL[String(L)].slice().sort(function (x, y) { return x[2] - y[2]; });
+    });
+    var nHue = rows[0] ? rows[0].length : 0;
+    var hues = rows[0] ? rows[0].map(function (r) { return r[2]; }) : [];
+
+    /* 细环：每段实测区间插 4 条子环，末环补上 */
+    var fineLevels = [];
+    for (var k = 0; k < levels.length - 1; k++) {
+      for (var s = 0; s < RING_STEP; s++) {
+        fineLevels.push(levels[k] + (levels[k + 1] - levels[k]) * s / RING_STEP);
+      }
+    }
+    if (levels.length) fineLevels.push(levels[levels.length - 1]);
+
+    /* 逐色相把 C*(L*) 加密；L* 是均匀的，色相不动 */
+    var columns = [];
+    for (var j = 0; j < nHue; j++) {
+      columns.push(resampleClamped(rows.map(function (row) { return row[j][1]; }), RING_STEP));
+    }
+    var rings = fineLevels.map(function (L, i) {
+      return hues.map(function (h, j) { return lchToXyz(L, columns[j][i], h, W); });
     });
 
     var jmhParams = null;
@@ -364,8 +409,10 @@
       slug: 'pointer-gamut',
       title: "Pointer's Gamut",
       white: W,
-      rings: rings,
-      levels: levels,
+      rings: rings,               // 显示用：按 RING_STEP 重采样后的环
+      levels: fineLevels,         // 与 rings 一一对应
+      dataLevels: levels,         // 实测的 16 档
+      ringStep: RING_STEP,        // 每几条细环对应一条实测环
       custom: true,
       jmhParams: jmhParams,
       color: function () { return [0.8, 0.8, 0.8]; },
