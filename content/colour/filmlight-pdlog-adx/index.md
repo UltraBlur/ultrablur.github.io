@@ -3,11 +3,11 @@ title = "FilmLight Academy PD Log / ~ADX"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "用 ADX 矩阵与 sigmoid 曲线近似负片响应，把场景曝光压进 0–1 的 Cineon 对数范围；18% 灰落在 0.5，中点伽马约 0.6。"
 category = "Scene Referred"
 sourceSpace = "FilmLight_PDLog_ADX.flspace"
 gamutNote = "这里不画色度图：它的色度跟 ADX 是同一份借用（相对曝光空间），而且这条曲线自己的黑/白落点与文件头标注不一致，见正文。"
 transferNote = "「黑点 / 白点」82 / 649 是 .flspace 文件头的标注（继承自 ADX），不是这条曲线的落点——按本页公式，线性 0 的编码是 0.0000（码值 0），线性 1.0 是 0.7021（码值 718）。"
+intro = "用 ADX 矩阵与 sigmoid 曲线近似负片响应，把场景曝光压进 0–1 的 Cineon 对数范围；18% 灰落在 0.5，中点伽马约 0.6。"
 +++
 
 ## 这是什么

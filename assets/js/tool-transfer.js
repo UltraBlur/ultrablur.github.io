@@ -90,11 +90,13 @@
   TFS.forEach(function (t) { tfParams[t.id] = { lw: 100, lb: 0 }; });
 
   var mode = 'encode';
-  var selSpaces = ['acescct', 'arri-logc4', 'arri-logc3', 'sony-slog3'].filter(function (s) {
+  var DEF_SPACES = ['acescct', 'arri-logc4', 'arri-logc3', 'sony-slog3'].filter(function (s) {
     return spaces.some(function (x) { return x.slug === s; });
   });
-  if (!selSpaces.length && spaces.length) selSpaces = [spaces[0].slug];
-  var selTfs = ['srgb', 'bt1886', 'hlg'];
+  if (!DEF_SPACES.length && spaces.length) DEF_SPACES = [spaces[0].slug];
+  var DEF_TFS = ['srgb', 'bt1886', 'hlg'];
+  var selSpaces = DEF_SPACES.slice();
+  var selTfs = DEF_TFS.slice();
 
   var svg = root.querySelector('.c-tf-svg');
   var legend = root.querySelector('.c-tf-legend');
@@ -105,6 +107,25 @@
   var params = root.querySelector('.c-tf-params');
   var modeBtns = root.querySelectorAll('.c-tf-modes button');
 
+  var QS = window.ToolState ? {
+    mode: { type: 'string', values: ['encode', 'display'], default: 'encode' },
+    curves: { type: 'list', values: spaces.map(function (s) { return s.slug; }), default: DEF_SPACES, max: 8 },
+    tfs: { type: 'list', values: TFS.map(function (t) { return t.id; }), default: DEF_TFS, max: 8 },
+    y: { type: 'string', values: ['abs', 'log', 'rel', 'stops', 'pq'], default: 'abs' },
+    ymax: { type: 'number', default: 0, min: 0 }
+  } : null;
+  if (QS) {
+    var q = window.ToolState.parse(QS, window.location.search);
+    mode = q.mode;
+    selSpaces = q.curves;
+    selTfs = q.tfs;
+    if (yAxisSel) yAxisSel.value = q.y;
+    if (yMaxIn && q.ymax > 0) yMaxIn.value = q.ymax;
+    Array.prototype.forEach.call(modeBtns, function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-mode') === mode);
+    });
+  }
+
   var W = 720, H = 420, M = { l: 60, r: 16, t: 14, b: 44 };
 
   function el(name, attrs) {
@@ -113,6 +134,17 @@
     return n;
   }
   function num(input, def) { var v = parseFloat(input && input.value); return isFinite(v) ? v : def; }
+
+  function persist() {
+    if (!QS) return;
+    window.ToolState.write(QS, {
+      mode: mode,
+      curves: selSpaces,
+      tfs: selTfs,
+      y: yAxisSel ? yAxisSel.value : 'abs',
+      ymax: num(yMaxIn, 0)
+    });
+  }
 
   function buildPicks() {
     picks.innerHTML = '';
@@ -137,6 +169,7 @@
             else selSpaces = selSpaces.filter(function (x) { return x !== s.slug; });
             if (selSpaces.length > 8) { selSpaces = selSpaces.slice(selSpaces.length - 8); sync(); }
             draw();
+            persist();
           });
           label.appendChild(cb);
           label.appendChild(document.createTextNode(' ' + s.title));
@@ -155,6 +188,7 @@
           if (cb.checked) selTfs.push(t.id);
           else selTfs = selTfs.filter(function (x) { return x !== t.id; });
           buildParamPanel(); draw();
+          persist();
         });
         label.appendChild(cb);
         label.appendChild(document.createTextNode(' ' + (lang === 'en' ? t.en : t.zh)));
@@ -372,11 +406,28 @@
       mode = b.getAttribute('data-mode');
       Array.prototype.forEach.call(modeBtns, function (x) { x.classList.toggle('is-on', x === b); });
       buildPicks(); buildParamPanel(); draw();
+      persist();
     });
   });
   toggle.addEventListener('click', function () { picks.hidden = !picks.hidden; });
-  if (yMaxIn) yMaxIn.addEventListener('input', draw);
-  if (yAxisSel) yAxisSel.addEventListener('change', draw);
+  if (yMaxIn) yMaxIn.addEventListener('input', function () { draw(); persist(); });
+  if (yAxisSel) yAxisSel.addEventListener('change', function () { draw(); persist(); });
+
+  window.addEventListener('popstate', function () {
+    if (!QS) return;
+    var next = window.ToolState.parse(QS, window.location.search);
+    mode = next.mode;
+    selSpaces = next.curves;
+    selTfs = next.tfs;
+    if (yAxisSel) yAxisSel.value = next.y;
+    if (yMaxIn) yMaxIn.value = next.ymax > 0 ? next.ymax : '';
+    Array.prototype.forEach.call(modeBtns, function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-mode') === mode);
+    });
+    buildPicks();
+    buildParamPanel();
+    draw();
+  });
 
   buildPicks();
   buildParamPanel();

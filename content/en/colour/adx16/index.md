@@ -6,13 +6,13 @@ ref = "adx16"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "ADX16 is the 16-bit encoding of APD: the same density scale as ADX10 with 4 more bits of precision and 2 more bits of range, covering about 8.2 density units."
 sources = [
   { title = "SMPTE ST 2065-2:2020: Academy Printing Density (APD) — Spectral Responsivities, Reference Measurement Device and Spectral Calculation (PDF)", url = "https://pub.smpte.org/pub/st2065-2/st2065-2-2020.pdf" },
   { title = "SMPTE ST 2065-3:2020: Academy Density Exchange Encoding (ADX10 / ADX16) (PDF)", url = "https://pub.smpte.org/pub/st2065-3/st2065-3-2020.pdf" },
   { title = "ACES: Background on ADX Channel Gains (PDF)", url = "https://community.acescentral.com/uploads/default/original/2X/b/bb88519b27540c6015a330b6665523e33f493b6e.pdf" }
 ]
 noteBox = "The chromaticity diagram is not part of ADX, and it is not a film gamut. The triangle is the set of primaries of the “Relative Exposure” layer — obtained by factoring the ACES EXP → ACES matrix through AP0; its area is 0.18, while AP0 alone is 0.396. The ADX standard defines code values only: no primaries, no white point, no transfer curve; ADX16 and ADX10 are just two bit depths of the same scale."
+intro = "ADX16 is the 16-bit encoding of APD: the same density scale as ADX10 with 4 more bits of precision and 2 more bits of range, covering about 8.2 density units."
 +++
 
 ## Relation to ADX10

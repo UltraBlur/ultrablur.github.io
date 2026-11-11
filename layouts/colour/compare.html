@@ -7,6 +7,8 @@
 <script defer src="{{ $locus.RelPermalink }}" integrity="{{ $locus.Data.Integrity }}"></script>
 {{ $geom := resources.Get "js/lib/geom2d.js" | minify | fingerprint }}
 <script defer src="{{ $geom.RelPermalink }}" integrity="{{ $geom.Data.Integrity }}"></script>
+{{ $state := resources.Get "js/lib/tool-state.js" | minify | fingerprint }}
+<script defer src="{{ $state.RelPermalink }}" integrity="{{ $state.Data.Integrity }}"></script>
 <style>
   .c-cmp-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .45rem; vertical-align: middle; }
   .c-cmp-sub { display: block; font-size: .72rem; color: #999; }
@@ -50,16 +52,24 @@
             <select id="cmp-b"></select>
           </label>
           <label><input type="checkbox" id="cmp-pointer" checked> Pointer's Gamut</label>
+          <button type="button" class="c-btn" id="cmp-swap" aria-label="{{ cond $en "Swap A and B" "交换 A 和 B" }}">⇄ {{ cond $en "Swap" "交换" }}</button>
         </div>
         <svg class="c-cmp-svg" viewBox="0 0 640 560" aria-label="{{ .Title }}"></svg>
-        <table class="c-cmp-table">
-          <thead><tr>
-            <th></th>
-            <th>{{ cond $en "Area in xy" "xy 面积" }}</th>
-            <th>{{ cond $en "White" "白点" }}</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="c-cmp-legend" role="list" aria-label="{{ cond $en "Legend" "图例" }}"></div>
+        <div class="c-cmp-actions">
+          <button type="button" class="c-btn" id="cmp-svg" aria-label="{{ cond $en "Download chart as SVG" "下载 SVG 图" }}">{{ cond $en "Save SVG" "存为 SVG" }}</button>
+          <button type="button" class="c-btn" id="cmp-png" aria-label="{{ cond $en "Download chart as PNG" "下载 PNG 图" }}">{{ cond $en "Save PNG" "存为 PNG" }}</button>
+        </div>
+        <div class="c-cmp-table-wrap">
+          <table class="c-cmp-table">
+            <thead><tr>
+              <th></th>
+              <th>{{ cond $en "Area in xy" "xy 面积" }}</th>
+              <th>{{ cond $en "White" "白点" }}</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
         <p class="c-cmp-note">{{ cond $en "Pointer's Gamut: real surface colours (CIE 1931 2° observer, CIE illuminant C) projected onto xy; data after Pointer (1980)." "Pointer's Gamut：CIE 1931 2° 观察者、CIE C 光源下的表面色在 xy 上的投影；数据来自 Pointer (1980)。" }}</p>
       </div>
     </div>

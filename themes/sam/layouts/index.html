@@ -8,12 +8,9 @@
 
 <body>
     {{ with .Site.Params.videoBackground }}
-        <video class="video" autoplay muted preload loop playsinline>
+        <video class="video" poster="{{ .poster }}" muted loop playsinline preload="none" aria-hidden="true">
             {{ range .sources }}
-                <source
-                    src="{{ .source }}"
-                    type="{{ .type }}"
-                    poster="{{ .poster }}" />
+                <source data-src="{{ .source }}" type="{{ .type }}">
             {{ end }}
         </video>
         {{ with .overlay }}
@@ -39,6 +36,39 @@
         {{ end }}
 
     </nav>
+
+    <script>
+    (function () {
+        var video = document.querySelector('.video');
+        if (!video) return;
+
+        var narrow = window.matchMedia('(max-width: 820px)');
+        var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+        function play() {
+            if (narrow.matches || still.matches) return;
+            var source = video.querySelector('source[data-src]');
+            if (!source || source.hasAttribute('src')) return;
+            source.src = source.getAttribute('data-src');
+            video.load();
+            var started = video.play();
+            if (started && started.catch) started.catch(function () {});
+        }
+
+        function pause() {
+            if (!video.paused) video.pause();
+        }
+
+        function sync() {
+            if (narrow.matches || still.matches) pause();
+            else play();
+        }
+
+        play();
+        if (narrow.addEventListener) narrow.addEventListener('change', sync);
+        if (still.addEventListener) still.addEventListener('change', sync);
+    })();
+    </script>
 </body>
 
 </html>

@@ -6,9 +6,9 @@ ref = "filmlight-pdlog-adx"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "An approximate negative film response using the ADX matrix and a sigmoid tone curve, mapping scene exposure into the 0–1 Cineon log range; 18% grey lands at 0.5, with a gamma of about 0.6 at the mid point."
 gamutNote = "No chromaticity diagram here: its chromaticity is the same borrowed “relative exposure” space as ADX, and this curve's own black/white landings disagree with the file header (see below)."
 transferNote = "The “black / white point” of 82 / 649 is the .flspace header (inherited from ADX), not this curve's landing points — by the formula on this page, linear 0 encodes to 0.0000 (code 0) and linear 1.0 to 0.7021 (code 718)."
+intro = "An approximate negative film response using the ADX matrix and a sigmoid tone curve, mapping scene exposure into the 0–1 Cineon log range; 18% grey lands at 0.5, with a gamma of about 0.6 at the mid point."
 +++
 
 ## What this is

@@ -3,7 +3,6 @@ title = "ADX16"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "ADX16 是 APD 的 16 位编码：与 ADX10 同一套密度刻度，多 4 位精度和 2 位量程，覆盖约 8.2 个密度单位。"
 category = "Scene Referred"
 sources = [
   { title = "SMPTE ST 2065-2:2020：Academy Printing Density（APD）——光谱响应度、参考测量装置与光谱计算（PDF）", url = "https://pub.smpte.org/pub/st2065-2/st2065-2-2020.pdf" },
@@ -17,6 +16,7 @@ matrixLabel = "相对曝光 RGB → XYZ"
 matrixLabelEn = "Relative exposure RGB → XYZ"
 matrix = [[0.688563361694, 0.120315061426, 0.143767650444], [0.334429500163, 0.593968684274, 0.071602536889], [0.014395935381, 0.082854812395, 0.911564348372]]
 noteBox = "色度图不是 ADX 的内容，也不是胶片的色域。三角形是「相对曝光（Relative Exposure）」这一层的三原色——把 ACES 的 EXP → ACES 矩阵经 AP0 反解得到，面积 0.18，而 AP0 自己是 0.396。ADX 标准只定义码值，没有原色、白点或传递曲线；ADX16 与 ADX10 只是同一刻度的不同位深。"
+intro = "ADX16 是 APD 的 16 位编码：与 ADX10 同一套密度刻度，多 4 位精度和 2 位量程，覆盖约 8.2 个密度单位。"
 +++
 
 ## 与 ADX10 的关系

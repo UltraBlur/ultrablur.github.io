@@ -174,6 +174,16 @@
     return (v < 0 ? -1 : 1) * Math.pow(Math.abs(v), p);
   }
 
+  /* UCS 的 M′ 压缩：M ≥ 0 时用标准式 ln(1 + 0.0228M) / 0.0228。
+     极宽色域（ProPhoto 的纯蓝轴）会把 M 压到 −43.86 以下，标准式取对数得 NaN；
+     此时按保号对数外推，正常色域（以及 −43.86 以上的负 M）不受影响。 */
+  function ucsM(M) {
+    var t = 1 + 0.0228 * M;
+    return t > 0
+      ? Math.log(t) / 0.0228
+      : -Math.log(1 + 0.0228 * Math.abs(M)) / 0.0228;
+  }
+
   function cam02ucs(xyzAbs, whiteAbs, opts) {
     var La = opts.La, Yb = opts.Yb, F = opts.F, c = opts.c, Nc = opts.Nc;
 
@@ -231,7 +241,7 @@
     var M = C * signPow(FL, 0.25);
 
     var Jp = 1.7 * J / (1 + 0.007 * J);
-    var Mp = Math.log(1 + 0.0228 * M) / 0.0228;
+    var Mp = ucsM(M);
     return [Mp * Math.cos(h), Jp, Mp * Math.sin(h)]; // [a', J', b']
   }
 
@@ -291,7 +301,7 @@
     var M = C * signPow(FL, 0.25);
 
     var Jp = 1.7 * J / (1 + 0.007 * J);
-    var Mp = Math.log(1 + 0.0228 * M) / 0.0228;
+    var Mp = ucsM(M);
     return [Mp * Math.cos(h), Jp, Mp * Math.sin(h)]; // [a', J', b']
   }
 

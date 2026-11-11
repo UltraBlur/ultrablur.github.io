@@ -2,7 +2,6 @@
 title = "ACEScg"
 date = 2026-11-06T10:00:00+08:00
 draft = false
-intro = "AP1 原色、线性编码，用于 CGI 渲染与合成的浮点工作空间。"
 category = "Scene Referred"
 primaries = [[0.7130, 0.2930], [0.1650, 0.8300], [0.1280, 0.0440]]
 whitePoint = [0.32168, 0.33767]
@@ -13,4 +12,5 @@ sources = [
   { title = "ACES Documentation：ACEScg", url = "https://docs.acescentral.com/encodings/acescg/" }
 ]
 
+intro = "AP1 原色、线性编码，用于 CGI 渲染与合成的浮点工作空间。"
 +++

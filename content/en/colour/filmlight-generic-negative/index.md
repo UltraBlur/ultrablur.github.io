@@ -6,8 +6,8 @@ ref = "filmlight-generic-negative"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "An approximate response for a generic camera negative: scanned on a film scanner calibrated to Cineon and assuming ideal SMPTE printing density, with spectral sensitivity taken from a generic modern stock. It is not a gamut definition, and the matrix below is not RGB → XYZ."
 gamutNote = "No chromaticity diagram here: the matrix is the inverse of the Von Kries cone space (see below), and its three columns fall on the alychne and on the y = 0 line — none of them is a visible colour."
+intro = "An approximate response for a generic camera negative: scanned on a film scanner calibrated to Cineon and assuming ideal SMPTE printing density, with spectral sensitivity taken from a generic modern stock. It is not a gamut definition, and the matrix below is not RGB → XYZ."
 +++
 
 ## What this is

@@ -2,7 +2,6 @@
 title = "RED Wide Gamut / Log3G10"
 date = 2026-11-06T10:00:00+08:00
 draft = false
-intro = "REDWideGamutRGB 设计为在不裁切的前提下覆盖 RED 摄影机能记录的全部颜色。"
 category = "Scene Referred"
 primaries = [[0.7803, 0.3043], [0.1216, 1.4940], [0.0956, -0.0846]]
 whitePoint = [0.31270, 0.32900]
@@ -13,4 +12,5 @@ sources = [
   { title = "RED：White Paper on REDWideGamutRGB and Log3G10（PDF）", url = "https://docs.red.com/955-0187/PDF/915-0187%20Rev-C%20%20%20RED%20OPS%2C%20White%20Paper%20on%20REDWideGamutRGB%20and%20Log3G10.pdf" }
 ]
 
+intro = "REDWideGamutRGB 设计为在不裁切的前提下覆盖 RED 摄影机能记录的全部颜色。"
 +++

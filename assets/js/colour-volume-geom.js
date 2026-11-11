@@ -270,7 +270,7 @@
           }
           grid[i][j] = pos.length / 3;
           pos.push(p[0], p[1], p[2]);
-          var c = o && o.neutral ? [0.9, 0.9, 0.9] : space.color(useRgb);
+          var c = space.color(useRgb);
           col.push(c[0], c[1], c[2]);
           var n = normalAt(space, coord, useRgb, u, v, 1 / (N * 400), face.fix, o) || [0, 0, 1];
           nor.push(n[0], n[1], n[2]);
@@ -423,6 +423,21 @@
     };
   }
 
+  /* 实测格点：只有重采样过的自定义色体有。每隔 ringStep 取一条实测环，
+     返回扁平的 XYZ 数组（Pointer 是 16 × 36 = 576 个点）。
+     注意这是论文发表的边界表（每个 L* 与色相下的最大彩度），
+     不是 Pointer 当年那四千个原始测量样本——那批数据没有公开。 */
+  function dataPoints(space) {
+    var step = (space && space.ringStep) || 1;
+    var out = [];
+    var rings = (space && space.rings) || [];
+    for (var i = 0; i < rings.length; i += step) {
+      var r = rings[i];
+      for (var j = 0; j < r.length; j++) out.push(r[j][0], r[j][1], r[j][2]);
+    }
+    return new Float32Array(out);
+  }
+
   /* 没有 RGB 参数化时的坐标换算：直接吃 XYZ */
   function pointForXyz(space, coord, xyz, o) {
     if (coord === 'jmh') {
@@ -451,7 +466,7 @@
         if (!p) { grid[i][j] = -1; continue; }
         grid[i][j] = pos.length / 3;
         pos.push(p[0], p[1], p[2]);
-        var c = o && o.neutral ? [0.9, 0.9, 0.9] : space.colorXyz(rings[i][j]);
+        var c = space.colorXyz(rings[i][j]);
         col.push(c[0], c[1], c[2]);
       }
       for (var j2 = 0; j2 < grid[i].length; j2++) if (grid[i][j2] < 0) missing++;
@@ -735,6 +750,7 @@
     buildSurface: buildSurface,
     buildGrid: buildGrid,
     makePointerSpace: makePointerSpace,
+    dataPoints: dataPoints,
     pointForXyz: pointForXyz,
     buildCustom: buildCustom,
     buildCustomGrid: buildCustomGrid,

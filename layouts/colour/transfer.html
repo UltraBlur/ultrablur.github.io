@@ -1,6 +1,8 @@
 {{ define "head_resources" }}
 {{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $state := resources.Get "js/lib/tool-state.js" | minify | fingerprint }}
+<script defer src="{{ $state.RelPermalink }}" integrity="{{ $state.Data.Integrity }}"></script>
 {{ $js := resources.Get "js/tool-transfer.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
 {{ end }}

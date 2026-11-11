@@ -151,6 +151,11 @@
       group: camera
       whiteName: D65
       primaries: [[0.7063, 0.2957], [0.1913, 0.9623], [0.1115, -0.0492]]
+    - title: "Xiaomi Mi-Log / Rec.2020"
+      slug: xiaomi-milog
+      group: camera
+      whiteName: D65
+      primaries: [[0.7080, 0.2920], [0.1700, 0.7970], [0.1310, 0.0460]]
     - title: "Z CAM Z-Log2 / Z-RGB"
       slug: zcam-zlog2
       group: camera
@@ -223,6 +228,12 @@
       group: working
       whiteName: D65
       primaries: [[0.8300, 0.3100], [0.1500, 0.9500], [0.0650, -0.0805]]
+    - title: "ProPhoto RGB（ROMM）"
+      titleEn: "ProPhoto RGB (ROMM)"
+      slug: primaries-prophoto
+      group: working
+      whiteName: D50
+      primaries: [[0.7347, 0.2653], [0.1596, 0.8404], [0.0366, 0.0001]]
 - key: display
   label: Display Referred
   items:

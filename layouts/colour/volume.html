@@ -7,18 +7,17 @@
 <script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
 {{ $geom := resources.Get "js/colour-volume-geom.js" | minify | fingerprint }}
 <script defer src="{{ $geom.RelPermalink }}" integrity="{{ $geom.Data.Integrity }}"></script>
-{{/* ACES 2.0 的 Hellwig JMh 内核：与 /tools/aces-drt/ 同一份移植，避免两套公式漂移 */}}
+{{/* ACES 2.0 的 Hellwig JMh 内核：与 /research/aces-drt/ 同一份移植，避免两套公式漂移 */}}
 {{ $jmh := resources.Get "js/lib/aces-jmh.js" | minify | fingerprint }}
 <script defer src="{{ $jmh.RelPermalink }}" integrity="{{ $jmh.Data.Integrity }}"></script>
-{{/* xyY 视图要在地面上画 CIE 1931 光谱轨迹（马蹄形）；与比对页共用同一张表 */}}
-{{ $locus := resources.Get "js/colour-locus.js" | minify | fingerprint }}
-<script defer src="{{ $locus.RelPermalink }}" integrity="{{ $locus.Data.Integrity }}"></script>
 {{/* 本地私有坐标扩展：仅 hugo server 且文件存在时注入，构建产物里永远没有。
      走 os.FileExists + readFile，不用 resources.Get，避免资产缓存把“文件不存在”记死。 */}}
 {{ if hugo.IsServer }}{{ $local := "assets/js/local/volume-ext.js" }}{{ if os.FileExists $local }}
 {{ $ext := resources.FromString "js/local/volume-ext.js" (readFile $local) | minify | fingerprint }}
 <script defer src="{{ $ext.RelPermalink }}" integrity="{{ $ext.Data.Integrity }}"></script>
 {{ end }}{{ end }}
+{{ $state := resources.Get "js/lib/tool-state.js" | minify | fingerprint }}
+<script defer src="{{ $state.RelPermalink }}" integrity="{{ $state.Data.Integrity }}"></script>
 {{ $js := resources.Get "js/colour-volume.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
 {{ end }}
@@ -48,53 +47,67 @@
         "spaces" $spaces
         "srgbMatrix" $srgbMatrix
         "pointer" hugo.Data.pointerGamut
+        "munsell" hugo.Data.munsellRenotation
+        "locus" hugo.Data.spectralLocus
         "defaultPrimary" "primaries-srgb-rec709"
         "ui" (dict "error" (cond $en "WebGL initialisation failed" "WebGL 初始化失败"))
       | jsonify | safeJS }}</script>
 
       <div class="c-vol" data-volume>
         <div class="c-vol-controls c-ctl">
-          <label>{{ cond $en "Space" "主空间" }}
-            <select id="vol-space">
-              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
-              <optgroup label="{{ cond $en "Reference volume" "参考色体" }}">
-                <option value="pointer-gamut" title="Pointer (1980) 的 576 个真实表面色采样（16 个 L* × 36 色相，照明体 C）搭成的闭合色体；不是设备 RGB 立方体">{{ cond $en "Pointer's Gamut (real surface colours)" "Pointer's Gamut（真实表面色）" }}</option>
-              </optgroup>
-            </select>
-          </label>
-          <label>{{ cond $en "Coordinates" "坐标" }}
-            <select id="vol-coord">
-              <option value="xyz">XYZ</option>
-              <option value="xyy">xyY</option>
-              <option value="lab" selected>CIE Lab (D65)</option>
-              <option value="luv">CIE Luv (D65)</option>
-              <option value="oklab">Oklab</option>
-              <option value="cam02">CAM02-UCS</option>
-              <option value="cam16">CAM16-UCS</option>
-              <option value="jmh" title="ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h">Hellwig JMh (ACES 2.0)</option>
-              <option value="ictcp">ICtCp (PQ)</option>
-              <option value="jzazbz">JzAzBz</option>
-              <option value="zcam" title="ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz">ZCAM (Safdar 2021)</option>
-            </select>
-          </label>
-          <label>{{ cond $en "Projection" "投影" }}
-            <select id="vol-proj">
-              <option value="persp" selected>{{ cond $en "Perspective" "透视" }}</option>
-              <option value="ortho">{{ cond $en "Orthographic" "正交" }}</option>
-            </select>
-          </label>
-          <label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
-            <select id="vol-lum">
-              <option value="48">48 cd/m²</option>
-              <option value="100" selected>100 cd/m²</option>
-              <option value="203">203 cd/m²</option>
-              <option value="1000">1000 cd/m²</option>
-            </select>
-          </label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-norm" checked> {{ cond $en "Normalise (white = 1)" "归一化（白 = 1）" }}</label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Mesh" "网格线" }}</label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-neutral"> {{ cond $en "Neutral surface" "中性表面" }}</label>
-          <label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
+          <span class="c-vol-group">{{ cond $en "Volume" "色体" }}</span>
+<label>{{ cond $en "Colour space" "色彩空间" }}
+              <select id="vol-space">
+                {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+              </select>
+            </label>
+<label>{{ cond $en "Coordinates" "坐标" }}
+              <select id="vol-coord">
+                <option value="xyz">XYZ</option>
+                <option value="xyy">xyY</option>
+                <option value="lab" selected>CIE Lab (D65)</option>
+                <option value="luv">CIE Luv (D65)</option>
+                <option value="oklab">Oklab</option>
+                <option value="cam02">CAM02-UCS</option>
+                <option value="cam16">CAM16-UCS</option>
+                <option value="jmh" title="ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h">Hellwig JMh (ACES 2.0)</option>
+                <option value="ictcp">ICtCp (PQ)</option>
+                <option value="jzazbz">JzAzBz</option>
+                <option value="zcam" title="ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz">ZCAM (Safdar 2021)</option>
+              </select>
+            </label>
+<label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
+              <select id="vol-lum">
+                <option value="48">48 cd/m²</option>
+                <option value="100" selected>100 cd/m²</option>
+                <option value="203">203 cd/m²</option>
+                <option value="1000">1000 cd/m²</option>
+              </select>
+            </label>
+<label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Volume mesh" "色体网格" }}</label>
+        </div>
+
+        <div class="c-vol-controls c-ctl">
+          <span class="c-vol-group">{{ cond $en "Overlays" "叠加层" }}</span>
+<label class="c-vol-check"><input type="checkbox" id="vol-ov-pointer" title="{{ cond $en "Pointer (1980) real-surface-colour volume as a wireframe reference cage — not a colour space itself" "Pointer (1980) 的真实表面色色体，画成参考笼架——它本身不是一个色彩空间" }}"> Pointer's Gamut</label>
+<label class="c-vol-check"><input type="checkbox" id="vol-ov-munsell" title="{{ cond $en "2734 Munsell renotation chips (Newhall, Nickerson & Judd 1943, illuminant C, 2° observer) as a 3D point cloud" "Munsell 重标定的 2734 个色片（Newhall / Nickerson / Judd 1943，照明体 C，2° 观察者），画成三维点云" }}"> Munsell 2734</label>
+<label class="c-vol-check"><input type="checkbox" id="vol-ov-locus" checked title="{{ cond $en "CIE 1931 spectral locus as a 3D curve: each wavelength carries its own luminance ȳ(λ), so the locus rises out of the xy plane. Seen from the top it projects back to the familiar horseshoe." "CIE 1931 光谱轨迹的三维版：每个波长带上自己的亮度 ȳ(λ)，于是这条曲线从 xy 平面里立起来。俯视时投影回熟悉的马蹄形。" }}"> {{ cond $en "Spectral locus" "光谱轨迹" }}</label>
+        </div>
+        <div class="c-vol-controls c-vol-subrow" data-vol-points hidden>
+          <span class="c-vol-subarrow" aria-hidden="true">↳</span>
+          <label class="c-vol-check"><input type="checkbox" id="vol-points" title="{{ cond $en "The 16 × 36 = 576 tabulated boundary points of Pointer (1980) — the maximum chroma at each L* and hue. These are not the ~4,000 original measurement samples, which were never published." "Pointer (1980) 发表的 16 × 36 = 576 个边界格点（每个 L*、色相下的最大彩度）。这不是他当年约四千个原始测量样本——那批数据从未公开。" }}"> {{ cond $en "Pointer measured points" "Pointer 实测点" }}</label>
+          <span class="c-vol-hint">{{ cond $en "16 × 36 = 576 tabulated boundary points" "16 × 36 = 576 个边界格点" }}</span>
+        </div>
+
+        <div class="c-vol-controls c-ctl">
+          <span class="c-vol-group">{{ cond $en "View" "视图" }}</span>
+<label>{{ cond $en "Projection" "投影" }}
+              <select id="vol-proj">
+                <option value="persp">{{ cond $en "Perspective" "透视" }}</option>
+                <option value="ortho" selected>{{ cond $en "Orthographic" "正交" }}</option>
+              </select>
+            </label>
+<label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
           <button type="button" id="vol-top" class="c-vol-btn">{{ cond $en "Top view" "俯视" }}</button>
           <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
         </div>

@@ -135,6 +135,25 @@
         {{ end }}
         {{ end }}
         {{ with .Content }}{{ . }}{{ end }}
+        {{ $compareData := partial "tool-spaces.html" (dict "scope" "all" "en" $en) }}
+        {{ $inCompare := false }}
+        {{ range $compareData.spaces }}{{ if eq .slug $slug }}{{ $inCompare = true }}{{ end }}{{ end }}
+        {{ $volumeData := partial "tool-spaces.html" (dict "scope" "dr" "en" $en) }}
+        {{ $inVolume := false }}
+        {{ range $volumeData.spaces }}{{ if eq .slug $slug }}{{ $inVolume = true }}{{ end }}{{ end }}
+        {{ $toolsBase := relURL (cond $en "/en/tools/" "/tools/") }}
+        {{ $compareURL := "" }}{{ $transferURL := "" }}{{ $volumeURL := "" }}
+        {{ if $inCompare }}{{ $compareURL = printf "%scompare/?a=%s" $toolsBase $slug }}{{ end }}
+        {{ if and $curve (or (not $d.wip) hugo.IsServer) }}{{ $transferURL = printf "%stransfer/?curves=%s" $toolsBase $slug }}{{ end }}
+        {{ if $inVolume }}{{ $volumeURL = printf "%sgamut-volume/?space=%s" $toolsBase $slug }}{{ end }}
+        {{ if or $compareURL $transferURL $volumeURL }}
+        <p class="c-use">
+          <span class="c-use-label">{{ cond $en "Use this space" "用这个空间" }}</span>
+          {{ with $compareURL }}<a href="{{ . }}">{{ cond $en "Gamut compare" "色域比对" }} ↗</a>{{ end }}
+          {{ with $transferURL }}<a href="{{ . }}">{{ cond $en "Transfer compare" "传递函数比对" }} ↗</a>{{ end }}
+          {{ with $volumeURL }}<a href="{{ . }}">{{ cond $en "Gamut volume" "色体积" }} ↗</a>{{ end }}
+        </p>
+        {{ end }}
         {{ partial "colour-sources.html" (dict "ctx" . "heading" $t.sourcesHeading) }}
       </div>
     </div>

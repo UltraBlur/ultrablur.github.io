@@ -1,6 +1,5 @@
 +++
 title = "Leica L-Log / Rec.2020"
-intro = "Leica 相机（SL2-S、M11 等）使用的手持对数编码。色域默认 Rec.2020；18% 灰落在码值 0.435（约 44% IRE）。"
 date = 2026-11-09T17:00:00+08:00
 draft = false
 category = "Scene Referred"

@@ -31,16 +31,18 @@
 
   var spaces = (cfg.spaces || []).map(function (entry) { return geom.makeSpace(entry, cfg.srgbMatrix, JMH); });
 
-  /* Pointer's Gamut 不是 RGB 立方体：它的采样是 LCh（照明体 C），
-     由 geom 直接搭成环状网格，放进同一个空间列表里一起用。 */
+  /* Pointer's Gamut 不是一个色彩空间：它是 Pointer (1980) 的真实表面色边界，
+     只作为「叠加层」画在当前色彩空间上面（见 rebuild 里的 overlay）。 */
   var pointerSpace = null;
   if (cfg.pointer && cfg.pointer.lch && cfg.pointer.lch.length) {
     try {
       pointerSpace = geom.makePointerSpace(cfg.pointer, cfg.srgbMatrix, JMH);
-      if (pointerSpace.rings.length >= 3) spaces.push(pointerSpace);
-      else pointerSpace = null;
+      if (!(pointerSpace.rings.length >= 3)) pointerSpace = null;
     } catch (e) { pointerSpace = null; }
   }
+  var MUNSELL = cfg.munsell || null;
+  var LOCUS3D = cfg.locus || null;
+
   var spaceBySlug = {};
   spaces.forEach(function (s) { spaceBySlug[s.slug] = s; });
 
@@ -51,8 +53,7 @@
       lum: LUM,
       cond: COND,
       ext: root.ColourVolumeCoords,
-      jmh: JMH,
-      neutral: state.neutral
+      jmh: JMH
     };
   }
 
@@ -86,7 +87,7 @@
   }
 
   /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
-  function buildAxes(coord, bbox, norm) {
+  function buildAxes(coord, bbox) {
     var pad = 0.10;
     var lo = [], hi = [];
     for (var k = 0; k < 3; k++) {
@@ -94,9 +95,7 @@
       lo.push(bbox[0][k] - span * pad);
       hi.push(bbox[1][k] + span * pad);
     }
-    // 归一化开启时竖直轴固定 0–1
-    if (norm) { lo[1] = 0; hi[1] = 1; }
-    else lo[1] = Math.min(0, lo[1]);
+    lo[1] = Math.min(0, lo[1]);
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
@@ -169,12 +168,13 @@
   var state = {
     primary: cfg.defaultPrimary || spaces[0].slug,
     coord: 'lab',
-    neutral: false,
     grid: true,
-    norm: true,
+    /* 叠加层：都画在当前色彩空间之上，彼此独立 */
+    layers: { pointer: false, munsell: false, locus: true },
+    points: false,    // Pointer 的 576 个实测点（默认关，太密）
 
     cull: false,
-    proj: 'persp',     // 'persp' 透视 | 'ortho' 正交
+    proj: 'ortho',     // 'persp' 透视 | 'ortho' 正交（默认正交：色体量级比较不吃透视缩放）
     flip: false,       // 平面视图：屏幕 y 翻转，让色度 y 朝上（与课本 xy 图一致）
     yaw: 0.72,
     pitch: 0.34,
@@ -186,6 +186,21 @@
     bounds: null,
     labels: []
   };
+
+  var LAYER_KEYS = ['pointer', 'munsell', 'locus'];
+
+  function enabledLayers() {
+    return LAYER_KEYS.filter(function (k) { return !!state.layers[k]; });
+  }
+
+  function setLayers(list) {
+    var want = list || [];
+    LAYER_KEYS.forEach(function (k) {
+      state.layers[k] = want.indexOf(k) >= 0;
+      var el = document.getElementById('vol-ov-' + k);
+      if (el) el.checked = state.layers[k];
+    });
+  }
 
   function compile(type, src) {
     var s = gl.createShader(type);
@@ -220,10 +235,13 @@
 
   var lineProg = program(
     'attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uVP; uniform float uBias;' +
-    'varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0);' +
+    'uniform float uPointSize; varying vec4 vCol; void main(){ vCol = vec4(aCol, 1.0);' +
+    'gl_PointSize = uPointSize;' +
     'gl_Position = uVP * vec4(aPos, 1.0); gl_Position.z -= uBias * gl_Position.w; }',
-    'precision mediump float; varying vec4 vCol;' +
-    'void main(){ gl_FragColor = vCol; }'
+    'precision mediump float; varying vec4 vCol; uniform float uRound;' +
+    'void main(){ if (uRound > 0.5) {' +
+    'vec2 d = gl_PointCoord - vec2(0.5); if (dot(d, d) > 0.25) discard; }' +
+    'gl_FragColor = vCol; }'
   );
 
   var solidLoc = {
@@ -236,7 +254,9 @@
     pos: gl.getAttribLocation(lineProg, 'aPos'),
     col: gl.getAttribLocation(lineProg, 'aCol'),
     vp: gl.getUniformLocation(lineProg, 'uVP'),
-    bias: gl.getUniformLocation(lineProg, 'uBias')
+    bias: gl.getUniformLocation(lineProg, 'uBias'),
+    pointSize: gl.getUniformLocation(lineProg, 'uPointSize'),
+    round: gl.getUniformLocation(lineProg, 'uRound')
   };
 
   var buffers = { solid: {}, ref: {}, axes: {} };
@@ -309,25 +329,17 @@
 
   function rebuild() {
     var primary = spaceBySlug[state.primary];
+    if (!primary) { primary = spaces[0]; state.primary = primary.slug; }
     if (!primary) return;
-    /* Pointer 的色体只到 L* 15–90，两端平封——选中时把这件事说出来 */
+    /* Pointer 的色体只到 L* 15–90，两端平封——叠加时把这件事说出来 */
     var ptrNote = document.querySelector('[data-vol-pointer]');
-    if (ptrNote) ptrNote.hidden = state.primary !== 'pointer-gamut';
+    if (ptrNote) ptrNote.hidden = !state.layers.pointer;
     var coord = state.coord;
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
     var opts = viewOpts();
 
-    var mesh = primary.custom ? geom.buildCustom(primary, coord, opts)
-                             : geom.buildSurface(primary, coord, N, opts);
+    var mesh = geom.buildSurface(primary, coord, N, opts);
 
-    // 竖直轴统一到「参考白 = 1」：各坐标量纲不同，归一化后才能横向比较
-    var whiteP = primary.custom
-      ? geom.pointForXyz(primary, coord, primary.white, opts)
-      : geom.pointFor(primary, coord, [1, 1, 1], opts);
-    var sy = state.norm && whiteP && Math.abs(whiteP[1]) > 1e-9 ? 1 / whiteP[1] : 1;
-    if (sy !== 1) {
-      for (var yi = 0; yi < mesh.pos.length; yi++) mesh.pos[yi] *= sy;
-    }
     var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
     for (var bi2 = 0; bi2 < mesh.pos.length; bi2 += 3) {
       for (var bk2 = 0; bk2 < 3; bk2++) {
@@ -337,62 +349,115 @@
     }
     mesh.bbox = bb;
 
-    var axes = buildAxes(coord, mesh.bbox, state.norm);
-    var frame = computeFrame([mesh, { pos: axes.pos }]);
+    var axes = buildAxes(coord, mesh.bbox);
+
+    /* ---------- 叠加层 ----------
+       每层先按当前坐标算出「未变换」的顶点，统一取景后再各自上传。 */
+    var layerSpecs = [];
+    function addLayer(key, pos, color, kind) {
+      if (!pos || !pos.length) return;
+      layerSpecs.push({ key: key, pos: new Float32Array(pos), color: color, kind: kind });
+    }
+
+    /* Pointer's Gamut：实测环 + 经线，3D 笼架 */
+    if (state.layers.pointer && pointerSpace) {
+      var cage = geom.buildCustomGrid(pointerSpace, coord, pointerSpace.ringStep || 4, 6, opts);
+      addLayer('overlayPointer', cage.pos, [0.20, 0.24, 0.34, 1], 'lines');
+    }
+
+    /* Munsell 2734：3D 点云。数据是照明体 C 下的 (x, y, Y)，与 Pointer 同口径。 */
+    if (state.layers.munsell && MUNSELL && MUNSELL.points && pointerSpace) {
+      var mp = [];
+      for (var mi = 0; mi < MUNSELL.points.length; mi++) {
+        var mrow = MUNSELL.points[mi];
+        var mx = mrow[0], my = mrow[1], mY = mrow[2] / 100;
+        if (!(my > 1e-4) || !(mY > 0)) continue;
+        var mxyz = [mx * mY / my, mY, (1 - mx - my) * mY / my];
+        var mq = geom.pointForXyz(pointerSpace, coord, mxyz, opts);
+        if (!mq || !isFinite(mq[0]) || !isFinite(mq[1]) || !isFinite(mq[2])) continue;
+        mp.push(mq[0], mq[1], mq[2]);
+      }
+      addLayer('overlayMunsell', mp, [0.26, 0.26, 0.30, 0.5], 'points');
+    }
+
+    /* 光谱轨迹：每个波长带上自己的亮度 ȳ(λ)，于是从平面曲线变成三维曲线。
+       俯视时 ȳ 被压掉，投影回熟悉的马蹄形。 */
+    if (state.layers.locus && LOCUS3D && LOCUS3D.points && LOCUS3D.points.length > 2) {
+      var lp = [], lprev = null, lfirst = null;
+      for (var li = 0; li < LOCUS3D.points.length; li++) {
+        var row = LOCUS3D.points[li];
+        var lx = row[0], ly = row[1], lY = row[2];
+        if (!(ly > 1e-4) || !(lY > 0)) { lprev = null; continue; }
+        var lxyz = [lx * lY / ly, lY, (1 - lx - ly) * lY / ly];
+        var q = geom.pointForXyz(primary, coord, lxyz, opts);
+        if (!q || !isFinite(q[0]) || !isFinite(q[1]) || !isFinite(q[2])) { lprev = null; continue; }
+        var cur = [q[0], q[1], q[2]];
+        if (lprev) lp.push(lprev[0], lprev[1], lprev[2], cur[0], cur[1], cur[2]);
+        else lfirst = cur;
+        lprev = cur;
+      }
+      /* 紫边：红光端连回紫光端 */
+      if (lfirst && lprev && lfirst !== lprev) {
+        lp.push(lprev[0], lprev[1], lprev[2], lfirst[0], lfirst[1], lfirst[2]);
+      }
+      addLayer('overlayLocus', lp, [0.30, 0.30, 0.34, 1], 'lines');
+    }
+
+    var frameInputs = [{ pos: axes.pos }];
+    for (var lf = 0; lf < layerSpecs.length; lf++) frameInputs.push({ pos: layerSpecs[lf].pos });
+    var frame = computeFrame([mesh].concat(frameInputs));
 
     applyFrame(mesh.pos, frame);
     applyFrame(axes.pos, frame);
+    var liveLayers = {};
+    for (var lg = 0; lg < layerSpecs.length; lg++) {
+      applyFrame(layerSpecs[lg].pos, frame);
+      uploadLines(layerSpecs[lg].key, layerSpecs[lg].pos, layerSpecs[lg].color);
+      liveLayers[layerSpecs[lg].key] = true;
+    }
+    /* 关掉的层要清空缓冲，否则会停在上一次的画面里 */
+    ['overlayPointer', 'overlayMunsell', 'overlayLocus'].forEach(function (k) {
+      if (!liveLayers[k] && buffers[k]) buffers[k].count = 0;
+    });
+    state.layerPos = layerSpecs.map(function (sp) { return sp.pos; });
 
     uploadSolid('primary', mesh);
 
     if (state.grid) {
-      /* 自定义色体的细环是重采样来的，网格线只画在实测环上（ringStep） */
-      var grid = primary.custom
-        ? geom.buildCustomGrid(primary, coord, primary.ringStep || 4, 3, opts)
-        : geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
-      if (sy !== 1) for (var gk = 0; gk < grid.pos.length; gk++) grid.pos[gk] *= sy;
+      var grid = geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
       applyFrame(grid.pos, frame);
       uploadLines('grid', grid.pos, [0.16, 0.16, 0.18, 0.30]);
     } else if (buffers.grid) {
       buffers.grid.count = 0;
     }
 
+    /* 实测格点：重采样之前的 16 × 36 个边界点（只在叠加 Pointer 时出现） */
+    var isPointer = !!(state.layers.pointer && pointerSpace);
+    var pointsWrap = document.querySelector('[data-vol-points]');
+    if (pointsWrap) pointsWrap.hidden = !isPointer;
+    if (isPointer && state.points) {
+      var raw = geom.dataPoints(pointerSpace);
+      var dp = [];
+      for (var qi = 0; qi < raw.length; qi += 3) {
+        var q = geom.pointForXyz(pointerSpace, coord, [raw[qi], raw[qi + 1], raw[qi + 2]], opts);
+        if (!q) continue;
+        dp.push(q[0], q[1], q[2]);
+      }
+      var dpArr = new Float32Array(dp);
+      applyFrame(dpArr, frame);
+      uploadLines('points', dpArr, [0.10, 0.10, 0.12, 0.9]);
+    } else if (buffers.points) {
+      buffers.points.count = 0;
+    }
+
     uploadLines('axes', axes.pos, [0.45, 0.45, 0.48, 1]);
     state.axesPos = axes.pos;
 
-    /* xyY：把 CIE 1931 光谱轨迹画在 Y = 0 的地面上。
-       马蹄形是「所有单色光」的边界，不在 RGB 立方体里，只能另画。 */
-    var locus = root.CIE1931_LOCUS;
-    if (coord === 'xyy' && locus && locus.length > 2) {
-      var lp = [];
-      /* 与色体一起做 sy 归一化（xyY 下 sy = 1），落到 Y = 0 平面 */
-      function addPt(q) { lp.push(q[0] * sy, 0, q[1] * sy); }
-      for (var li = 1; li < locus.length; li++) {
-        addPt(locus[li - 1]); addPt(locus[li]);
-      }
-      addPt(locus[locus.length - 1]); addPt(locus[0]);   // 紫边
-      var framed = [];
-      for (var fi = 0; fi < lp.length; fi += 3) {
-        framed.push(
-          (lp[fi] - frame.center[0]) * frame.scale,
-          (lp[fi + 1] - frame.center[1]) * frame.scale,
-          (lp[fi + 2] - frame.center[2]) * frame.scale
-        );
-      }
-      uploadLines('locus', new Float32Array(framed), [0.30, 0.30, 0.34, 1]);
-      state.locusPos = new Float32Array(framed);
-    } else if (buffers.locus) {
-      buffers.locus.count = 0;
-      state.locusPos = null;
-    }
-
     var anchors = axes.labels.slice();
-    if (!primary.custom) {
-      [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
-        var p = geom.pointFor(primary, coord, v[1], opts);
-        if (p) anchors.push({ t: v[0], p: sy === 1 ? p : [p[0] * sy, p[1] * sy, p[2] * sy], cls: 'is-vertex' });
-      });
-    }
+    [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
+      var p = geom.pointFor(primary, coord, v[1], opts);
+      if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
+    });
 
     state.labels = anchors.map(function (a) {
       var p = [
@@ -474,7 +539,7 @@
     var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
     /* 取景要连坐标轴一起算：轴家具比色体大 10%，只按色体取景时
        俯视/贴边的视角会把刻度和轴名裁到画布外。 */
-    var all = [pos, state.axesPos || new Float32Array(0), state.locusPos || new Float32Array(0)];
+    var all = [pos, state.axesPos || new Float32Array(0)].concat(state.layerPos || []);
     for (var ai = 0; ai < all.length; ai++) {
       var arr = all[ai];
       for (var i = 0; i < arr.length; i += 3) {
@@ -614,7 +679,15 @@
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     drawLines('grid');
-    drawLines('locus');
+    /* 参考层全部压在实体之上：这些层是「顺手打开来对表」的，
+       被色体挡住就没法对照了（光谱轨迹在三角形里的那一段尤其明显） */
+    gl.disable(gl.DEPTH_TEST);
+    drawLines('overlayLocus');
+    drawLines('overlayMacadam');
+    drawLines('overlayPointer');
+    drawTinyPoints('overlayMunsell');
+    drawPoints('points');
+    gl.enable(gl.DEPTH_TEST);
     drawLines('axes');
     gl.disable(gl.BLEND);
 
@@ -628,12 +701,57 @@
     gl.useProgram(lineProg);
     gl.uniformMatrix4fv(lineLoc.vp, false, VP);
     gl.uniform1f(lineLoc.bias, (key === 'grid' || key === 'locus') ? 0.0009 : 0);
+    gl.uniform1f(lineLoc.pointSize, 1);
+    gl.uniform1f(lineLoc.round, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
     gl.enableVertexAttribArray(lineLoc.pos);
     gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
     gl.vertexAttrib4fv(lineLoc.col, b.color);
     gl.disableVertexAttribArray(lineLoc.col);
     gl.drawArrays(gl.LINES, 0, b.count);
+    gl.disableVertexAttribArray(lineLoc.pos);
+  }
+
+  /* 实测格点：圆点。先铺一圈浅色底再压深色，深色区（红/品红）也分得清；
+     depth bias 比网格线大，避免被表面切掉半个点。 */
+  /* 密集点云（Munsell 2734）：单色小点，没有白底，免得糊成一片 */
+  function drawTinyPoints(key) {
+    var b = buffers[key];
+    if (!b || !b.count || !b.pos) return;
+    gl.useProgram(lineProg);
+    gl.uniformMatrix4fv(lineLoc.vp, false, VP);
+    gl.uniform1f(lineLoc.bias, 0.0030);
+    gl.uniform1f(lineLoc.round, 1);
+    gl.uniform1f(lineLoc.pointSize, Math.max(1.5, 2 * (window.devicePixelRatio || 1)));
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
+    gl.enableVertexAttribArray(lineLoc.pos);
+    gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
+    gl.disableVertexAttribArray(lineLoc.col);
+    gl.vertexAttrib4fv(lineLoc.col, b.color);
+    gl.drawArrays(gl.POINTS, 0, b.count);
+    gl.disableVertexAttribArray(lineLoc.pos);
+  }
+
+  function drawPoints(key) {
+    var b = buffers[key];
+    if (!b || !b.count || !b.pos) return;
+    gl.useProgram(lineProg);
+    gl.uniformMatrix4fv(lineLoc.vp, false, VP);
+    gl.uniform1f(lineLoc.round, 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, b.pos);
+    gl.enableVertexAttribArray(lineLoc.pos);
+    gl.vertexAttribPointer(lineLoc.pos, 3, gl.FLOAT, false, 0, 0);
+    gl.disableVertexAttribArray(lineLoc.col);
+    var dpr = window.devicePixelRatio || 1;
+    var size = Math.max(3, 3 * dpr);
+    gl.uniform1f(lineLoc.bias, 0.0040);
+    gl.uniform1f(lineLoc.pointSize, size + dpr);
+    gl.vertexAttrib4fv(lineLoc.col, [1, 1, 1, 0.7]);
+    gl.drawArrays(gl.POINTS, 0, b.count);
+    gl.uniform1f(lineLoc.bias, 0.0045);
+    gl.uniform1f(lineLoc.pointSize, size);
+    gl.vertexAttrib4fv(lineLoc.col, b.color);
+    gl.drawArrays(gl.POINTS, 0, b.count);
     gl.disableVertexAttribArray(lineLoc.pos);
   }
 
@@ -673,7 +791,17 @@
   var pointers = new Map();
   var pinchStart = 0, pinchDist = 0;
 
+  /* 一上手拖拽就停掉自动旋转：两者同时生效会互相打架 */
+  function stopAutoRotate() {
+    if (!state.auto) return;
+    state.auto = false;
+    var box = document.getElementById('vol-auto');
+    if (box) box.checked = false;
+    requestRender();
+  }
+
   canvas.addEventListener('pointerdown', function (e) {
+    stopAutoRotate();
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
@@ -758,17 +886,14 @@
   var primarySel = bind('vol-space', 'change', function (e) {
     state.primary = e.target.value;
     rebuild();
+    persistState();
   });
 
   bind('vol-coord', 'change', function (e) {
     state.coord = e.target.value;
     updateCondVisibility();
     rebuild();
-  });
-
-  bind('vol-norm', 'change', function (e) {
-    state.norm = e.target.checked;
-    rebuild();
+    persistState();
   });
 
   bind('vol-proj', 'change', function (e) {
@@ -776,6 +901,7 @@
     // 两种投影的取景基准不同，切过去先按当前朝向重新取景
     fitCamera();
     requestRender();
+    persistState();
   });
 
   bind('vol-lum', 'change', function (e) {
@@ -809,13 +935,24 @@
     }
   }
 
-  bind('vol-neutral', 'change', function (e) {
-    state.neutral = e.target.checked;
+  bind('vol-grid', 'change', function (e) {
+    state.grid = e.target.checked;
     rebuild();
   });
 
-  bind('vol-grid', 'change', function (e) {
-    state.grid = e.target.checked;
+  /* 叠加层开关：先读一遍 HTML 的初始状态，再逐个绑定 */
+  LAYER_KEYS.forEach(function (key) {
+    var el = document.getElementById('vol-ov-' + key);
+    if (el) state.layers[key] = el.checked;
+    bind('vol-ov-' + key, 'change', function (e) {
+      state.layers[key] = e.target.checked;
+      rebuild();
+      persistState();
+    });
+  });
+
+  bind('vol-points', 'change', function (e) {
+    state.points = e.target.checked;
     rebuild();
   });
 
@@ -829,16 +966,56 @@
 
   window.addEventListener('resize', resize);
 
+  function persistState() {
+    if (!QS) return;
+    window.ToolState.write(QS, {
+      space: state.primary,
+      coord: state.coord,
+      proj: state.proj,
+      lay: enabledLayers()
+    });
+  }
+
+  function applyState(next) {
+    state.primary = next.space;
+    state.coord = next.coord;
+    state.proj = next.proj;
+    setLayers(next.lay);
+    if (state.coord === 'jmh' && !JMH) state.coord = 'lab';
+
+    var spaceEl = document.getElementById('vol-space');
+    var coordEl = document.getElementById('vol-coord');
+    var projEl = document.getElementById('vol-proj');
+    if (spaceEl) spaceEl.value = state.primary;
+    if (coordEl) coordEl.value = state.coord;
+    if (projEl) projEl.value = state.proj;
+
+    updateCondVisibility();
+    rebuild();
+    requestRender();
+  }
+
   /* ---------- 启动 ---------- */
 
   // 默认值来自页面
-  if (primarySel) { primarySel.value = state.primary; }
-
-  // 浏览器刷新时可能恢复上次选的下拉值，以页面为准
   var coordSel = document.getElementById('vol-coord');
   if (coordSel && coordSel.value) state.coord = coordSel.value;
   var projSel = document.getElementById('vol-proj');
-  if (projSel) state.proj = projSel.value === 'ortho' ? 'ortho' : 'persp';
+  if (projSel) state.proj = projSel.value === 'persp' ? 'persp' : 'ortho';
+
+  var QS = window.ToolState ? {
+    space: { type: 'string', values: spaces.map(function (s) { return s.slug; }), default: state.primary },
+    coord: { type: 'string', values: coordSel ? Array.prototype.map.call(coordSel.options, function (o) { return o.value; }) : ['lab'], default: 'lab' },
+    proj: { type: 'string', values: ['persp', 'ortho'], default: 'ortho' },
+    lay: { type: 'list', values: LAYER_KEYS, default: ['locus'] }
+  } : null;
+  if (QS) {
+    var q = window.ToolState.parse(QS, window.location.search);
+    state.primary = q.space;
+    state.coord = q.coord;
+    state.proj = q.proj;
+    setLayers(q.lay);
+  }
 
   // 没加载到 JMh 内核时把这一项从下拉里摘掉，别让用户选到一个空体积
   if (!JMH) {
@@ -846,11 +1023,23 @@
     if (jmhOpt) jmhOpt.parentNode.removeChild(jmhOpt);
     if (state.coord === 'jmh') {
       state.coord = 'lab';
-      if (coordSel) coordSel.value = 'lab';
     }
   }
 
+  if (primarySel) primarySel.value = state.primary;
+  if (coordSel) coordSel.value = state.coord;
+  if (projSel) projSel.value = state.proj;
+  LAYER_KEYS.forEach(function (key) {
+    var el = document.getElementById('vol-ov-' + key);
+    if (el) el.checked = !!state.layers[key];
+  });
+
   updateCondVisibility();
+
+  window.addEventListener('popstate', function () {
+    if (!QS) return;
+    applyState(window.ToolState.parse(QS, window.location.search));
+  });
 
   try {
     resize();

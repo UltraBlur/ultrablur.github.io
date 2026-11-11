@@ -6,5 +6,4 @@ draft = false
 category = "Scene Referred"
 transferOnly = true
 curveFigure = true
-intro = "BT.709 的编码 OETF：0.018 以下线性，以上 α=1.099 的幂函数。"
 +++

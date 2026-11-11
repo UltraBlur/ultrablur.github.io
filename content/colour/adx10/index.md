@@ -3,7 +3,6 @@ title = "ADX10"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "ADX 是 APD（Academy Printing Density）的整数编码：把负片的印片密度按通道线性映射成 10 位（或 16 位）码值。它没有曲线，也不定义色域。"
 category = "Scene Referred"
 sources = [
   { title = "SMPTE ST 2065-2:2020：Academy Printing Density（APD）——光谱响应度、参考测量装置与光谱计算（PDF）", url = "https://pub.smpte.org/pub/st2065-2/st2065-2-2020.pdf" },
@@ -17,6 +16,7 @@ matrixLabel = "相对曝光 RGB → XYZ"
 matrixLabelEn = "Relative exposure RGB → XYZ"
 matrix = [[0.688563361694, 0.120315061426, 0.143767650444], [0.334429500163, 0.593968684274, 0.071602536889], [0.014395935381, 0.082854812395, 0.911564348372]]
 noteBox = "色度图不是 ADX 的内容，也不是胶片的色域。三角形是「相对曝光（Relative Exposure）」这一层的三原色——把 ACES 的 EXP → ACES 矩阵经 AP0 反解得到，面积 0.18，而 AP0 自己是 0.396，两者不是同一个三角形。ADX 标准只定义码值，没有原色、白点或传递曲线。"
+intro = "ADX 是 APD（Academy Printing Density）的整数编码：把负片的印片密度按通道线性映射成 10 位（或 16 位）码值。它没有曲线，也不定义色域。"
 +++
 
 ## 从密度到码值

@@ -12,7 +12,7 @@
      页面不存在（未建、draft、内部页不在公开分支）就不渲染条目，避免死链。
      所以新增工具时：写好页面，再往下面两个 slice 里加一行说明即可。 */}}
 {{ $tools := slice
-  (dict "slug" "gamut-volume" "zhd" "6 个显示空间的 3D 色体 · 11 种坐标（含 CAM16 / Hellwig JMh / ZCAM）· 可叠 Pointer's Gamut 参考色体" "end" "3D volumes of 6 display spaces · 11 coordinate systems (CAM16, Hellwig JMh, ZCAM…) · Pointer's Gamut reference")
+  (dict "slug" "gamut-volume" "zhd" "显示空间的三维色体 · 11 种坐标（含 CAM16 / Hellwig JMh / ZCAM）· 可叠 Pointer's Gamut 叠加层" "end" "3D volumes of display spaces · 11 coordinate systems (CAM16, Hellwig JMh, ZCAM…) · optional Pointer's Gamut overlay")
   (dict "slug" "compare" "zhd" (printf "全部 %d 个色域任选两个 · CIE 1931 轨迹上的原色三角形 · xy 面积、交集与 Pointer's Gamut 覆盖率" $gamutCount) "end" (printf "Any two of the %d gamuts · primaries triangles on CIE 1931 · xy area, intersection and Pointer's Gamut coverage" $gamutCount))
   (dict "slug" "transfer" "zhd" "编码 / 解码双向叠加 · 纵轴线性、对数、相对峰值、档位或 PQ 码值 · 曲线自选、参数可读" "end" "OETF and EOTF overlaid · y axis in cd/m², log, relative, stops or PQ code · curves picked per space")
   (dict "slug" "inspector" "zhd" "六种选色平面：HSV / LCH / OKLCH / JMH（CAM02）/ JMH（Hellwig）/ JzCH · 全模型坐标、越界灰显" "end" "Six picking planes: HSV, LCH, OKLCH, JMH (CAM02), JMH (Hellwig), JzCH · every model's coordinates, out-of-gamut greyed")
@@ -21,9 +21,6 @@
 {{/* 内部页面：内容不进公开仓库，公开分支上没有这些文件，条目随之消失 */}}
 {{ $internal := slice
   (dict "slug" "drt" "zhd" "ACES 2.0 / Baselight TCAM / Resolve CST 的中性灰曲线叠图 · 曲线可增删 · 锚点与峰值表" "end" "Neutral-axis curves from ACES 2.0, Baselight TCAM and Resolve CST · add or drop curves · anchor and peak table")
-  (dict "slug" "davinci-drt" "zhd" "Resolve CST 的有理曲线：公式与 s / q / 白点、三方法对照、参数曲面、Adaptation 扫描" "end" "Resolve CST's rational curve: formula, s / q / white point, the three methods, parameter surface, adaptation sweep")
-  (dict "slug" "baselight-drt" "zhd" "doDRT 七步公式、14 个观看条件、21 → 11 参数换算链、测试图逐步渲染与实时曲线" "end" "The seven doDRT steps, 14 viewing conditions, the 21 → 11 parameter chain, a step-by-step test image and live curves")
-  (dict "slug" "aces-drt" "zhd" "Hellwig JMh、色调曲线、色度与色域压缩三步、可逆性" "end" "Hellwig JMh, the tone scale, the three chroma and gamut steps, invertibility")
 }}
 {{ $prefix := cond $en "/en/" "/" }}
 {{ $internalShown := 0 }}
@@ -63,6 +60,9 @@
       <p class="c-tools-note">{{ cond $en
         "Pages marked Internal are built from the local branch only — they never reach the published site, and disappear from this list on the public branch."
         "带「内部」标记的页面只存在于本地分支，不随站点发布；切到公开分支后这一组条目会自动消失。" }}</p>
+      {{ end }}
+      {{ with site.GetPage (printf "%sresearch" $prefix) }}
+      <p class="c-tools-more">{{ cond $en "The DRT write-ups — where the curves and parameters actually come from — sit under Research:" "DRT 曲线与参数从哪来，那几篇拆解在「研究」里：" }} <a href="{{ .RelPermalink }}">{{ .Title }} →</a></p>
       {{ end }}
     </div>
   </div>

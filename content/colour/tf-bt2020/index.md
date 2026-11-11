@@ -6,5 +6,4 @@ draft = false
 category = "Scene Referred"
 transferOnly = true
 curveFigure = true
-intro = "BT.2020 的 10 位编码 OETF：0.0181 以下线性，以上 α=1.0993 的幂函数。"
 +++

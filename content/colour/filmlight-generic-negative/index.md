@@ -3,13 +3,13 @@ title = "FilmLight Cineon PD Log / Generic Negative"
 date = 2026-11-06T10:00:00+08:00
 draft = false
 wip = true
-intro = "通用摄影负片的近似响应：扫描仪按 Cineon 标定、假定理想 SMPTE 印片密度；光谱灵敏度取自一种通用现代底片。它不是色域定义，下面的矩阵也不是 RGB → XYZ。"
 category = "Scene Referred"
 sourceSpace = "FilmLight_CPD_GenericNegative.flspace"
 gamutNote = "这里不画色度图：矩阵是 Von Kries 锥体空间的逆（见正文），三列落在 alychne 与 y=0 线上，没有一个是可见色。"
 matrixLabel = "LMS → XYZ（Von Kries 锥体空间）"
 matrixLabelEn = "LMS → XYZ (Von Kries cone space)"
 matrix = [[1.85994, -1.12938, 0.21990], [0.36119, 0.63881, 0.0], [0.0, 0.0, 1.08906]]
+intro = "通用摄影负片的近似响应：扫描仪按 Cineon 标定、假定理想 SMPTE 印片密度；光谱灵敏度取自一种通用现代底片。它不是色域定义，下面的矩阵也不是 RGB → XYZ。"
 +++
 
 ## 这是什么

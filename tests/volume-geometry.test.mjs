@@ -336,6 +336,25 @@ ok('Pointer：细环 L* 15–90、步长 1.25',
   ok('Pointer：实测环原样保留（不漂移）', maxDev < 1e-12, maxDev.toExponential(2));
 }
 
+/* 实测格点（画在色体上的点）：16 × 36 = 576 个，逐点等于表中数据 */
+{
+  const pts = Geom.dataPoints(pointer);
+  ok('Pointer：实测格点 576 个', pts.length === 576 * 3, pts.length / 3);
+  let maxDev = 0;
+  for (let k = 0; k < pointer.dataLevels.length; k++) {
+    const L = pointer.dataLevels[k];
+    const rows = pointerData.lch.filter((r) => r[0] === L).sort((a, b) => a[2] - b[2]);
+    for (let j = 0; j < rows.length; j++) {
+      const ref = Geom.lchToXyz(L, rows[j][1], rows[j][2], pointer.white);
+      const o = (k * rows.length + j) * 3;
+      for (let c = 0; c < 3; c++) maxDev = Math.max(maxDev, Math.abs(ref[c] - pts[o + c]));
+    }
+  }
+  ok('Pointer：格点坐标等于表中数据（Float32 精度）', maxDev < 1e-6, maxDev.toExponential(2));
+  ok('Pointer：没有 ringStep 的色体退回每条环',
+    Geom.dataPoints({ rings: pointer.rings }).length === pointer.rings.length * 36 * 3);
+}
+
 /* 夹紧：三次样条在曲率大的地方会外凸，插值结果必须落在两端实测值之间。
    同时确认这件事不是空转——不夹紧时确实会凸出去。 */
 {

@@ -1,6 +1,5 @@
 +++
 title = "vivo Log / vivo Wide Gamut"
-intro = "vivo 手机的电影模式对数编码，配 vivo Wide Gamut（vivoWG）。18% 灰落在码值 0.391；码值 1.0 约 +7.7 档，比多数相机 log 的高光余量更少。"
 date = 2026-11-09T17:10:00+08:00
 draft = false
 category = "Scene Referred"

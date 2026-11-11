@@ -1,60 +1,172 @@
 {{ $current := .ctx.RelPermalink }}
 {{ $en := .en | default false }}
 {{ $t := index hugo.Data.i18n (cond $en "en" "zh") }}
+{{ $prefix := cond $en "/en/" "/" }}
 {{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working "display-gamut" $t.displayGamut "display-tf" $t.displayTf }}
+{{/* 色彩空间先把数据整理成组，顺带判断哪一组要默认展开、当前页在不在这个模块里 */}}
+{{ $spaceGroups := slice }}
+{{ $inSpaces := false }}
+{{ $inTools := hasPrefix $current (printf "%stools/" $prefix) }}
+{{ $inResearch := hasPrefix $current (printf "%sresearch/" $prefix) }}
+{{ $inModels := hasPrefix $current (printf "%smodels/" $prefix) }}
+{{ $catIndex := site.GetPage (printf "%scat" $prefix) }}
+{{ $inCat := and $catIndex (or (eq $current $catIndex.RelPermalink) (hasPrefix $current $catIndex.RelPermalink)) }}
+{{ range hugo.Data.colourspaces }}
+  {{ $items := slice }}
+  {{ range .items }}
+    {{ $item := . }}
+    {{ with site.GetPage (printf "%scolour/%s" $prefix $item.slug) }}
+      {{ $items = $items | append (dict "page" . "group" ($item.group | default "") "wip" $item.wip) }}
+    {{ end }}
+  {{ end }}
+  {{ $open := false }}
+  {{ range $items }}{{ if eq .page.RelPermalink $current }}{{ $open = true }}{{ $inSpaces = true }}{{ end }}{{ end }}
+  {{ $spaceGroups = $spaceGroups | append (dict "label" .label "items" $items "open" $open) }}
+{{ end }}
 <nav class="c-nav" aria-label="{{ $t.navTitle }}">
   <details class="c-nav-wrap" open>
     <summary>{{ $t.navTitle }}</summary>
+    <script>
+      (function () {
+        var details = document.currentScript.parentElement;
+        var mq = window.matchMedia('(max-width: 820px)');
+        function sync() { details.open = !mq.matches; }
+        sync();
+        if (mq.addEventListener) mq.addEventListener('change', sync);
+      })();
+    </script>
     <div class="c-nav-body">
-      <div class="c-nav-group">
+
+      {{/* ---- 工具 ---- */}}
+      <div class="c-nav-group{{ if $inTools }} is-here{{ end }}">
         <p class="c-nav-label">{{ cond $en "Tools" "工具" }}</p>
         <ul>
-          {{ $index := site.GetPage (printf "%stools/" (cond $en "/en/" "/")) }}
-          {{ with $index }}
+          {{ with site.GetPage (printf "%stools" $prefix) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All tools" "全部工具" }}</a></li>
           {{ end }}
-          {{/* 列全部工具；公开分支上没有的内部页会被下面的 with 跳过，不会留死链 */}}
-          {{ range slice "gamut-volume" "compare" "transfer" "inspector" "smpte" "drt" "davinci-drt" "baselight-drt" "aces-drt" }}
-          {{ with site.GetPage (printf "%stools/%s" (cond $en "/en/" "/") .) }}
+          {{ range slice "gamut-volume" "compare" "transfer" "inspector" "smpte" "drt" }}
+          {{ with site.GetPage (printf "%stools/%s" $prefix .) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
           {{ end }}
-          {{/* 内部版入口：只有内部构建（local HEAD，含 DRT 分析页）才渲染；公开分支上不会有 */}}
-          {{ if site.GetPage (printf "%stools/aces-drt" (cond $en "/en/" "/")) }}
-          {{ $volPage := site.GetPage (printf "%stools/gamut-volume" (cond $en "/en/" "/")) }}
+          {{/* 内部版入口：只有本地分支（含内部页）才渲染 */}}
+          {{ if site.GetPage (printf "%sresearch/aces-drt" $prefix) }}
+          {{ $volPage := site.GetPage (printf "%stools/gamut-volume" $prefix) }}
           <li><a href="{{ cond $en "/internal/en/tools/gamut-volume/" "/internal/tools/gamut-volume/" }}"{{ if and $volPage (eq $volPage.RelPermalink $current) }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Gamut volume (internal)" "色体积内部版" }}</a></li>
           {{ end }}
         </ul>
       </div>
-      {{ range hugo.Data.colourspaces }}
-      <div class="c-nav-group">
-        <p class="c-nav-label">{{ .label }}</p>
+
+      {{/* ---- 研究 ---- */}}
+      {{ if site.GetPage (printf "%sresearch" $prefix) }}
+      <div class="c-nav-group{{ if $inResearch }} is-here{{ end }}">
+        <p class="c-nav-label">{{ cond $en "Research" "研究" }}</p>
         <ul>
-          {{ $lastGroup := "" }}
-          {{ $wipGroups := slice }}
-          {{ range .items }}{{ if .wip }}{{ $wipGroups = $wipGroups | append (.group | default "") }}{{ end }}{{ end }}
-          {{ range .items }}
-          {{ $g := .group | default "" }}
-          {{ if and $g (ne $g $lastGroup) }}
-          <li class="c-nav-sub">{{ index $subNames $g }}{{ if in $wipGroups $g }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
-          {{ $lastGroup = $g }}
+          {{ with site.GetPage (printf "%sresearch" $prefix) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All research" "全部研究" }}</a></li>
           {{ end }}
-          {{ $page := site.GetPage (printf "%scolour/%s" (cond $en "/en/" "/") .slug) }}
-          {{ if $page }}
-          <li><a href="{{ $page.RelPermalink }}"{{ if eq $page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
-          {{ else }}
-          <li class="is-pending" title="{{ $t.pending }}">{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</li>
+          {{ range slice "davinci-drt" "baselight-drt" "aces-drt" }}
+          {{ with site.GetPage (printf "%sresearch/%s" $prefix .) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
           {{ end }}
         </ul>
       </div>
       {{ end }}
+
+      {{/* ---- 色适应变换：条目页存在才出链接，其余收进「规划中」 ---- */}}
+      {{ with $catIndex }}
+      <div class="c-nav-group{{ if $inCat }} is-here{{ end }}">
+        <p class="c-nav-label">{{ cond $en "Chromatic adaptation" "色适应变换" }}</p>
+        <ul>
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All transforms" "全部变换" }}</a></li>
+          {{ with site.GetPage (printf "%scat/basis" $prefix) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
+          {{ end }}
+          {{ range hugo.Data.cat }}
+          {{ with site.GetPage (printf "%scat/%s" $prefix .slug) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
+          {{ end }}
+          {{ end }}
+        </ul>
+        {{ $planned := 0 }}
+        {{ range hugo.Data.cat }}{{ if not (site.GetPage (printf "%scat/%s" $prefix .slug)) }}{{ $planned = add $planned 1 }}{{ end }}{{ end }}
+        {{ if $planned }}
+        <details class="c-nav-sec">
+          <summary>
+            <span class="c-nav-sec-title">{{ cond $en "Planned" "规划中" }}</span>
+            <span class="c-nav-count">{{ $planned }}</span>
+          </summary>
+          <ul>
+            {{ range hugo.Data.cat }}
+            {{ if not (site.GetPage (printf "%scat/%s" $prefix .slug)) }}
+            <li><span class="is-pending">{{ cond $en .en .zh }}</span></li>
+            {{ end }}
+            {{ end }}
+          </ul>
+        </details>
+        {{ end }}
+      </div>
+      {{ end }}
+
+      {{/* ---- RGB 色彩空间：两个大组默认收起，当前页所在的那组自动展开 ---- */}}
+      <div class="c-nav-group c-nav-spaces{{ if $inSpaces }} is-here{{ end }}">
+        <p class="c-nav-label">RGB {{ cond $en "colour spaces" "色彩空间" }}</p>
+        {{ range $spaceGroups }}
+        <details class="c-nav-sec"{{ if .open }} open{{ end }}>
+          <summary>
+            <span class="c-nav-sec-title">{{ .label }}</span>
+            <span class="c-nav-count">{{ len .items }}</span>
+          </summary>
+          <ul>
+            {{ $lastGroup := "" }}
+            {{ range .items }}
+            {{ $g := .group }}
+            {{ if and $g (ne $g $lastGroup) }}
+            <li class="c-nav-sub">{{ index $subNames $g }}</li>
+            {{ $lastGroup = $g }}
+            {{ end }}
+            <li><a href="{{ .page.RelPermalink }}"{{ if eq .page.RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .page.Title }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
+            {{ end }}
+          </ul>
+        </details>
+        {{ end }}
+      </div>
+
+      {{/* ---- 色彩模型：已写好的做链接，规划中的收进「规划中」折叠组 ---- */}}
+      {{ with hugo.Data.models }}
+      <div class="c-nav-group{{ if $inModels }} is-here{{ end }}">
+        <p class="c-nav-label">{{ cond $en "Colour models" "色彩模型" }}</p>
+        <ul>
+          {{ with site.GetPage (printf "%smodels" $prefix) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Overview" "概览" }}</a></li>
+          {{ end }}
+          {{ range hugo.Data.models }}
+          {{ with site.GetPage (printf "%smodels/%s" $prefix .slug) }}
+          <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
+          {{ end }}
+          {{ end }}
+        </ul>
+        {{ $planned := 0 }}
+        {{ range hugo.Data.models }}{{ if not (site.GetPage (printf "%smodels/%s" $prefix .slug)) }}{{ $planned = add $planned 1 }}{{ end }}{{ end }}
+        {{ if $planned }}
+        <details class="c-nav-sec">
+          <summary>
+            <span class="c-nav-sec-title">{{ cond $en "Planned" "规划中" }}</span>
+            <span class="c-nav-count">{{ $planned }}</span>
+          </summary>
+          <ul>
+            {{ range hugo.Data.models }}
+            {{ if not (site.GetPage (printf "%smodels/%s" $prefix .slug)) }}
+            <li><span class="is-pending">{{ cond $en .en .zh }}</span></li>
+            {{ end }}
+            {{ end }}
+          </ul>
+        </details>
+        {{ end }}
+      </div>
+      {{ end }}
+
     </div>
   </details>
 </nav>
-<script>
-  (function () {
-    var nav = document.querySelector('.c-nav-wrap');
-    if (nav && !window.matchMedia('(min-width: 821px)').matches) nav.open = false;
-  })();
-</script>

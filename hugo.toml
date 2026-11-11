@@ -7,13 +7,13 @@ enableEmoji = true
 pygmentsStyle            = "monokai"                        #   
 pygmentsCodefences       = true
 
-[[params.videoBackground.sources]]
-    source  = "/WebBG_V06.mp4" # Your video file
-    type    = "video/mp4"
-    poster  = "/WebBG.jpg" # The image to show when the video isn't playing
-
 [params.videoBackground]
-    overlay = "rgba(0, 0, 0, 0)" # optional
+    poster  = "/WebBG_poster.jpg" # 视频未播放/不播放时显示的静帧
+    overlay = "rgba(0, 0, 0, 0)"  # optional
+
+[[params.videoBackground.sources]]
+    source  = "/WebBG_V07.mp4" # 1080p H.264；源文件可从 git 历史取回
+    type    = "video/mp4"
 
 
 [params]

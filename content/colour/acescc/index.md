@@ -2,7 +2,6 @@
 title = "ACEScc"
 date = 2026-11-06T10:00:00+08:00
 draft = false
-intro = "ACES 的 32 位浮点对数编码；与 10/12 位整数版 ACESproxy 同原色，且不裁切 0–1 之外的取值。"
 category = "Scene Referred"
 primaries = [[0.7130, 0.2930], [0.1650, 0.8300], [0.1280, 0.0440]]
 whitePoint = [0.32168, 0.33767]
@@ -13,4 +12,5 @@ sources = [
   { title = "ACES Documentation：ACEScc", url = "https://docs.acescentral.com/encodings/acescc/" }
 ]
 
+intro = "ACES 的 32 位浮点对数编码；与 10/12 位整数版 ACESproxy 同原色，且不裁切 0–1 之外的取值。"
 +++

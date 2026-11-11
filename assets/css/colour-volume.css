@@ -21,6 +21,14 @@
   .c-vol-stage { aspect-ratio: 1 / 1; }
 }
 .c-vol-fallback[hidden] { display: none; }
+/* 说明文字与「实测点」勾选框靠 hidden 属性开关；主题给 p / label 设了 display，得显式盖回来 */
+.c-vol-cap[hidden], .c-vol-check[hidden] { display: none; }
+/* 控件分三组：色体 / 叠加层 / 视图；「实测点」是 Pointer 的子选项，单独缩进一行 */
+.c-vol-group { flex: 0 0 3.4rem; font-size: .72rem; letter-spacing: .09em; color: #9a9a9a; }
+.c-vol-subrow { margin-top: -.5rem; padding-left: 4.35rem; }
+.c-vol-subrow[hidden] { display: none; }
+.c-vol-subarrow { color: #b8b8b8; }
+.c-vol-hint { font-size: .72rem; color: #a6a6a6; }
 .c-vol-label.is-axis { font-size: 10px; color: #9c9c9c; letter-spacing: 0; }
 .c-vol-label.is-axis-name { font-size: 11px; color: #5f5f5f; font-style: italic; }
 .c-vol-cond { padding: .45rem .6rem; border: 1px solid #e8e8e8; background: #fbfbfb; }

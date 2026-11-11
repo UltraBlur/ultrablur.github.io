@@ -1,6 +1,5 @@
 +++
 title = "Insta360 I-Log / BT.2020"
-intro = "Insta360 Luna 系列使用的 10-bit 对数编码。18% 灰落在码值 0.422（432/1023），2200%（约 +6.9 档）落在 1.0。"
 date = 2026-11-09T17:00:00+08:00
 draft = false
 category = "Scene Referred"
