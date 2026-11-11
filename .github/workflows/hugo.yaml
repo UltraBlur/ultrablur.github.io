@@ -22,7 +22,33 @@ defaults:
     shell: bash
   
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 校验发布签名
+        env:
+          PUBLISH_HMAC_KEY: ${{ secrets.PUBLISH_HMAC_KEY }}
+        run: |
+          set -euo pipefail
+          tag=$(git tag --points-at HEAD | grep -E '^sec-verified-' | head -1 || true)
+          if [ -z "$tag" ]; then
+            echo "::error::HEAD 没有审计发布 tag：main 只能由管理员带签名发布，拒绝部署"
+            exit 1
+          fi
+          msg=$(git tag -l --format='%(contents)' "$tag")
+          got=$(printf '%s\n' "$msg" | sed -n 's/^hmac: //p' | head -1)
+          want=$(printf '%s' "$GITHUB_SHA" | openssl dgst -sha256 -hmac "$PUBLISH_HMAC_KEY" -hex | awk '{print $NF}')
+          if [ -z "$got" ] || [ "$got" != "$want" ]; then
+            echo "::error::发布 tag 签名无效，拒绝部署"
+            exit 1
+          fi
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     env:
       HUGO_VERSION: 0.162.1
@@ -51,7 +77,7 @@ jobs:
           && sudo dpkg -i ${{ runner.temp }}/hugo.deb      
       
       - name: 安装 Dart Sass
-        run: sudo snap install dart-sass
+        run: sudo npm install -g sass@1.77.8 && sass --version
 
       - name: 设置Pages
         id: pages
