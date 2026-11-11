@@ -19,6 +19,11 @@
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
           {{ end }}
+          {{/* 内部版入口：只有内部构建（local HEAD，含 DRT 分析页）才渲染；公开分支上不会有 */}}
+          {{ if site.GetPage (printf "%stools/aces-drt" (cond $en "/en/" "/")) }}
+          {{ $volPage := site.GetPage (printf "%stools/gamut-volume" (cond $en "/en/" "/")) }}
+          <li><a href="{{ cond $en "/internal/en/tools/gamut-volume/" "/internal/tools/gamut-volume/" }}"{{ if and $volPage (eq $volPage.RelPermalink $current) }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Gamut volume (internal)" "色体积内部版" }}</a></li>
+          {{ end }}
         </ul>
       </div>
       {{ range hugo.Data.colourspaces }}
