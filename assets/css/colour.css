@@ -294,6 +294,7 @@ body:has(.c-page) .bottom-menu a { color: #315e80; }
 .c-ddr-eqswap-h { font: .68rem var(--mono); color: #999; letter-spacing: .04em; }
 .c-ddr-eqswap-grid { display: grid; grid-template-columns: max-content max-content; gap: .18rem 1.1rem; margin-top: .3rem; font: .78rem var(--mono); color: #365d78; }
 .c-ddr-mathbox .c-ddr-coef { font: .95rem var(--mono); color: #111; }
+.c-ddr-coef-tag { font: .68rem var(--mono); color: #999; letter-spacing: .04em; }
 .c-ddr-mathbox .c-ddr-deriveline { margin: .45rem 0 0; font: .74rem/1.7 var(--mono); color: #888; }
 .c-ddr-defs { margin: 0; display: grid; gap: .5rem; }
 .c-ddr-defs div { display: grid; grid-template-columns: 5.8rem minmax(0, 1fr); gap: .6rem; border-top: 1px solid #eee; padding-top: .5rem; }
@@ -671,7 +672,7 @@ body:has(.c-page) .bottom-menu a { color: #315e80; }
 .c-tcam-more[open] > summary { margin-bottom: .6rem; }
 .c-tcam-more > summary::marker { color: #9aa7b2; }
 
-/* 21→10 换算链：数值代入的每一步 */
+/* 21→11 换算链：数值代入的每一步 */
 .c-tcam-chain-presets { display: flex; flex-wrap: wrap; gap: .35rem; margin: .2rem 0 1rem; }
 .c-tcam-chain-preset { font: inherit; font-size: .78rem; padding: .16rem .5rem; cursor: pointer; border: 1px solid #dbe3ea; border-radius: 3px; background: #f7f9fb; color: #45525e; }
 .c-tcam-chain-preset:hover { background: #eef3f7; border-color: #c3ccd4; }
