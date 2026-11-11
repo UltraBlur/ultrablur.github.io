@@ -49,9 +49,9 @@
         "yLinear" (cond $en "Linear value" "线性值")
       | jsonify | safeJS }}</script>
       <div class="c-prose">
-        {{ if and .Params.wip (ne hugo.Environment "development") }}
-        <aside class="c-note c-wip">{{ if $en }}Under construction — this page is being reworked; its previous content is withdrawn in the meantime.{{ else }}施工中：本页正在重做，原有内容暂不发布。{{ end }}</aside>
-        {{ else }}
+        {{ if .Params.wip }}
+        <aside class="c-note c-wip">{{ if $en }}Under construction: this page is still being revised — content and wording may change.{{ else }}施工中：本页仍在修订，内容与措辞可能变动。{{ end }}</aside>
+        {{ end }}
         {{ with .Params.noteBox }}<aside class="c-note">{{ . }}</aside>{{ end }}
         {{ with .Params.intro }}<p class="c-intro">{{ . }}</p>{{ end }}
         {{ $showGamut := and $d.primaries (not $d.transferOnly) }}
@@ -136,7 +136,6 @@
         {{ end }}
         {{ with .Content }}{{ . }}{{ end }}
         {{ partial "colour-sources.html" (dict "ctx" . "heading" $t.sourcesHeading) }}
-        {{ end }}
       </div>
     </div>
   </div>
