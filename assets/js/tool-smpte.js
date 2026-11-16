@@ -692,7 +692,7 @@
     box.innerHTML = `<div class="sm-home">
       <p class="sm-home-lead">${EN
         ? 'Browse the library by type or topic below. Type a designation or keyword at any time to search full text.'
-        : '下面按类型和主题分组概览文档，点「查看全部」浏览该分类；输入编号或关键词即可全文检索。'}</p>
+        : '下面按类型和主题分组概览文档，点「查看全部」浏览该分类；输入编号、标题、Scope 或关键词即可检索。'}</p>
       <div class="sm-cat-grid">${types.map(typeCard).join('')}</div>
       <section class="sm-home-block">
         <h3>${EN ? 'By topic' : '按主题'}</h3>

@@ -21,7 +21,7 @@
     <div class="sm-hero-text">
       <p class="sm-kicker">SMPTE Document Library</p>
       <h1>{{ cond $en "SMPTE standards" "SMPTE 文档库" }}</h1>
-      <p class="sm-lead">{{ cond $en "Every designation, title, keyword and clause. Results open the official entry on pub.smpte.org." "905 部标准 · 1,234 个版本 · 全文检索 · 关键词索引 · 一键直达 SMPTE 官网对应条目" }}</p>
+      <p class="sm-lead">{{ cond $en "Designations, titles, keywords and official scopes. Results open the official entry on pub.smpte.org." "905 部标准 · 1,234 个版本 · 元数据检索 · 关键词索引 · 一键直达 SMPTE 官网对应条目" }}</p>
     </div>
     <div class="sm-hero-side" id="sm-hero-side">
       <div class="sm-stat"><b>905</b><span>{{ cond $en "documents" "文档" }}</span></div>
@@ -33,7 +33,7 @@
   <form class="sm-search" id="sm-form" role="search" autocomplete="off">
     <label class="sm-sr" for="sm-q">{{ cond $en "Search" "搜索" }}</label>
     <input id="sm-q" name="q" type="search" spellcheck="false"
-           placeholder="{{ cond $en "Designation, title, body or keyword — e.g. 2110-10, HDR, DCP" "搜索编号、标题、正文或关键词，例如 2110-10、HDR、DCP" }}">
+           placeholder="{{ cond $en "Designation, title, scope or keyword — e.g. 2110-10, HDR, DCP" "搜索编号、标题、Scope 或关键词，例如 2110-10、HDR、DCP" }}">
     <button type="submit" class="sm-search-btn">{{ cond $en "Search" "检索" }}</button>
     <kbd class="sm-kbd">⌘K</kbd>
   </form>
