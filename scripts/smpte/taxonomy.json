@@ -1,0 +1,1331 @@
+{
+  "categories": {
+    "hdr": {
+      "zh": "HDR 与色彩",
+      "en": "HDR & colour"
+    },
+    "cinema": {
+      "zh": "数字影院",
+      "en": "Digital cinema"
+    },
+    "ip": {
+      "zh": "IP 与网络",
+      "en": "IP & networking"
+    },
+    "mastering": {
+      "zh": "母版与 IMF",
+      "en": "Mastering & IMF"
+    },
+    "metadata": {
+      "zh": "元数据与文件",
+      "en": "Metadata & files"
+    },
+    "audio": {
+      "zh": "音频",
+      "en": "Audio"
+    },
+    "tv": {
+      "zh": "电视与广播",
+      "en": "Television"
+    },
+    "film": {
+      "zh": "胶片与放映",
+      "en": "Film & projection"
+    },
+    "measurement": {
+      "zh": "测量与测试",
+      "en": "Measurement"
+    },
+    "archive": {
+      "zh": "归档与保存",
+      "en": "Archive"
+    },
+    "aces": {
+      "zh": "ACES",
+      "en": "ACES"
+    },
+    "accessibility": {
+      "zh": "无障碍",
+      "en": "Accessibility"
+    },
+    "other": {
+      "zh": "其他",
+      "en": "Other"
+    }
+  },
+  "terms": [
+    {
+      "term": "High Dynamic Range",
+      "zh": "高动态范围",
+      "abbr": "HDR",
+      "aliases": [
+        "high dynamic range",
+        "HDR",
+        "高动态范围"
+      ],
+      "category": "hdr",
+      "definition": "高于常规显示能力的亮度与对比范围。"
+    },
+    {
+      "term": "Perceptual Quantizer",
+      "zh": "感知量化",
+      "abbr": "PQ",
+      "aliases": [
+        "perceptual quantizer",
+        "PQ",
+        "ST 2084",
+        "SMPTE ST 2084",
+        "感知量化"
+      ],
+      "category": "hdr",
+      "definition": "SMPTE ST 2084 定义的 HDR 电光转换函数。"
+    },
+    {
+      "term": "Hybrid Log-Gamma",
+      "zh": "混合对数伽马",
+      "abbr": "HLG",
+      "aliases": [
+        "hybrid log-gamma",
+        "hybrid log gamma",
+        "HLG",
+        "BT.2100"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Color Volume Transform",
+      "zh": "色彩体积变换",
+      "abbr": "CVT",
+      "aliases": [
+        "color volume transform",
+        "colour volume transform",
+        "ST 2094",
+        "dynamic metadata",
+        "动态元数据"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Tone Mapping",
+      "zh": "色调映射",
+      "abbr": "",
+      "aliases": [
+        "tone mapping",
+        "tone-mapping",
+        "色调映射"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Wide Color Gamut",
+      "zh": "广色域",
+      "abbr": "WCG",
+      "aliases": [
+        "wide color gamut",
+        "wide colour gamut",
+        "WCG",
+        "广色域"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Mastering Display",
+      "zh": "母版显示器",
+      "abbr": "",
+      "aliases": [
+        "mastering display",
+        "reference display",
+        "母版显示器"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Electro-Optical Transfer Function",
+      "zh": "电光转换函数",
+      "abbr": "EOTF",
+      "aliases": [
+        "electro-optical transfer function",
+        "EOTF",
+        "电光转换函数"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Opto-Electronic Transfer Function",
+      "zh": "光电转换函数",
+      "abbr": "OETF",
+      "aliases": [
+        "opto-electronic transfer function",
+        "OETF",
+        "光电转换函数"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "ITU-R BT.2100",
+      "zh": "BT.2100",
+      "abbr": "BT.2100",
+      "aliases": [
+        "BT.2100",
+        "ITU-R BT.2100",
+        "Rec. 2100"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Digital Cinema Package",
+      "zh": "数字影院包",
+      "abbr": "DCP",
+      "aliases": [
+        "digital cinema package",
+        "DCP",
+        "数字影院包",
+        "D-Cinema"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Digital Cinema Distribution Master",
+      "zh": "数字影院发行母版",
+      "abbr": "DCDM",
+      "aliases": [
+        "digital cinema distribution master",
+        "DCDM"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Key Delivery Message",
+      "zh": "密钥分发消息",
+      "abbr": "KDM",
+      "aliases": [
+        "key delivery message",
+        "KDM",
+        "密钥"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Composition Playlist",
+      "zh": "合成播放列表",
+      "abbr": "CPL",
+      "aliases": [
+        "composition playlist",
+        "CPL"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Digital Cinema Initiatives",
+      "zh": "数字影院倡议",
+      "abbr": "DCI",
+      "aliases": [
+        "digital cinema initiatives",
+        "DCI"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "JPEG 2000",
+      "zh": "JPEG 2000",
+      "abbr": "J2K",
+      "aliases": [
+        "JPEG 2000",
+        "JPEG2000",
+        "J2K"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "SMPTE ST 429",
+      "zh": "D-Cinema 打包",
+      "abbr": "ST 429",
+      "aliases": [
+        "ST 429",
+        "SMPTE ST 429",
+        "D-Cinema packaging",
+        "DCP operational constraints"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "SMPTE ST 2110",
+      "zh": "ST 2110 专业媒体 IP",
+      "abbr": "ST 2110",
+      "aliases": [
+        "ST 2110",
+        "SMPTE ST 2110",
+        "2110-10",
+        "2110-20",
+        "2110-30",
+        "2110-40",
+        "professional media over managed IP"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Precision Time Protocol",
+      "zh": "精确时间协议",
+      "abbr": "PTP",
+      "aliases": [
+        "precision time protocol",
+        "PTP",
+        "IEEE 1588",
+        "精确时间协议"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Real-time Transport Protocol",
+      "zh": "实时传输协议",
+      "abbr": "RTP",
+      "aliases": [
+        "real-time transport protocol",
+        "real time transport protocol",
+        "RTP"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Networked Media Open Specifications",
+      "zh": "网络媒体开放规范",
+      "abbr": "NMOS",
+      "aliases": [
+        "NMOS",
+        "IS-04",
+        "IS-05",
+        "networked media open specifications"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "SMPTE ST 2022",
+      "zh": "ST 2022 IP 传输",
+      "abbr": "ST 2022",
+      "aliases": [
+        "ST 2022",
+        "SMPTE ST 2022",
+        "2022-6",
+        "2022-7"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Multicast",
+      "zh": "组播",
+      "abbr": "",
+      "aliases": [
+        "multicast",
+        "multicasting",
+        "组播"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Session Description Protocol",
+      "zh": "会话描述协议",
+      "abbr": "SDP",
+      "aliases": [
+        "session description protocol",
+        "SDP"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Interoperable Master Format",
+      "zh": "可互操作母版格式",
+      "abbr": "IMF",
+      "aliases": [
+        "interoperable master format",
+        "IMF",
+        "ST 2067",
+        "SMPTE ST 2067"
+      ],
+      "category": "mastering"
+    },
+    {
+      "term": "Mastering",
+      "zh": "母版制作",
+      "abbr": "",
+      "aliases": [
+        "mastering",
+        "master file",
+        "母版"
+      ],
+      "category": "mastering"
+    },
+    {
+      "term": "Material Exchange Format",
+      "zh": "素材交换格式",
+      "abbr": "MXF",
+      "aliases": [
+        "material exchange format",
+        "MXF",
+        "ST 377",
+        "SMPTE ST 377"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Key-Length-Value",
+      "zh": "键-长度-值",
+      "abbr": "KLV",
+      "aliases": [
+        "key-length-value",
+        "KLV",
+        "ST 336",
+        "SMPTE ST 336"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Broadcast Exchange Format",
+      "zh": "广播交换格式",
+      "abbr": "BXF",
+      "aliases": [
+        "broadcast exchange format",
+        "BXF",
+        "ST 2021"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Unique Material Identifier",
+      "zh": "唯一素材标识",
+      "abbr": "UMID",
+      "aliases": [
+        "unique material identifier",
+        "UMID"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Advanced Authoring Format",
+      "zh": "高级创作格式",
+      "abbr": "AAF",
+      "aliases": [
+        "advanced authoring format",
+        "AAF"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Extensible Markup Language",
+      "zh": "可扩展标记语言",
+      "abbr": "XML",
+      "aliases": [
+        "extensible markup language",
+        "XML"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Serial Digital Interface",
+      "zh": "串行数字接口",
+      "abbr": "SDI",
+      "aliases": [
+        "serial digital interface",
+        "SDI",
+        "3G-SDI",
+        "6G-SDI",
+        "12G-SDI",
+        "24G-SDI"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "SMPTE ST 12-1",
+      "zh": "时间码",
+      "abbr": "ST 12-1",
+      "aliases": [
+        "ST 12-1",
+        "SMPTE ST 12-1",
+        "time and control code",
+        "time code",
+        "timecode",
+        "时间码"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Closed Captioning",
+      "zh": "隐藏字幕",
+      "abbr": "CC",
+      "aliases": [
+        "closed captioning",
+        "closed captions",
+        "CEA-708",
+        "caption"
+      ],
+      "category": "accessibility"
+    },
+    {
+      "term": "Subtitles",
+      "zh": "字幕",
+      "abbr": "",
+      "aliases": [
+        "subtitles",
+        "subtitle",
+        "字幕"
+      ],
+      "category": "accessibility"
+    },
+    {
+      "term": "Audio Description",
+      "zh": "口述影像",
+      "abbr": "AD",
+      "aliases": [
+        "audio description",
+        "audio descriptive",
+        "口述影像"
+      ],
+      "category": "accessibility"
+    },
+    {
+      "term": "AES3",
+      "zh": "AES3 数字音频",
+      "abbr": "AES3",
+      "aliases": [
+        "AES3",
+        "AES-3",
+        "AES/EBU",
+        "ST 337",
+        "SMPTE ST 337"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Loudness",
+      "zh": "响度",
+      "abbr": "",
+      "aliases": [
+        "loudness",
+        "响度"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Broadcast Wave Format",
+      "zh": "广播波形格式",
+      "abbr": "BWF",
+      "aliases": [
+        "broadcast wave format",
+        "BWF"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Ultra High Definition",
+      "zh": "超高清",
+      "abbr": "UHD",
+      "aliases": [
+        "ultra high definition",
+        "UHD",
+        "4K",
+        "8K",
+        "超高清"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "High Frame Rate",
+      "zh": "高帧率",
+      "abbr": "HFR",
+      "aliases": [
+        "high frame rate",
+        "HFR",
+        "高帧率"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Video Compression",
+      "zh": "视频压缩",
+      "abbr": "",
+      "aliases": [
+        "video compression",
+        "compressed video",
+        "VC-3",
+        "VC-5",
+        "MPEG-2",
+        "MPEG-4",
+        "HEVC"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Film Stock",
+      "zh": "胶片",
+      "abbr": "",
+      "aliases": [
+        "film stock",
+        "motion-picture film",
+        "motion picture film",
+        "胶片"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "35 mm Film",
+      "zh": "35 mm 胶片",
+      "abbr": "",
+      "aliases": [
+        "35-mm",
+        "35 mm",
+        "35mm"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "16 mm Film",
+      "zh": "16 mm 胶片",
+      "abbr": "",
+      "aliases": [
+        "16-mm",
+        "16 mm",
+        "16mm"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Projection",
+      "zh": "放映",
+      "abbr": "",
+      "aliases": [
+        "projection",
+        "projector",
+        "放映"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Screen Luminance",
+      "zh": "银幕亮度",
+      "abbr": "",
+      "aliases": [
+        "screen luminance",
+        "screen brightness",
+        "银幕亮度"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Camera",
+      "zh": "摄影机",
+      "abbr": "",
+      "aliases": [
+        "camera",
+        "camera aperture",
+        "摄影机"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Calibration",
+      "zh": "校准",
+      "abbr": "",
+      "aliases": [
+        "calibration",
+        "calibrate",
+        "校准"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Test Pattern",
+      "zh": "测试图",
+      "abbr": "",
+      "aliases": [
+        "test pattern",
+        "test signal",
+        "test chart",
+        "测试图"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Chromaticity",
+      "zh": "色度",
+      "abbr": "",
+      "aliases": [
+        "chromaticity",
+        "colorimetry",
+        "colour",
+        "色度",
+        "色度学"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Transfer Function",
+      "zh": "传递函数",
+      "abbr": "",
+      "aliases": [
+        "transfer function",
+        "gamma",
+        "传递函数",
+        "伽马"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Archiving",
+      "zh": "归档",
+      "abbr": "",
+      "aliases": [
+        "archiving",
+        "archive",
+        "preservation",
+        "归档",
+        "保存"
+      ],
+      "category": "archive"
+    },
+    {
+      "term": "Restoration",
+      "zh": "修复",
+      "abbr": "",
+      "aliases": [
+        "restoration",
+        "restore",
+        "修复"
+      ],
+      "category": "archive"
+    },
+    {
+      "term": "ACES",
+      "zh": "ACES 色彩编码",
+      "abbr": "ACES",
+      "aliases": [
+        "ACES",
+        "Academy Color Encoding",
+        "ST 2065",
+        "SMPTE ST 2065"
+      ],
+      "category": "aces"
+    },
+    {
+      "term": "Academy Density Exchange",
+      "zh": "Academy 密度交换编码",
+      "abbr": "ADX",
+      "aliases": [
+        "Academy Density Exchange",
+        "ADX",
+        "ADX10",
+        "ADX16",
+        "APD"
+      ],
+      "category": "aces"
+    },
+    {
+      "term": "Digital Moving-Picture Exchange",
+      "zh": "数字电影交换格式",
+      "abbr": "DPX",
+      "aliases": [
+        "Digital Moving-Picture Exchange",
+        "DPX",
+        "ST 268"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Forensic Marking",
+      "zh": " forensic 标记",
+      "abbr": "",
+      "aliases": [
+        "forensic marking",
+        "forensic watermark",
+        "watermark",
+        "水印"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Encryption",
+      "zh": "加密",
+      "abbr": "",
+      "aliases": [
+        "encryption",
+        "encrypted",
+        "加密"
+      ],
+      "category": "cinema"
+    },
+    {
+      "term": "Immersive Audio",
+      "zh": "沉浸式音频",
+      "abbr": "",
+      "aliases": [
+        "immersive audio",
+        "object audio",
+        "沉浸式音频"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Metadata",
+      "zh": "元数据",
+      "abbr": "",
+      "aliases": [
+        "metadata",
+        "元数据"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Interoperability",
+      "zh": "互操作性",
+      "abbr": "",
+      "aliases": [
+        "interoperability",
+        "interoperable",
+        "互操作"
+      ],
+      "category": "mastering"
+    },
+    {
+      "term": "SMPTE ST 2067-21",
+      "zh": "IMF Application #2E",
+      "abbr": "App 2E",
+      "aliases": [
+        "Application #2E",
+        "Application 2E",
+        "App 2E",
+        "ST 2067-21"
+      ],
+      "category": "mastering"
+    },
+    {
+      "term": "SMPTE ST 2086",
+      "zh": "母版显示元数据",
+      "abbr": "ST 2086",
+      "aliases": [
+        "ST 2086",
+        "SMPTE ST 2086",
+        "mastering display color volume",
+        "mastering display colour volume"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "SMPTE ST 2094",
+      "zh": "动态元数据",
+      "abbr": "ST 2094",
+      "aliases": [
+        "ST 2094",
+        "SMPTE ST 2094",
+        "Application #5"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "SMPTE ST 2128",
+      "zh": "IPT-PQ-C2",
+      "abbr": "ST 2128",
+      "aliases": [
+        "ST 2128",
+        "SMPTE ST 2128",
+        "IPT-PQ-C2"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Video Tape Recording",
+      "zh": "磁带录像",
+      "abbr": "",
+      "aliases": [
+        "video tape",
+        "videotape",
+        "magnetic tape",
+        "video recording",
+        "helical scan",
+        "helical-scan",
+        "quadruplex",
+        "1-in",
+        "2-in",
+        "type b",
+        "type c",
+        "type e"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Analog Television Recording",
+      "zh": "模拟电视录制",
+      "abbr": "",
+      "aliases": [
+        "analog recording",
+        "analogue recording",
+        "analog video",
+        "television analog recording",
+        "analog television"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Tape Reels and Cassettes",
+      "zh": "磁带盘与卡带",
+      "abbr": "",
+      "aliases": [
+        "reel",
+        "reels",
+        "cassette",
+        "cassettes",
+        "tape guide",
+        "headwheel",
+        "tape path"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Audio Polarity",
+      "zh": "音频极性",
+      "abbr": "",
+      "aliases": [
+        "audio polarity",
+        "polarity",
+        "stereo audio",
+        "audio track allocation"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Tracking Control",
+      "zh": "跟踪控制",
+      "abbr": "",
+      "aliases": [
+        "tracking control",
+        "tracking-control",
+        "tracking",
+        "control record"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Edit Decision List",
+      "zh": "编辑决策表",
+      "abbr": "EDL",
+      "aliases": [
+        "edit decision list",
+        "EDL"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Wide-Screen Scanning",
+      "zh": "宽银幕扫描",
+      "abbr": "",
+      "aliases": [
+        "wide-screen",
+        "widescreen",
+        "16:9",
+        "scanning structure"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Remote Control",
+      "zh": "遥控",
+      "abbr": "",
+      "aliases": [
+        "remote control",
+        "studio lighting",
+        "lighting units"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Bar Code",
+      "zh": "条码",
+      "abbr": "",
+      "aliases": [
+        "bar code",
+        "barcode",
+        "cassette bar code"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Film Sprocket",
+      "zh": "胶片齿孔",
+      "aliases": [
+        "sprocket",
+        "sprockets",
+        "sprocket design",
+        "sprocket holes"
+      ],
+      "category": "film",
+      "definition": "胶片片边用于驱动和定位的齿孔结构。"
+    },
+    {
+      "term": "Film Perforation",
+      "zh": "胶片打孔",
+      "aliases": [
+        "perforation",
+        "perforations",
+        "perforated",
+        "perforating"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Release Print",
+      "zh": "发行拷贝",
+      "aliases": [
+        "release print",
+        "release prints",
+        "release positive",
+        "print film"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Magnetic Striping",
+      "zh": "磁条涂布",
+      "aliases": [
+        "magnetic striping",
+        "magnetic stripe",
+        "striped release print",
+        "striped"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Projection Reel",
+      "zh": "放映盘",
+      "aliases": [
+        "projection reel",
+        "projection reels"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Camera Spool",
+      "zh": "摄影机片盘",
+      "aliases": [
+        "camera spool",
+        "camera spools"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Edge Numbering",
+      "zh": "片边编号",
+      "aliases": [
+        "edge numbering",
+        "edge numbers",
+        "edge number"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Photographic Audio",
+      "zh": "感光录音",
+      "aliases": [
+        "photographic audio",
+        "photographic sound",
+        "photographic audio record",
+        "optical audio",
+        "optical sound",
+        "photographic type"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Test Film",
+      "zh": "测试片",
+      "aliases": [
+        "test film",
+        "test films",
+        "test film strip"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Buzz Track",
+      "zh": "蜂鸣声轨",
+      "aliases": [
+        "buzz track",
+        "buzz-track"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Flutter",
+      "zh": "抖晃",
+      "aliases": [
+        "flutter",
+        "wow and flutter"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Intermodulation Distortion",
+      "zh": "互调失真",
+      "aliases": [
+        "intermodulation distortion",
+        "IMD"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Spectral Diffuse Density",
+      "zh": "光谱漫射密度",
+      "aliases": [
+        "spectral diffuse density",
+        "diffuse density"
+      ],
+      "category": "measurement"
+    },
+    {
+      "term": "Camera Mounting",
+      "zh": "摄影机安装",
+      "aliases": [
+        "camera mounting",
+        "mounting connection",
+        "1/4-inch-20",
+        "3/8-inch-16"
+      ],
+      "category": "film"
+    },
+    {
+      "term": "Digital Control Interface",
+      "zh": "数字控制接口",
+      "aliases": [
+        "digital control interface",
+        "control interface",
+        "supervisory protocol"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Ancillary Data",
+      "zh": "辅助数据",
+      "aliases": [
+        "ancillary data",
+        "ancillary",
+        "vanc",
+        "hanc"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Vertical Blanking Interval",
+      "zh": "场消隐期",
+      "aliases": [
+        "vertical blanking interval",
+        "vbi"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Fault Reporting",
+      "zh": "故障报告",
+      "aliases": [
+        "fault reporting",
+        "fault report"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Status Monitoring",
+      "zh": "状态监控",
+      "aliases": [
+        "status monitoring",
+        "monitoring and diagnostics",
+        "diagnostics"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Format Conversion",
+      "zh": "格式转换",
+      "aliases": [
+        "format conversion",
+        "4:2:2 / 4:2:0",
+        "color difference signal",
+        "colour difference signal"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Fiber Optic",
+      "zh": "光纤",
+      "aliases": [
+        "fiber optic",
+        "fibre optic",
+        "optical fiber",
+        "fiber-optic",
+        "optical interface"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Connector",
+      "zh": "连接器",
+      "aliases": [
+        "connector",
+        "connectors",
+        "hybrid connector",
+        "fiber optic connector"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "NTSC",
+      "zh": "NTSC 制式",
+      "aliases": [
+        "NTSC"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "PAL",
+      "zh": "PAL 制式",
+      "aliases": [
+        "PAL"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Service Messages",
+      "zh": "服务消息",
+      "aliases": [
+        "service messages",
+        "system service messages"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "ATM",
+      "zh": "异步传输模式",
+      "aliases": [
+        "ATM",
+        "asynchronous transfer mode"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "Solid State Media",
+      "zh": "固态媒体",
+      "aliases": [
+        "solid state media",
+        "SSM",
+        "SSM card"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Open Binding of Content Identifiers",
+      "zh": "内容标识绑定",
+      "abbr": "OBID",
+      "aliases": [
+        "OBID",
+        "open binding of content identifiers"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "VC-1",
+      "zh": "VC-1 压缩",
+      "aliases": [
+        "VC-1"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "AVC",
+      "zh": "AVC/H.264",
+      "aliases": [
+        "AVC",
+        "H.264",
+        "AVC Intra"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "VC-4",
+      "zh": "VC-4 压缩",
+      "aliases": [
+        "VC-4"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Microservice",
+      "zh": "微服务",
+      "aliases": [
+        "microservice",
+        "microservices"
+      ],
+      "category": "ip"
+    },
+    {
+      "term": "IEEE 1394",
+      "zh": "IEEE 1394 总线",
+      "aliases": [
+        "IEEE 1394",
+        "1394"
+      ],
+      "category": "tv"
+    },
+    {
+      "term": "Document Object Model",
+      "zh": "文档对象模型",
+      "aliases": [
+        "Document Object Model",
+        "DOM-0"
+      ],
+      "category": "metadata"
+    },
+    {
+      "term": "Dolby Atmos",
+      "zh": "杜比全景声",
+      "aliases": [
+        "Dolby Atmos",
+        "Atmos"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Image Mapping",
+      "zh": "图像映射",
+      "aliases": [
+        "image mapping",
+        "full-range image mapping"
+      ],
+      "category": "hdr"
+    },
+    {
+      "term": "Dubbing Stage",
+      "zh": "混录棚",
+      "aliases": [
+        "dubbing stage",
+        "dubbing stages"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Acoustic Noise",
+      "zh": "声学噪声",
+      "aliases": [
+        "acoustic noise",
+        "background noise",
+        "noise level",
+        "acoustical background noise"
+      ],
+      "category": "audio"
+    },
+    {
+      "term": "Loudspeaker",
+      "zh": "扬声器",
+      "aliases": [
+        "loudspeaker",
+        "loudspeakers",
+        "loudspeaker placement",
+        "monitor system"
+      ],
+      "category": "audio"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $smcss := resources.Get "css/smpte.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $smcss.RelPermalink }}" integrity="{{ $smcss.Data.Integrity }}">
+{{ $js := resources.Get "js/tool-smpte.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+<div class="c-page sm-page" data-lang="{{ $lang }}">
+  <nav class="c-crumb" aria-label="breadcrumb">
+    <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ cond $en "Home" "首页" }}</a> /
+    <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "/tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> /
+    {{ .Title }}
+  </nav>
+
+  <header class="sm-hero">
+    <div class="sm-hero-text">
+      <p class="sm-kicker">SMPTE Document Library</p>
+      <h1>{{ cond $en "SMPTE standards" "SMPTE 文档库" }}</h1>
+      <p class="sm-lead">{{ cond $en "Every designation, title, keyword and clause. Results open the official entry on pub.smpte.org." "905 部标准 · 1,234 个版本 · 全文检索 · 关键词索引 · 一键直达 SMPTE 官网对应条目" }}</p>
+    </div>
+    <div class="sm-hero-side" id="sm-hero-side">
+      <div class="sm-stat"><b>905</b><span>{{ cond $en "documents" "文档" }}</span></div>
+      <div class="sm-stat"><b>1,234</b><span>{{ cond $en "versions" "版本" }}</span></div>
+      <div class="sm-stat"><b>11-11</b><span>{{ cond $en "snapshot" "官网快照" }}</span></div>
+    </div>
+  </header>
+
+  <form class="sm-search" id="sm-form" role="search" autocomplete="off">
+    <label class="sm-sr" for="sm-q">{{ cond $en "Search" "搜索" }}</label>
+    <input id="sm-q" name="q" type="search" spellcheck="false"
+           placeholder="{{ cond $en "Designation, title, body or keyword — e.g. 2110-10, HDR, DCP" "搜索编号、标题、正文或关键词，例如 2110-10、HDR、DCP" }}">
+    <button type="submit" class="sm-search-btn">{{ cond $en "Search" "检索" }}</button>
+    <kbd class="sm-kbd">⌘K</kbd>
+  </form>
+  <div class="sm-quick" id="sm-quick"></div>
+
+  <nav class="sm-tabs" id="sm-tabs" aria-label="{{ cond $en "Views" "视图" }}">
+    <button type="button" data-tab="search" class="is-active">{{ cond $en "Search" "检索" }}</button>
+    <button type="button" data-tab="keywords">{{ cond $en "Keywords" "关键词" }}</button>
+    <button type="button" data-tab="browse">{{ cond $en "Catalogue" "目录" }}</button>
+    <button type="button" data-tab="about">{{ cond $en "About" "说明" }}</button>
+  </nav>
+
+  <button type="button" class="sm-filter-toggle" id="sm-filter-toggle" aria-expanded="false" aria-controls="sm-side">{{ cond $en "Filters" "筛选" }}</button>
+
+  <div class="sm-layout">
+    <aside class="sm-side" id="sm-side" aria-label="{{ cond $en "Filters" "筛选" }}"></aside>
+    <section class="sm-main">
+      <div class="sm-toolbar" id="sm-toolbar"></div>
+      <div id="sm-results" class="sm-results" aria-live="polite"></div>
+      <div id="sm-more" class="sm-more" hidden>
+        <button type="button" id="sm-more-btn">{{ cond $en "Load more" "加载更多" }}</button>
+      </div>
+    </section>
+  </div>
+
+  <footer class="sm-foot" id="sm-foot"></footer>
+</div>
+
+<div class="sm-drawer" id="sm-drawer" hidden aria-hidden="true">
+  <div class="sm-backdrop" data-sm-close></div>
+  <div class="sm-panel" role="dialog" aria-modal="true" aria-labelledby="sm-drawer-title">
+    <button class="sm-close" type="button" data-sm-close aria-label="{{ cond $en "Close" "关闭" }}">×</button>
+    <div id="sm-drawer-body"></div>
+  </div>
+</div>
+
+<script>document.documentElement.lang = "{{ $lang }}";</script>
+<script type="application/json" id="smpte-config">{{ dict
+  "lang" $lang
+  "dataBase" ("/smpte/data/" | relURL)
+  "docBase" ("/smpte/doc/" | relURL)
+  "pagefindBase" ("/smpte/pagefind/" | relURL)
+  "official" "https://pub.smpte.org"
+| jsonify | safeJS }}</script>
+{{ end }}

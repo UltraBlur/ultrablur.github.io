@@ -52,7 +52,8 @@ def gen_locus():
     tot = X + Y + Z
     rows = []
     for i in range(len(wl[sel])):
-        rows.append([round(float(X[i] / tot[i]), 4), round(float(Y[i] / tot[i]), 4), round(float(Y[i]), 5)])
+        # 色度存 6 位：紫端 y 很小（0.005），x 少一位小数就会把 X = x·ȳ/y 放大成 0.01 级误差
+        rows.append([round(float(X[i] / tot[i]), 6), round(float(Y[i] / tot[i]), 6), round(float(Y[i]), 6)])
     out = {
         "source": "CIE 1931 2° Standard Observer（colour-science 0.4.6 MSDS_CMFS），380–700 nm、1 nm 步进",
         "observer": "CIE 1931 2°",

@@ -26,9 +26,12 @@ run() {
 }
 
 run colour-codec      data/curves.json assets/js/lib/colour-codec.js
+run tool-state        assets/js/lib/tool-state.js
+run cat               assets/js/lib/cat.js
 run pointer-gamut     data/pointerGamut.json assets/js/lib/geom2d.js
 run colour-appearance assets/js/colour-models.js
 run aces-jmh          assets/js/lib/aces-jmh.js
+run aces13            assets/js/lib/aces13.js data/aces13.json tests/fixtures/aces13-cases.json
 run volume-geometry   assets/js/colour-volume-geom.js assets/js/colour-models.js assets/js/lib/aces-jmh.js data/pointerGamut.json
 run local-exclude
 

@@ -1,0 +1,193 @@
+{
+  "scope": {
+    "eg2111-1": "Overview roadmap of the SD-SDI and HD-SDI standards family, showing the relationships among the serial digital interface, signal mapping, and optical interface documents.",
+    "eg2111-3": "Overview roadmap of the 10G-SDI standards family (ST 435 and related documents), showing signal mapping, interface, and optical transport relationships.",
+    "rp141": "This practice provides measurement methods and recommended maximum levels for indoor background sound pressure levels in theaters and review rooms, limited to HVAC, projector, and other mechanical or electrical equipment noise; it excludes external noise, sound-system noise, and building vibration.",
+    "ov379-0": "Overview of the MXF Generic Container (SMPTE ST 379 document suite): a streamable, interleaved container for essence and metadata in MXF files.",
+    "st299-2": "This standard defines an SMPTE 291M Type 1 packet structure for audio channels 17 to 32 beyond ST 299-1, with extended audio data and control packets for up to 32 channels over 3 Gb/s SDI.",
+    "st428-3": "This standard specifies audio channel mapping and labeling for the D-Cinema Distribution Master (DCDM).",
+    "ov2081-0": "Roadmap of the SMPTE ST 2081 6G-SDI document suite, showing the 6G-SDI bit-serial interfaces and the related ST 425 source image format and ancillary data mapping standards."
+  },
+  "keywords": {
+    "eg1": [
+      "Test Pattern",
+      "Calibration",
+      "Chromaticity"
+    ],
+    "eg15": [
+      "Analog Television Recording",
+      "Calibration",
+      "Loudness"
+    ],
+    "eg2": [
+      "Film Stock",
+      "Camera",
+      "Metadata"
+    ],
+    "eg26": [
+      "AES3",
+      "Connector",
+      "Tape Reels and Cassettes"
+    ],
+    "eg31": [
+      "Bar Code",
+      "Tape Reels and Cassettes",
+      "Metadata"
+    ],
+    "rdd2": [
+      "Camera",
+      "Analog Television Recording",
+      "Transfer Function"
+    ],
+    "rdd38": [
+      "Encryption",
+      "Remote Control",
+      "Interoperability"
+    ],
+    "rdd41": [
+      "DCP",
+      "LFE",
+      "Immersive Audio"
+    ],
+    "rp11": [
+      "Video Tape Recording",
+      "Tape Reels and Cassettes",
+      "Tracking Control"
+    ],
+    "rp113": [
+      "Digital Control Interface",
+      "Video Tape Recording",
+      "Remote Control"
+    ],
+    "rp114": [
+      "16 mm Film",
+      "Film Stock",
+      "Metadata"
+    ],
+    "rp120": [
+      "Intermodulation Distortion",
+      "Calibration",
+      "Audio Polarity"
+    ],
+    "rp124": [
+      "Remote Control",
+      "Camera",
+      "Connector"
+    ],
+    "rp132": [
+      "EDL",
+      "ASCII",
+      "Archiving"
+    ],
+    "rp148": [
+      "Audio Polarity",
+      "Video Tape Recording",
+      "Analog Television Recording"
+    ],
+    "rp162": [
+      "Video Tape Recording",
+      "EDL",
+      "Archiving"
+    ],
+    "rp181": [
+      "ST 12-1",
+      "LTC",
+      "Metadata"
+    ],
+    "rp199": [
+      "Wide-Screen Scanning",
+      "Image Mapping",
+      "Projection"
+    ],
+    "rp2006": [
+      "Solid State Media",
+      "Connector",
+      "Metadata"
+    ],
+    "rp221": [
+      "Wide-Screen Scanning",
+      "Interoperability",
+      "Image Mapping"
+    ],
+    "rp84": [
+      "Video Tape Recording",
+      "Analog Television Recording",
+      "Calibration"
+    ],
+    "st1": [
+      "Video Tape Recording",
+      "Tape Reels and Cassettes",
+      "Analog Television Recording"
+    ],
+    "st2073-1": [
+      "Video Compression",
+      "Camera",
+      "Interoperability"
+    ],
+    "st2117-1": [
+      "Video Compression",
+      "Metadata",
+      "Interoperability"
+    ],
+    "st2126": [
+      "Microservice",
+      "Interoperability",
+      "Metadata"
+    ],
+    "st24": [
+      "Video Tape Recording",
+      "Tape Reels and Cassettes",
+      "Analog Television Recording"
+    ],
+    "st25": [
+      "Video Tape Recording",
+      "Tape Reels and Cassettes",
+      "Analog Television Recording"
+    ],
+    "st26": [
+      "Video Tape Recording",
+      "Tape Reels and Cassettes",
+      "Analog Television Recording"
+    ],
+    "st262": [
+      "ST 12-1",
+      "Metadata",
+      "Video Tape Recording"
+    ],
+    "st308": [
+      "Video Compression",
+      "Interoperability",
+      "Metadata"
+    ],
+    "st341": [
+      "CC",
+      "AES3",
+      "Metadata"
+    ],
+    "st343": [
+      "Encryption",
+      "UUID",
+      "Metadata"
+    ],
+    "st358": [
+      "Connector",
+      "Fiber Optic",
+      "Interoperability"
+    ],
+    "st4": [
+      "Video Tape Recording",
+      "Analog Television Recording",
+      "Calibration"
+    ],
+    "st401": [
+      "Metadata",
+      "KLV",
+      "Interoperability"
+    ],
+    "st74": [
+      "Camera",
+      "Calibration",
+      "Film Stock"
+    ]
+  }
+}
