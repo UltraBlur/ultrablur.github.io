@@ -7,7 +7,7 @@
 <script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
 {{ $geom := resources.Get "js/colour-volume-geom.js" | minify | fingerprint }}
 <script defer src="{{ $geom.RelPermalink }}" integrity="{{ $geom.Data.Integrity }}"></script>
-{{/* ACES 2.0 的 Hellwig JMh 内核：与 /research/aces-drt/ 同一份移植，避免两套公式漂移 */}}
+{{/* ACES 2.0 的 Hellwig JMh 内核：与 ACES 2.0 分析页同一份移植，避免两套公式漂移 */}}
 {{ $jmh := resources.Get "js/lib/aces-jmh.js" | minify | fingerprint }}
 <script defer src="{{ $jmh.RelPermalink }}" integrity="{{ $jmh.Data.Integrity }}"></script>
 {{/* 本地私有坐标扩展：仅 hugo server 且文件存在时注入，构建产物里永远没有。
@@ -59,6 +59,9 @@
 <label>{{ cond $en "Colour space" "色彩空间" }}
               <select id="vol-space">
                 {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+                <optgroup label="{{ cond $en "Custom" "自定义" }}">
+                  <option value="custom-multi">{{ cond $en "Custom multi-primary…" "自定义多基色…" }}</option>
+                </optgroup>
               </select>
             </label>
 <label>{{ cond $en "Coordinates" "坐标" }}
@@ -87,11 +90,64 @@
 <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Volume mesh" "色体网格" }}</label>
         </div>
 
+        <div class="c-vol-custom" data-vol-custom hidden>
+          <div class="c-vol-custom-top">
+            <label class="c-vol-custom-field">{{ cond $en "Primaries" "基色数量" }}
+              <select id="vol-custom-n">
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <label class="c-vol-custom-field">{{ cond $en "White preset" "白点预设" }}
+              <select id="vol-custom-wpreset">
+                <option value="d65" selected>D65</option>
+                <option value="d50">D50</option>
+                <option value="dci">DCI</option>
+                <option value="c">C</option>
+                <option value="custom">{{ cond $en "Custom" "自定义" }}</option>
+              </select>
+            </label>
+            <label class="c-vol-custom-field">{{ cond $en "White x" "白点 x" }}
+              <input id="vol-custom-wx" type="text" size="8" value="0.3127">
+            </label>
+            <label class="c-vol-custom-field">{{ cond $en "White y" "白点 y" }}
+              <input id="vol-custom-wy" type="text" size="8" value="0.3290">
+            </label>
+            <button type="button" id="vol-custom-apply" class="c-vol-btn">{{ cond $en "Apply" "应用" }}</button>
+            <span class="c-vol-custom-status" data-vol-custom-status></span>
+          </div>
+          <div class="c-vol-custom-rows" id="vol-custom-rows"></div>
+          <details class="c-vol-custom-adv">
+            <summary>{{ cond $en "Paste list / luminance weights" "批量粘贴 / 亮度权重" }}</summary>
+            <div class="c-vol-custom-adv-body">
+              <textarea id="vol-custom-primaries" rows="4" spellcheck="false" autocapitalize="off" placeholder="R 0.708 0.292&#10;G 0.170 0.797&#10;B 0.131 0.046"></textarea>
+              <div class="c-vol-custom-adv-side">
+                <button type="button" id="vol-custom-parse" class="c-vol-btn">{{ cond $en "Fill from text" "从文本填入" }}</button>
+                <label class="c-vol-custom-field">{{ cond $en "Weights (blank = solve)" "亮度权重（留空自动求）" }}
+                  <input id="vol-custom-weights" type="text" placeholder="{{ cond $en "auto" "自动" }}" size="18">
+                </label>
+              </div>
+            </div>
+          </details>
+          <p class="c-vol-hint">{{ cond $en "Volume = Minkowski sum of the primary vectors (2·C(n,2) parallelogram facets). Weights solve ΣY·u = white; n>3 uses the minimum-norm solution. Multi-primary displays have no public standard dataset — coordinates are vendor/paper specific, so enter your own." "体积 = 各基色向量的闵可夫斯基和（2·C(n,2) 个平行四边形面片）。权重由 ΣY·u = 白点 解出；n>3 取最小范数解。多基色显示没有公开标准数据集——坐标因样机而异，请填自己的实测值。" }}</p>
+        </div>
+
         <div class="c-vol-controls c-ctl">
           <span class="c-vol-group">{{ cond $en "Overlays" "叠加层" }}</span>
 <label class="c-vol-check"><input type="checkbox" id="vol-ov-pointer" title="{{ cond $en "Pointer (1980) real-surface-colour volume as a wireframe reference cage — not a colour space itself" "Pointer (1980) 的真实表面色色体，画成参考笼架——它本身不是一个色彩空间" }}"> Pointer's Gamut</label>
 <label class="c-vol-check"><input type="checkbox" id="vol-ov-munsell" title="{{ cond $en "2734 Munsell renotation chips (Newhall, Nickerson & Judd 1943, illuminant C, 2° observer) as a 3D point cloud" "Munsell 重标定的 2734 个色片（Newhall / Nickerson / Judd 1943，照明体 C，2° 观察者），画成三维点云" }}"> Munsell 2734</label>
-<label class="c-vol-check"><input type="checkbox" id="vol-ov-locus" checked title="{{ cond $en "CIE 1931 spectral locus as a 3D curve: each wavelength carries its own luminance ȳ(λ), so the locus rises out of the xy plane. Seen from the top it projects back to the familiar horseshoe." "CIE 1931 光谱轨迹的三维版：每个波长带上自己的亮度 ȳ(λ)，于是这条曲线从 xy 平面里立起来。俯视时投影回熟悉的马蹄形。" }}"> {{ cond $en "Spectral locus" "光谱轨迹" }}</label>
+<label class="c-vol-check"><input type="checkbox" id="vol-ov-locus" checked title="{{ cond $en "CIE 1931 spectral locus as a 3D curve: each wavelength carries its own luminance ȳ(λ), so the locus rises out of the xy plane. Seen from the top it projects back to the familiar horseshoe. In XYZ coordinates it is exactly the CIE x̄/ȳ/z̄ curve (a three-lobed loop) — the horseshoe is only its projection onto X+Y+Z=1." "CIE 1931 光谱轨迹的三维版：每个波长带上自己的亮度 ȳ(λ)，于是这条曲线从 xy 平面里立起来。俯视时投影回熟悉的马蹄形；在 XYZ 坐标下它正好就是 CIE 的 x̄/ȳ/z̄ 曲线（三瓣回环），马蹄形只是它在 X+Y+Z=1 平面上的投影。" }}"> {{ cond $en "Spectral locus" "光谱轨迹" }}</label>
+          <label>{{ cond $en "Reference gamut" "参考色域" }}
+            <select id="vol-ref" title="把另一个色彩空间的体积画成线框，叠在当前色体上比较">
+              <option value="">{{ cond $en "None" "无" }}</option>
+              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+              <option value="custom-multi">{{ cond $en "Custom multi-primary" "自定义多基色" }}</option>
+            </select>
+          </label>
         </div>
         <div class="c-vol-controls c-vol-subrow" data-vol-points hidden>
           <span class="c-vol-subarrow" aria-hidden="true">↳</span>

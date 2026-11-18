@@ -33,6 +33,7 @@ run colour-appearance assets/js/colour-models.js
 run aces-jmh          assets/js/lib/aces-jmh.js
 run aces13            assets/js/lib/aces13.js data/aces13.json tests/fixtures/aces13-cases.json
 run volume-geometry   assets/js/colour-volume-geom.js assets/js/colour-models.js assets/js/lib/aces-jmh.js data/pointerGamut.json
+run volume-multi      assets/js/colour-volume-geom.js assets/js/colour-models.js assets/js/lib/aces-jmh.js
 run local-exclude
 
 echo "== sync"

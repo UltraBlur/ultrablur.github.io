@@ -25,6 +25,23 @@
 .c-vol-cap[hidden], .c-vol-check[hidden] { display: none; }
 /* 控件分三组：色体 / 叠加层 / 视图；「实测点」是 Pointer 的子选项，单独缩进一行 */
 .c-vol-group { flex: 0 0 3.4rem; font-size: .72rem; letter-spacing: .09em; color: #9a9a9a; }
+.c-vol-custom { margin: -.5rem 0 .9rem; padding: .7rem .9rem; border: 1px solid #e8e8e8; background: #fbfbfb; }
+.c-vol-custom[hidden] { display: none; }
+.c-vol-custom-row { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; align-items: flex-start; }
+.c-vol-custom-field { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: #555; }
+.c-vol-custom textarea { font: .8rem/1.5 var(--mono, ui-monospace, monospace); padding: .4rem .5rem; border: 1px solid #ddd; background: #fff; color: #333; min-width: 12rem; resize: vertical; }
+.c-vol-custom input { font: .8rem/1.4 var(--mono, ui-monospace, monospace); padding: .25rem .45rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-vol-custom-side { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: flex-end; }
+.c-vol-custom-status { font-size: .76rem; color: #666; align-self: center; }
+.c-vol-custom-top { display: flex; flex-wrap: wrap; gap: .6rem 1.1rem; align-items: flex-end; margin-bottom: .6rem; }
+.c-vol-custom-rows { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin: .2rem 0 .6rem; }
+.c-vol-custom-pri { display: flex; align-items: center; gap: .35rem; font-size: .78rem; color: #666; }
+.c-vol-custom-pri .swatch { width: 1.15rem; height: 1.15rem; border: 1px solid #ddd; border-radius: 2px; }
+.c-vol-custom-pri input { width: 5.2rem; font: .78rem/1.3 var(--mono, ui-monospace, monospace); padding: .18rem .3rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-vol-custom-adv { margin-top: .3rem; font-size: .78rem; color: #777; }
+.c-vol-custom-adv summary { cursor: pointer; }
+.c-vol-custom-adv-body { display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: flex-start; margin-top: .5rem; }
+.c-vol-custom-adv-side { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 .c-vol-subrow { margin-top: -.5rem; padding-left: 4.35rem; }
 .c-vol-subrow[hidden] { display: none; }
 .c-vol-subarrow { color: #b8b8b8; }

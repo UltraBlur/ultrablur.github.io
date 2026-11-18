@@ -615,6 +615,467 @@
     return { pos: new Float32Array(pos), nor: new Float32Array(nor) };
   }
 
+  /* ---------- 多基色（自定义原色） ----------
+
+     n 个基色向量 g_k = Y_k · (x_k/y_k, 1, z_k/y_k) 张成一个 3D zonotope（闵可夫斯基和）：
+     面片 2·C(n,2) 个平行四边形，顶点 n²−n+2 个。面片可解析枚举——对每一对基色
+     (i,j)，法线 n = g_i × g_j，其余基色按 sign(n·g_k) 贴到 0/1 极值。 */
+
+  /* 解 Σ Y_k·u_k = W（3 个方程、n 个未知数）：n=3 唯一解（就是 NPM），
+     n>3 取最小范数解 Y = Aᵀ(AAᵀ)⁻¹W。返回 null 表示无解。 */
+  function solveWeights(unit, W) {
+    var n = unit.length;
+    if (n < 3) return null;
+    var A = [0, 1, 2].map(function (r) {
+      return unit.map(function (u) { return u[r]; });
+    });
+    if (n === 3) {
+      var m = A.map(function (row) { return row.slice(); });
+      var b = [W[0], W[1], W[2]];
+      for (var i = 0; i < 3; i++) {
+        var p = i;
+        for (var k = i + 1; k < 3; k++) if (Math.abs(m[k][i]) > Math.abs(m[p][i])) p = k;
+        var tr = m[i]; m[i] = m[p]; m[p] = tr;
+        var tb = b[i]; b[i] = b[p]; b[p] = tb;
+        var d = m[i][i];
+        if (!d) return null;
+        for (var j = i; j < 3; j++) m[i][j] /= d;
+        b[i] /= d;
+        for (var k2 = 0; k2 < 3; k2++) {
+          if (k2 === i) continue;
+          var f = m[k2][i];
+          if (!f) continue;
+          for (var j2 = i; j2 < 3; j2++) m[k2][j2] -= f * m[i][j2];
+          b[k2] -= f * b[i];
+        }
+      }
+      return b;
+    }
+    var AAt = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) {
+      var sum = 0;
+      for (var k3 = 0; k3 < n; k3++) sum += A[r][k3] * A[c][k3];
+      AAt[r * 3 + c] = sum;
+    }
+    var inv = invert3(AAt);
+    if (!inv) return null;
+    var out = new Array(n);
+    for (var k4 = 0; k4 < n; k4++) {
+      var acc = 0;
+      for (var r2 = 0; r2 < 3; r2++) {
+        var t = 0;
+        for (var c2 = 0; c2 < 3; c2++) t += inv[r2 * 3 + c2] * W[c2];
+        acc += A[r2][k4] * t;
+      }
+      out[k4] = acc;
+    }
+    return out;
+  }
+
+  /* 非负解：最小范数解可能出现负权重（物理上仍有非负解），
+     用 active-set 把最负的分量固定为 0 再解，直到全非负。
+     n < 3 时用正规方程 (AᵀA)⁻¹AᵀW。 */
+  function solveWeightsNonNeg(unit, W) {
+    function solveSub(sub) {
+      var n = sub.length;
+      if (!n) return null;
+      if (n >= 3) return solveWeights(sub, W);
+      var AtA = [], AtW = [];
+      for (var r = 0; r < n; r++) {
+        AtW.push(0);
+        for (var r2 = 0; r2 < 3; r2++) AtW[r] += sub[r][r2] * W[r2];
+      }
+      for (var i = 0; i < n; i++) {
+        AtA.push([]);
+        for (var j = 0; j < n; j++) {
+          var sum = 0;
+          for (var k = 0; k < 3; k++) sum += sub[i][k] * sub[j][k];
+          AtA[i].push(sum);
+        }
+      }
+      if (n === 1) {
+        var d1 = AtA[0][0];
+        return d1 ? [AtW[0] / d1] : null;
+      }
+      var det = AtA[0][0] * AtA[1][1] - AtA[0][1] * AtA[1][0];
+      if (Math.abs(det) < 1e-15) return null;
+      return [
+        (AtA[1][1] * AtW[0] - AtA[0][1] * AtW[1]) / det,
+        (AtA[0][0] * AtW[1] - AtA[1][0] * AtW[0]) / det
+      ];
+    }
+    var idx = unit.map(function (_, i) { return i; });
+    for (var guard = 0; guard <= unit.length; guard++) {
+      var y = solveSub(idx.map(function (i) { return unit[i]; }));
+      if (!y) return null;
+      var worst = -1, worstVal = -1e-9;
+      for (var k2 = 0; k2 < y.length; k2++) {
+        if (y[k2] < worstVal) { worstVal = y[k2]; worst = k2; }
+      }
+      if (worst < 0) {
+        var full = new Array(unit.length);
+        for (var z = 0; z < unit.length; z++) full[z] = 0;
+        for (var q = 0; q < idx.length; q++) full[idx[q]] = y[q];
+        return full;
+      }
+      idx.splice(worst, 1);
+      if (idx.length < 1) return null;
+    }
+    return null;
+  }
+
+  /* 共线生成元合并：两个基色向量平行时，其 2-zone 退化成线段、面片会缺失（破面）。
+     [0,a]+[0,b]（同向）= [0,a+b]；反向 = [b,a] = b + [0,a−b]，
+     所以合并后只需一个新段 + 一个整体平移 offset。 */
+  function mergeCollinear(gens, eps) {
+    var n = gens.length, used = new Array(n), out = [], offset = [0, 0, 0], merged = [];
+    var len = function (v) { return Math.hypot(v[0], v[1], v[2]); };
+    for (var i = 0; i < n; i++) {
+      if (used[i]) continue;
+      var ref = gens[i], pos = [0, 0, 0], neg = [0, 0, 0], group = [i];
+      used[i] = true;
+      for (var j = i + 1; j < n; j++) {
+        if (used[j]) continue;
+        var g = gens[j], lr = len(ref), lg = len(g);
+        if (lg === 0) { used[j] = true; continue; }
+        var cross = Math.hypot(ref[1] * g[2] - ref[2] * g[1], ref[2] * g[0] - ref[0] * g[2], ref[0] * g[1] - ref[1] * g[0]);
+        if (cross > eps * lr * lg) continue;
+        used[j] = true;
+        group.push(j);
+        var d = ref[0] * g[0] + ref[1] * g[1] + ref[2] * g[2];
+        if (d >= 0) { pos[0] += g[0]; pos[1] += g[1]; pos[2] += g[2]; }
+        else { neg[0] += g[0]; neg[1] += g[1]; neg[2] += g[2]; }
+      }
+      if (group.length === 1) { out.push(gens[i].slice()); continue; }
+      var seg = [pos[0] - neg[0], pos[1] - neg[1], pos[2] - neg[2]];
+      offset[0] += neg[0]; offset[1] += neg[1]; offset[2] += neg[2];
+      if (len(seg) > 0) out.push(seg);
+      merged.push(group);
+    }
+    return { gens: out, offset: offset, merged: merged };
+  }
+
+  /* 由「原色色品 + 白点（+ 可选亮度权重）」造一个渲染管线要用的空间对象 */
+  function makeMultiSpace(entry, srgbMatrix, jmhApi) {
+    var primaries = (entry && entry.primaries) || [];
+    var whiteXY = (entry && entry.white) || [0.3127, 0.329];
+    var W = whiteXYZ(whiteXY);
+    var unit = primaries.map(function (p) {
+      var y = Math.max(p[1], 1e-6);
+      return [p[0] / y, 1, (1 - p[0] - p[1]) / y];
+    });
+    var weights = (entry && entry.weights && entry.weights.length === unit.length)
+      ? entry.weights.slice()
+      : solveWeights(unit, W);
+
+    /* 最小范数解可能为负（物理上仍有非负解）：换 active-set 非负解，
+       但只有它真能满足白点时才采用——否则说明白点根本不在原色锥内。 */
+    function residualOf(w) {
+      var acc = 0;
+      for (var r = 0; r < 3; r++) {
+        var s = 0;
+        for (var i = 0; i < unit.length; i++) s += unit[i][r] * w[i];
+        acc += (s - W[r]) * (s - W[r]);
+      }
+      return Math.sqrt(acc);
+    }
+    var neg = !!(weights && weights.some(function (v) { return v < -1e-9; }));
+    if (neg) {
+      var nn = solveWeightsNonNeg(unit, W);
+      if (nn && residualOf(nn) < 1e-6) { weights = nn; neg = false; }
+    }
+
+    var gens = [], err = 0, ok = !!weights;
+    if (weights) {
+      var sum = [0, 0, 0];
+      for (var i = 0; i < unit.length; i++) {
+        if (!(weights[i] >= -1e-9)) neg = true;
+        gens.push([unit[i][0] * weights[i], unit[i][1] * weights[i], unit[i][2] * weights[i]]);
+        sum[0] += gens[i][0]; sum[1] += gens[i][1]; sum[2] += gens[i][2];
+      }
+      err = Math.hypot(sum[0] - W[0], sum[1] - W[1], sum[2] - W[2]);
+    }
+    /* 共线（含重复）基色合并：否则对应面片退化被跳过，曲面会破洞 */
+    var mergedInfo = mergeCollinear(gens, 1e-9);
+    gens = mergedInfo.gens;
+    var offset = mergedInfo.offset;
+
+    var inv = srgbMatrix ? invert3(flatten3(srgbMatrix)) : null;
+    var jmhParams = null;
+    if (jmhApi && primaries.length >= 3) {
+      try { jmhParams = jmhApi.init(primaries, whiteXY); } catch (e) { jmhParams = null; }
+    }
+    return {
+      slug: (entry && entry.slug) || 'custom-multi',
+      title: (entry && entry.title) || '自定义多基色',
+      white: W,
+      multi: true,
+      primaries: primaries,
+      gens: gens,
+      offset: offset,
+      mergedGroups: mergedInfo.merged,
+      weights: weights || [],
+      whiteError: err,
+      weightOk: ok && !neg,
+      negativeWeights: neg,
+      jmhParams: jmhParams,
+      colorXyz: function (xyz) {
+        if (!inv) return [0.8, 0.8, 0.8];
+        return previewColor(mulVec3(inv, xyz));
+      }
+    };
+  }
+
+  /* 由色品 (x, y)（Y 取 1）求 sRGB 预览色，给输入面板画小色块用；超出色域会裁剪 */
+  function previewForXy(xy, srgbMatrix) {
+    if (!srgbMatrix || !xy) return [0.8, 0.8, 0.8];
+    var inv = invert3(flatten3(srgbMatrix));
+    if (!inv) return [0.8, 0.8, 0.8];
+    var y = Math.max(xy[1], 1e-6);
+    var xyz = [xy[0] / y, 1, (1 - xy[0] - xy[1]) / y];
+    return previewColor(mulVec3(inv, xyz));
+  }
+
+  /* 解析用户输入的原色表：每行「名称 x y」或「x y」，逗号/空白分隔，# 开头是注释。
+     返回 { primaries: [[x,y], …], bad: [原始行…] } */
+  function parsePrimaries(text) {
+    var primaries = [], bad = [];
+    String(text || '').split(/\r?\n/).forEach(function (line) {
+      var t = line.trim();
+      if (!t || t.charAt(0) === '#') return;
+      var parts = t.split(/[\s,]+/).filter(function (v) { return v !== ''; });
+      if (!parts.length) return;
+      var nums = parts.map(Number);
+      var x, y;
+      if (parts.length >= 3 && !isFinite(nums[0])) { x = nums[1]; y = nums[2]; }
+      else { x = nums[0]; y = nums[1]; }
+      var okNum = isFinite(x) && isFinite(y);
+      /* x + y 恰好 = 1 是合法的（z = 0，例如 Rec.2020 红），只拒超过 1 的 */
+      if (!okNum || x <= 0 || y <= 0 || x + y > 1.000001) { bad.push(t); return; }
+      primaries.push([x, y]);
+    });
+    return { primaries: primaries, bad: bad };
+  }
+
+  /* 自定义多基色的 URL 编解码：`x1,y1_x2,y2_…*wx,wy*w1,w2,…`（权重段可选）。
+     分隔符选 _ 和 *：URLSearchParams 只对字母数字与 -._* 不编码，逗号由 ToolState 还原。 */
+  function encodeMulti(data) {
+    if (!data || !data.primaries || !data.primaries.length) return '';
+    var prim = data.primaries.map(function (p) {
+      return p[0].toFixed(4) + ',' + p[1].toFixed(4);
+    }).join('_');
+    var w = data.white || [0.3127, 0.329];
+    var out = prim + '*' + w[0].toFixed(4) + ',' + w[1].toFixed(4);
+    if (data.weights && data.weights.length) {
+      out += '*' + data.weights.map(function (v) { return v.toFixed(4); }).join(',');
+    }
+    return out;
+  }
+
+  function decodeMulti(text) {
+    if (!text) return null;
+    var seg = String(text).split('*');
+    var primaries = seg[0].split('_').map(function (t) {
+      var a = t.split(',').map(Number);
+      if (a.length !== 2 || !isFinite(a[0]) || !isFinite(a[1])) return null;
+      if (!(a[0] > 0 && a[1] > 0 && a[0] + a[1] <= 1.000001)) return null;
+      return [a[0], a[1]];
+    }).filter(function (v) { return !!v; });
+    if (primaries.length < 3) return null;
+    var white = [0.3127, 0.329];
+    if (seg[1]) {
+      var w = seg[1].split(',').map(Number);
+      if (w.length === 2 && isFinite(w[0]) && isFinite(w[1]) && w[1] > 0) white = [w[0], w[1]];
+    }
+    var weights = null;
+    if (seg[2]) {
+      var ws = seg[2].split(',').map(Number).filter(function (v) { return isFinite(v); });
+      if (ws.length === primaries.length) weights = ws;
+    }
+    return { primaries: primaries, white: white, weights: weights };
+  }
+
+  /* 面片枚举：返回 [{ base, gi, gj, sgn }] */
+  function multiFaces(gens) {
+    var n = gens.length, out = [];
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        var gi = gens[i], gj = gens[j];
+        var nx = gi[1] * gj[2] - gi[2] * gj[1];
+        var ny = gi[2] * gj[0] - gi[0] * gj[2];
+        var nz = gi[0] * gj[1] - gi[1] * gj[0];
+        if (!(Math.hypot(nx, ny, nz) > 1e-12)) continue;
+        for (var s = 0; s < 2; s++) {
+          var dir = s ? -1 : 1;
+          var base = [0, 0, 0];
+          for (var k = 0; k < n; k++) {
+            if (k === i || k === j) continue;
+            var d = dir * (nx * gens[k][0] + ny * gens[k][1] + nz * gens[k][2]);
+            if (d > 0) {
+              base[0] += gens[k][0]; base[1] += gens[k][1]; base[2] += gens[k][2];
+            }
+          }
+          var owner = new Array(n);
+          for (var k2 = 0; k2 < n; k2++) owner[k2] = 0;
+          for (var k3 = 0; k3 < n; k3++) {
+            if (k3 === i || k3 === j) continue;
+            var d2 = dir * (nx * gens[k3][0] + ny * gens[k3][1] + nz * gens[k3][2]);
+            owner[k3] = d2 > 0 ? 1 : 0;
+          }
+          out.push({ base: base, gi: gi, gj: gj, sgn: dir, i: i, j: j, owner: owner });
+        }
+      }
+    }
+    return out;
+  }
+
+  function buildMultiSurface(space, coord, subdiv, o) {
+    var S = Math.max(1, subdiv || 6);
+    var gens = space.gens || [];
+    var n = gens.length;
+    var faces = multiFaces(gens);
+    var offV = space.offset || [0, 0, 0];
+    var ox = offV[0], oy = offV[1], oz = offV[2];
+    var pos = [], col = [], idx = [];
+    var missing = 0, repairedCount = 0;
+
+    /* 顶点唯一化：用「n 维立方体里的参数向量」做键。
+       相邻面片共享一条边时，边上的点参数向量完全一致（其余分量都是 0/1 极值），
+       所以顶点严格共享，曲面严格封闭——不靠容差焊接。 */
+    var vmap = new Map();
+    function vertexOf(f, a, b) {
+      var key = '';
+      for (var k = 0; k < n; k++) {
+        var c = f.owner[k];
+        if (k === f.i) c = a / S;
+        else if (k === f.j) c = b / S;
+        key += (Math.round(c * S * 2) / 2) + ',';
+      }
+      var hit = vmap.get(key);
+      if (hit !== undefined) return hit;
+      var sa = a / S, sb = b / S;
+      var x = ox + f.base[0] + f.gi[0] * sa + f.gj[0] * sb;
+      var y = oy + f.base[1] + f.gi[1] * sa + f.gj[1] * sb;
+      var z = oz + f.base[2] + f.gi[2] * sa + f.gj[2] * sb;
+      var p = pointForXyz(space, coord, [x, y, z], o);
+      var bad = !p || !isFinite(p[0]) || !isFinite(p[1]) || !isFinite(p[2]);
+      if (bad) {
+        /* 病态顶点：黑点（xyY 色度未定义）、或白点不可达导致的面片含负亮度。
+           先在参数空间朝原点收缩，直到能转换；仍不行就落到白点的闭包点。
+           顶点按参数向量共享，所以相邻面片收缩后的位置也一致，不会裂开。 */
+        for (var shrink = 1; shrink <= 6 && bad; shrink++) {
+          var k2 = Math.pow(0.5, shrink);
+          p = pointForXyz(space, coord, [x * k2, y * k2, z * k2], o);
+          bad = !p || !isFinite(p[0]) || !isFinite(p[1]) || !isFinite(p[2]);
+          if (!bad) repairedCount++;
+        }
+        if (bad) {
+          p = singular(coord, space.white);
+          repairedCount++;
+          bad = !isFinite(p[0]) || !isFinite(p[1]) || !isFinite(p[2]);
+        }
+      }
+      if (bad) { vmap.set(key, -1); missing++; return -1; }
+      var v = pos.length / 3;
+      pos.push(p[0], p[1], p[2]);
+      var color = space.colorXyz([x, y, z]);
+      col.push(color[0], color[1], color[2]);
+      vmap.set(key, v);
+      return v;
+    }
+
+    for (var fi = 0; fi < faces.length; fi++) {
+      var f = faces[fi], grid = [];
+      for (var a = 0; a <= S; a++) {
+        grid[a] = [];
+        for (var b = 0; b <= S; b++) {
+          grid[a][b] = vertexOf(f, a, b);
+        }
+      }
+      for (var a3 = 0; a3 < S; a3++) for (var b3 = 0; b3 < S; b3++) {
+        var i0 = grid[a3][b3], i1 = grid[a3 + 1][b3], i2 = grid[a3 + 1][b3 + 1], i3 = grid[a3][b3 + 1];
+        if (i0 < 0 || i1 < 0 || i2 < 0 || i3 < 0) continue;
+        /* 绕向统一朝外：面片法线 = gi×gj，sgn=-1 那一侧反写 */
+        if (f.sgn > 0) idx.push(i0, i1, i2, i0, i2, i3);
+        else idx.push(i0, i3, i2, i0, i2, i1);
+      }
+    }
+
+    /* 顶点法线：三角形法线累加，再用「从体积中心指向外」校正方向
+       （不同坐标变换的手性不一致，用中心校正比判断行列式稳） */
+    var cnt = pos.length / 3;
+    var nx2 = new Float64Array(cnt), ny2 = new Float64Array(cnt), nz2 = new Float64Array(cnt);
+    var cx = 0, cy = 0, cz = 0;
+    for (var v = 0; v < cnt; v++) { cx += pos[v * 3]; cy += pos[v * 3 + 1]; cz += pos[v * 3 + 2]; }
+    if (cnt) { cx /= cnt; cy /= cnt; cz /= cnt; }
+    for (var t = 0; t < idx.length; t += 3) {
+      var a0 = idx[t] * 3, a1 = idx[t + 1] * 3, a2 = idx[t + 2] * 3;
+      var ux = pos[a1] - pos[a0], uy = pos[a1 + 1] - pos[a0 + 1], uz = pos[a1 + 2] - pos[a0 + 2];
+      var vx = pos[a2] - pos[a0], vy = pos[a2 + 1] - pos[a0 + 1], vz = pos[a2 + 2] - pos[a0 + 2];
+      var fnx = uy * vz - uz * vy, fny = uz * vx - ux * vz, fnz = ux * vy - uy * vx;
+      var mx = (pos[a0] + pos[a1] + pos[a2]) / 3 - cx;
+      var my = (pos[a0 + 1] + pos[a1 + 1] + pos[a2 + 1]) / 3 - cy;
+      var mz = (pos[a0 + 2] + pos[a1 + 2] + pos[a2 + 2]) / 3 - cz;
+      if (fnx * mx + fny * my + fnz * mz < 0) { fnx = -fnx; fny = -fny; fnz = -fnz; }
+      var tri = [a0, a1, a2];
+      for (var q = 0; q < 3; q++) {
+        var o3 = tri[q] / 3;
+        nx2[o3] += fnx; ny2[o3] += fny; nz2[o3] += fnz;
+      }
+    }
+    var nor = [];
+    for (var w = 0; w < cnt; w++) {
+      var l = Math.hypot(nx2[w], ny2[w], nz2[w]) || 1;
+      nor.push(nx2[w] / l, ny2[w] / l, nz2[w] / l);
+    }
+
+    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (var bi = 0; bi < pos.length; bi += 3) {
+      for (var bk = 0; bk < 3; bk++) {
+        if (pos[bi + bk] < bb[0][bk]) bb[0][bk] = pos[bi + bk];
+        if (pos[bi + bk] > bb[1][bk]) bb[1][bk] = pos[bi + bk];
+      }
+    }
+
+    return {
+      pos: new Float32Array(pos),
+      nor: new Float32Array(nor),
+      col: new Float32Array(col),
+      idx: new Uint16Array(idx),
+      bbox: bb,
+      missing: missing,
+      repaired: repairedCount,
+      faces: faces.length,
+      verts: cnt
+    };
+  }
+
+  /* 面片网格线：每片画边界 + 中线 */
+  function buildMultiGrid(space, coord, subdiv, o) {
+    var S = Math.max(1, subdiv || 6);
+    var faces = multiFaces(space.gens || []);
+    var pos = [];
+    var offG = space.offset || [0, 0, 0];
+    function at(f, sa, sb) {
+      var x = offG[0] + f.base[0] + f.gi[0] * sa + f.gj[0] * sb;
+      var y = offG[1] + f.base[1] + f.gi[1] * sa + f.gj[1] * sb;
+      var z = offG[2] + f.base[2] + f.gi[2] * sa + f.gj[2] * sb;
+      return pointForXyz(space, coord, [x, y, z], o);
+    }
+    faces.forEach(function (f) {
+      var steps = [0, 1 / 3, 2 / 3, 1];
+      steps.forEach(function (s) {
+        for (var k = 0; k < steps.length - 1; k++) {
+          var p0 = at(f, s, steps[k]), p1 = at(f, s, steps[k + 1]);
+          if (p0 && p1) pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
+          var q0 = at(f, steps[k], s), q1 = at(f, steps[k + 1], s);
+          if (q0 && q1) pos.push(q0[0], q0[1], q0[2], q1[0], q1[1], q1[2]);
+        }
+      });
+    });
+    return { pos: new Float32Array(pos) };
+  }
+
   /* ---------- 坐标轴刻度 ----------
      三根轴共用一套步长，同样长的刻度间隔代表同样的数值。 */
 
@@ -754,6 +1215,17 @@
     pointForXyz: pointForXyz,
     buildCustom: buildCustom,
     buildCustomGrid: buildCustomGrid,
+    solveWeights: solveWeights,
+    solveWeightsNonNeg: solveWeightsNonNeg,
+    makeMultiSpace: makeMultiSpace,
+    mergeCollinear: mergeCollinear,
+    parsePrimaries: parsePrimaries,
+    previewForXy: previewForXy,
+    encodeMulti: encodeMulti,
+    decodeMulti: decodeMulti,
+    multiFaces: multiFaces,
+    buildMultiSurface: buildMultiSurface,
+    buildMultiGrid: buildMultiGrid,
     lchToXyz: lchToXyz,
     niceStep: niceStep,
     tickCount: tickCount,

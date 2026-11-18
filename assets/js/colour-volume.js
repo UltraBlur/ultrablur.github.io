@@ -43,6 +43,15 @@
   var MUNSELL = cfg.munsell || null;
   var LOCUS3D = cfg.locus || null;
 
+  /* 自定义多基色：不走 data/ 里的空间清单，由用户输入原色实时构造 */
+  var CUSTOM_SLUG = 'custom-multi';
+  var DEFAULT_CUSTOM = {
+    primaries: [[0.708, 0.292], [0.170, 0.797], [0.131, 0.046], [0.068, 0.351]],
+    white: [0.3127, 0.329],
+    weights: null
+  };
+  var customSpace = null;
+
   var spaceBySlug = {};
   spaces.forEach(function (s) { spaceBySlug[s.slug] = s; });
 
@@ -171,6 +180,7 @@
     grid: true,
     /* 叠加层：都画在当前色彩空间之上，彼此独立 */
     layers: { pointer: false, munsell: false, locus: true },
+    ref: '',          // 参考色域（另一个空间的 slug；'' = 无）
     points: false,    // Pointer 的 576 个实测点（默认关，太密）
 
     cull: false,
@@ -188,6 +198,26 @@
   };
 
   var LAYER_KEYS = ['pointer', 'munsell', 'locus'];
+
+  /* 用「原色 + 白点（+ 权重）」造一个多基色空间对象 */
+  function buildCustomSpace(data) {
+    if (!data || !data.primaries || data.primaries.length < 3) return null;
+    try {
+      return geom.makeMultiSpace({
+        slug: CUSTOM_SLUG,
+        title: '自定义多基色',
+        primaries: data.primaries,
+        white: data.white || [0.3127, 0.329],
+        weights: data.weights && data.weights.length === data.primaries.length ? data.weights : null
+      }, cfg.srgbMatrix, JMH);
+    } catch (e) { return null; }
+  }
+
+  function parseNumbers(text, need) {
+    var out = String(text || '').split(/[\s,]+/).filter(function (v) { return v !== ''; }).map(Number);
+    out = out.filter(function (v) { return isFinite(v); });
+    return need && out.length < need ? null : out;
+  }
 
   function enabledLayers() {
     return LAYER_KEYS.filter(function (k) { return !!state.layers[k]; });
@@ -328,8 +358,15 @@
   }
 
   function rebuild() {
-    var primary = spaceBySlug[state.primary];
-    if (!primary) { primary = spaces[0]; state.primary = primary.slug; }
+    var primary;
+    if (state.primary === CUSTOM_SLUG) {
+      primary = customSpace || buildCustomSpace(state.custom || DEFAULT_CUSTOM);
+      customSpace = primary;
+      if (primary) primary.primaries = (state.custom || DEFAULT_CUSTOM).primaries;
+    } else {
+      primary = spaceBySlug[state.primary];
+      if (!primary) { primary = spaces[0]; state.primary = primary.slug; }
+    }
     if (!primary) return;
     /* Pointer 的色体只到 L* 15–90，两端平封——叠加时把这件事说出来 */
     var ptrNote = document.querySelector('[data-vol-pointer]');
@@ -338,7 +375,9 @@
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
     var opts = viewOpts();
 
-    var mesh = geom.buildSurface(primary, coord, N, opts);
+    var mesh = primary.multi
+      ? geom.buildMultiSurface(primary, coord, N, opts)
+      : geom.buildSurface(primary, coord, N, opts);
 
     var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
     for (var bi2 = 0; bi2 < mesh.pos.length; bi2 += 3) {
@@ -403,6 +442,19 @@
       addLayer('overlayLocus', lp, [0.30, 0.30, 0.34, 1], 'lines');
     }
 
+    /* 参考色域：把另一个空间画成线框，用来比体积大小（P7 vs P3 vs Rec.2020） */
+    if (state.ref && state.ref !== state.primary) {
+      var refSpace = state.ref === CUSTOM_SLUG
+        ? (customSpace || buildCustomSpace(state.custom || DEFAULT_CUSTOM))
+        : spaceBySlug[state.ref];
+      if (refSpace) {
+        var refGrid = refSpace.multi
+          ? geom.buildMultiGrid(refSpace, coord, N, opts)
+          : geom.buildGrid(refSpace, coord, Math.min(N, 20), 3, opts);
+        addLayer('overlayRef', refGrid.pos, [0.86, 0.30, 0.12, 1], 'lines');
+      }
+    }
+
     var frameInputs = [{ pos: axes.pos }];
     for (var lf = 0; lf < layerSpecs.length; lf++) frameInputs.push({ pos: layerSpecs[lf].pos });
     var frame = computeFrame([mesh].concat(frameInputs));
@@ -416,7 +468,7 @@
       liveLayers[layerSpecs[lg].key] = true;
     }
     /* 关掉的层要清空缓冲，否则会停在上一次的画面里 */
-    ['overlayPointer', 'overlayMunsell', 'overlayLocus'].forEach(function (k) {
+    ['overlayPointer', 'overlayMunsell', 'overlayLocus', 'overlayRef'].forEach(function (k) {
       if (!liveLayers[k] && buffers[k]) buffers[k].count = 0;
     });
     state.layerPos = layerSpecs.map(function (sp) { return sp.pos; });
@@ -424,7 +476,9 @@
     uploadSolid('primary', mesh);
 
     if (state.grid) {
-      var grid = geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
+      var grid = primary.multi
+        ? geom.buildMultiGrid(primary, coord, N, opts)
+        : geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
       applyFrame(grid.pos, frame);
       uploadLines('grid', grid.pos, [0.16, 0.16, 0.18, 0.30]);
     } else if (buffers.grid) {
@@ -454,10 +508,12 @@
     state.axesPos = axes.pos;
 
     var anchors = axes.labels.slice();
-    [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
-      var p = geom.pointFor(primary, coord, v[1], opts);
-      if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
-    });
+    if (!primary.multi) {
+      [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
+        var p = geom.pointFor(primary, coord, v[1], opts);
+        if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
+      });
+    }
 
     state.labels = anchors.map(function (a) {
       var p = [
@@ -517,9 +573,12 @@
         },
         bbox: [bb, bb2],
         frame: frame,
+        ref: state.ref,
+        layers: layerSpecs.map(function (sp) { return { key: sp.key, verts: sp.pos.length / 3 }; }),
         missing: mesh.missing,
         repaired: mesh.repaired,
-        sample: {
+        /* 多基色没有 3 通道 RGB→XYZ，pointFor 不适用 */
+        sample: primary.multi ? null : {
           W: geom.pointFor(primary, coord, [1, 1, 1], opts),
           K: geom.pointFor(primary, coord, [0, 0, 0], opts),
           R: geom.pointFor(primary, coord, [1, 0, 0], opts),
@@ -682,6 +741,7 @@
     /* 参考层全部压在实体之上：这些层是「顺手打开来对表」的，
        被色体挡住就没法对照了（光谱轨迹在三角形里的那一段尤其明显） */
     gl.disable(gl.DEPTH_TEST);
+    drawLines('overlayRef');
     drawLines('overlayLocus');
     drawLines('overlayMacadam');
     drawLines('overlayPointer');
@@ -883,8 +943,223 @@
     return el;
   }
 
+  /* ---------- 自定义多基色面板 ---------- */
+  var customPanel = document.querySelector('[data-vol-custom]');
+  var customStatus = document.querySelector('[data-vol-custom-status]');
+  var WHITE_PRESETS = {
+    d65: [0.3127, 0.3290],
+    d50: [0.3457, 0.3585],
+    dci: [0.3140, 0.3510],
+    c: [0.31006, 0.31616]
+  };
+
+  function setStatus(msg) {
+    if (customStatus) customStatus.textContent = msg;
+  }
+
+  function customN() {
+    var el = document.getElementById('vol-custom-n');
+    return el ? +el.value : 4;
+  }
+
+  function matchPreset(w) {
+    if (!w) return 'custom';
+    var hit = 'custom';
+    Object.keys(WHITE_PRESETS).forEach(function (k) {
+      var p = WHITE_PRESETS[k];
+      if (Math.abs(p[0] - w[0]) < 5e-4 && Math.abs(p[1] - w[1]) < 5e-4) hit = k;
+    });
+    return hit;
+  }
+
+  /* 每行：色块 + 序号 + x + y */
+  function renderCustomRows(data) {
+    var box = document.getElementById('vol-custom-rows');
+    if (!box) return;
+    var n = Math.max(3, Math.min(8, customN()));
+    var prim = (data && data.primaries) || [];
+    box.innerHTML = '';
+    for (var i = 0; i < n; i++) {
+      var p = prim[i] || [0.4, 0.4];
+      var row = document.createElement('label');
+      row.className = 'c-vol-custom-pri';
+      var sw = document.createElement('span');
+      sw.className = 'swatch';
+      var idx = document.createElement('span');
+      idx.textContent = String(i + 1);
+      var ix = document.createElement('input');
+      ix.type = 'text'; ix.value = Number(p[0]).toFixed(4); ix.setAttribute('data-x', '1');
+      var iy = document.createElement('input');
+      iy.type = 'text'; iy.value = Number(p[1]).toFixed(4); iy.setAttribute('data-y', '1');
+      row.appendChild(sw); row.appendChild(idx); row.appendChild(ix); row.appendChild(iy);
+      box.appendChild(row);
+      ix.addEventListener('input', updateSwatches);
+      iy.addEventListener('input', updateSwatches);
+    }
+    updateSwatches();
+  }
+
+  function readCustomRows() {
+    var box = document.getElementById('vol-custom-rows');
+    if (!box) return [];
+    var out = [];
+    Array.prototype.forEach.call(box.querySelectorAll('.c-vol-custom-pri'), function (row) {
+      var x = parseFloat(row.querySelector('[data-x]').value);
+      var y = parseFloat(row.querySelector('[data-y]').value);
+      out.push([isFinite(x) ? x : NaN, isFinite(y) ? y : NaN]);
+    });
+    return out;
+  }
+
+  function updateSwatches() {
+    var box = document.getElementById('vol-custom-rows');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('.c-vol-custom-pri'), function (row) {
+      var x = parseFloat(row.querySelector('[data-x]').value);
+      var y = parseFloat(row.querySelector('[data-y]').value);
+      var sw = row.querySelector('.swatch');
+      if (!isFinite(x) || !isFinite(y) || x <= 0 || y <= 0 || x + y > 1.000001) {
+        sw.style.background = '#f0f0f0';
+        return;
+      }
+      var c = geom.previewForXy([x, y], cfg.srgbMatrix).map(function (v) {
+        return Math.round(Math.max(0, Math.min(1, v)) * 255);
+      });
+      sw.style.background = 'rgb(' + c.join(',') + ')';
+    });
+  }
+
+  function fillCustomPanel(data) {
+    if (!data) return;
+    var nEl = document.getElementById('vol-custom-n');
+    if (nEl) nEl.value = String(Math.max(3, Math.min(8, data.primaries.length)));
+    renderCustomRows(data);
+    var wx = document.getElementById('vol-custom-wx');
+    var wy = document.getElementById('vol-custom-wy');
+    if (wx && data.white) wx.value = Number(data.white[0]).toFixed(4);
+    if (wy && data.white) wy.value = Number(data.white[1]).toFixed(4);
+    var gEl = document.getElementById('vol-custom-weights');
+    if (gEl) gEl.value = data.weights ? data.weights.map(function (v) { return v.toFixed(4); }).join(', ') : '';
+    var pre = document.getElementById('vol-custom-wpreset');
+    if (pre) pre.value = matchPreset(data.white);
+    var tEl = document.getElementById('vol-custom-primaries');
+    if (tEl) {
+      tEl.value = data.primaries.map(function (p, i) {
+        return 'P' + (i + 1) + ' ' + p[0].toFixed(4) + ' ' + p[1].toFixed(4);
+      }).join('\n');
+    }
+  }
+
+  function syncCustomPanel() {
+    if (customPanel) customPanel.hidden = state.primary !== CUSTOM_SLUG;
+  }
+
+  function applyCustom() {
+    /* 已经是自定义空间时（用户改了坐标再点应用），保持画面比例：
+       正交下视觉大小 ∝ zoom / fitHalfH，所以按新旧 fitHalfH 补偿 zoom；
+       透视下 dist = fitDist / zoom，zoom 不变即视觉不变，无需处理。 */
+    var wasCustom = state.primary === CUSTOM_SLUG && !!customSpace;
+    var keepHalfH = state.fitHalfH > 0 && isFinite(state.fitHalfH)
+      ? state.fitHalfH / state.zoom : 0;
+    var rows = readCustomRows();
+    var valid = rows.filter(function (p) {
+      return isFinite(p[0]) && isFinite(p[1]) && p[0] > 0 && p[1] > 0 && p[0] + p[1] <= 1.000001;
+    });
+    var wx = parseFloat((document.getElementById('vol-custom-wx') || {}).value);
+    var wy = parseFloat((document.getElementById('vol-custom-wy') || {}).value);
+    var white = (isFinite(wx) && isFinite(wy) && wy > 0) ? [wx, wy] : [0.3127, 0.329];
+    var gEl = document.getElementById('vol-custom-weights');
+    var weights = parseNumbers(gEl ? gEl.value : '', 3);
+    if (valid.length < 3) {
+      setStatus('至少需要 3 个合法基色（x > 0、y > 0、x + y ≤ 1）');
+      return;
+    }
+    var data = {
+      primaries: valid,
+      white: white,
+      weights: weights && weights.length === valid.length ? weights : null
+    };
+    var sp = buildCustomSpace(data);
+    if (!sp) { setStatus('构造失败：检查原色是否共线'); return; }
+    state.custom = data;
+    customSpace = sp;
+    state.primary = CUSTOM_SLUG;
+    if (primarySel) primarySel.value = CUSTOM_SLUG;
+    var msg = valid.length + ' 基色';
+    if (rows.length > valid.length) msg += '（忽略 ' + (rows.length - valid.length) + ' 行非法坐标）';
+    if (sp.negativeWeights) {
+      msg += ' · ⚠ 白点不在原色锥内：体积含负亮度，形状不可信（换白点或补基色）';
+    } else {
+      msg += ' · 白点残差 ' + sp.whiteError.toExponential(1);
+    }
+    if (sp.mergedGroups && sp.mergedGroups.length) {
+      msg += ' · 合并了 ' + sp.mergedGroups.length + ' 组共线基色';
+    }
+    setStatus(msg);
+    fillCustomPanel(data);
+    syncCustomPanel();
+    rebuild();
+    if (wasCustom && state.proj === 'ortho' && keepHalfH > 0) {
+      state.zoom = clampZoom(state.fitHalfH / keepHalfH);
+      state.dist = state.fitDist / state.zoom;
+      requestRender();
+    }
+    persistState();
+  }
+
+  bind('vol-custom-apply', 'click', function (e) { e.preventDefault(); applyCustom(); });
+
+  /* 基色数量变化：保留已有行的坐标 */
+  bind('vol-custom-n', 'change', function () {
+    var keep = readCustomRows().filter(function (p) { return isFinite(p[0]) && isFinite(p[1]); });
+    renderCustomRows({ primaries: keep });
+  });
+
+  /* 白点预设 ↔ 手填 */
+  bind('vol-custom-wpreset', 'change', function (e) {
+    var p = WHITE_PRESETS[e.target.value];
+    if (!p) return;
+    var wx = document.getElementById('vol-custom-wx');
+    var wy = document.getElementById('vol-custom-wy');
+    if (wx) wx.value = p[0].toFixed(4);
+    if (wy) wy.value = p[1].toFixed(4);
+  });
+  ['vol-custom-wx', 'vol-custom-wy'].forEach(function (id) {
+    bind(id, 'input', function () {
+      var pre = document.getElementById('vol-custom-wpreset');
+      if (!pre) return;
+      var wx = parseFloat(document.getElementById('vol-custom-wx').value);
+      var wy = parseFloat(document.getElementById('vol-custom-wy').value);
+      pre.value = matchPreset([wx, wy]);
+    });
+  });
+
+  /* 从文本批量填入 */
+  bind('vol-custom-parse', 'click', function (e) {
+    e.preventDefault();
+    var tEl = document.getElementById('vol-custom-primaries');
+    var parsed = geom.parsePrimaries(tEl ? tEl.value : '');
+    if (parsed.primaries.length < 3) { setStatus('文本里没有足够的合法基色'); return; }
+    var nEl = document.getElementById('vol-custom-n');
+    if (nEl) nEl.value = String(Math.max(3, Math.min(8, parsed.primaries.length)));
+    renderCustomRows({ primaries: parsed.primaries });
+    setStatus('已从文本填入 ' + parsed.primaries.length + ' 个基色，点「应用」生效');
+  });
+
+  bind('vol-custom-apply', 'click', function (e) { e.preventDefault(); applyCustom(); });
+
+  var refSel = bind('vol-ref', 'change', function (e) {
+    state.ref = e.target.value || '';
+    rebuild();
+    persistState();
+  });
+
   var primarySel = bind('vol-space', 'change', function (e) {
     state.primary = e.target.value;
+    if (state.primary === CUSTOM_SLUG && !customSpace) {
+      customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
+    }
+    syncCustomPanel();
     rebuild();
     persistState();
   });
@@ -972,7 +1247,9 @@
       space: state.primary,
       coord: state.coord,
       proj: state.proj,
-      lay: enabledLayers()
+      lay: enabledLayers(),
+      ref: state.ref,
+      mp: state.primary === CUSTOM_SLUG && state.custom ? geom.encodeMulti(state.custom) : ''
     });
   }
 
@@ -981,12 +1258,19 @@
     state.coord = next.coord;
     state.proj = next.proj;
     setLayers(next.lay);
+    state.ref = next.ref || '';
+    if (next.mp) {
+      var dec = geom.decodeMulti(next.mp);
+      if (dec) { state.custom = dec; customSpace = buildCustomSpace(dec); fillCustomPanel(dec); }
+    }
     if (state.coord === 'jmh' && !JMH) state.coord = 'lab';
 
     var spaceEl = document.getElementById('vol-space');
     var coordEl = document.getElementById('vol-coord');
     var projEl = document.getElementById('vol-proj');
     if (spaceEl) spaceEl.value = state.primary;
+    var refEl = document.getElementById('vol-ref');
+    if (refEl) refEl.value = state.ref;
     if (coordEl) coordEl.value = state.coord;
     if (projEl) projEl.value = state.proj;
 
@@ -1004,10 +1288,20 @@
   if (projSel) state.proj = projSel.value === 'persp' ? 'persp' : 'ortho';
 
   var QS = window.ToolState ? {
-    space: { type: 'string', values: spaces.map(function (s) { return s.slug; }), default: state.primary },
+    space: {
+      type: 'string',
+      values: spaces.map(function (s) { return s.slug; }).concat([CUSTOM_SLUG]),
+      default: state.primary
+    },
     coord: { type: 'string', values: coordSel ? Array.prototype.map.call(coordSel.options, function (o) { return o.value; }) : ['lab'], default: 'lab' },
     proj: { type: 'string', values: ['persp', 'ortho'], default: 'ortho' },
-    lay: { type: 'list', values: LAYER_KEYS, default: ['locus'] }
+    lay: { type: 'list', values: LAYER_KEYS, default: ['locus'] },
+    mp: { type: 'string', default: '' },
+    ref: {
+      type: 'string',
+      values: [''].concat(spaces.map(function (s) { return s.slug; }), [CUSTOM_SLUG]),
+      default: ''
+    }
   } : null;
   if (QS) {
     var q = window.ToolState.parse(QS, window.location.search);
@@ -1015,6 +1309,11 @@
     state.coord = q.coord;
     state.proj = q.proj;
     setLayers(q.lay);
+    state.ref = q.ref || '';
+    if (q.mp) {
+      var dec2 = geom.decodeMulti(q.mp);
+      if (dec2) { state.custom = dec2; customSpace = buildCustomSpace(dec2); }
+    }
   }
 
   // 没加载到 JMh 内核时把这一项从下拉里摘掉，别让用户选到一个空体积
@@ -1026,6 +1325,8 @@
     }
   }
 
+  if (state.primary === CUSTOM_SLUG) customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
+  if (refSel) refSel.value = state.ref;
   if (primarySel) primarySel.value = state.primary;
   if (coordSel) coordSel.value = state.coord;
   if (projSel) projSel.value = state.proj;
@@ -1035,6 +1336,9 @@
   });
 
   updateCondVisibility();
+  if (state.custom) fillCustomPanel(state.custom);
+  else renderCustomRows(DEFAULT_CUSTOM);
+  syncCustomPanel();
 
   window.addEventListener('popstate', function () {
     if (!QS) return;

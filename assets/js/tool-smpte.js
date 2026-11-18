@@ -28,7 +28,7 @@
     citedBy: 'Cited by', official: 'Official entry', family: 'All versions', copy: 'Copy citation',
     copied: 'Citation copied', loading: 'Loading…', page: 'p.',
     source: 'Source', snapshot: 'Official snapshot', built: 'Index built',
-    localNote: 'Local PDFs are used only to build this index; no PDFs are hosted here.',
+    localNote: 'Local mirror files are used only to extract metadata and summaries; no PDFs are hosted here.',
     kwDocs: 'documents', showAll: 'Show all', filterBy: 'Filter',
   } : {
     state: { active: '现行', stabilized: '稳定版', withdrawn: '已撤销' },
@@ -37,7 +37,7 @@
     results: '条结果', found: '找到', noResults: '没有匹配结果',
     noResultsHint: '试试编号（如 2110-10）或关键词（如 HDR、DCP、IMF）。',
     idleTitle: '检索 SMPTE 文档库',
-    idleHint: '每条结果都指向 pub.smpte.org 的官方条目；本地 PDF 只用于建立全文索引，不对外提供。',
+    idleHint: '每条结果都指向 pub.smpte.org 的官方条目；本地镜像只用于抽取元数据与摘要，不对外提供。',
     filters: '筛选', clear: '清除', clearAll: '清除全部',
     keyword: '关键词', keywordIndex: '关键词索引',
     kwHint: '从标题、定义与缩略语中抽取的全部词条。点击任一关键词列出相关文档。',
@@ -47,7 +47,7 @@
     official: '官网条目', family: '全部版本', copy: '复制引用', copied: '引用已复制',
     loading: '载入中…', page: '页',
     source: '来源', snapshot: '官网快照', built: '索引构建',
-    localNote: '本地 PDF 仅用于建立索引，本页不托管任何 PDF。',
+    localNote: '本地镜像仅用于抽取元数据与摘要，本页不托管任何 PDF。',
     kwDocs: '份文档', showAll: '全部显示', filterBy: '筛选',
   };
 
@@ -691,7 +691,7 @@
     </a>`).join('');
     box.innerHTML = `<div class="sm-home">
       <p class="sm-home-lead">${EN
-        ? 'Browse the library by type or topic below. Type a designation or keyword at any time to search full text.'
+        ? 'Browse the library by type or topic below. Type a designation, scope term or keyword at any time to search the catalogue.'
         : '下面按类型和主题分组概览文档，点「查看全部」浏览该分类；输入编号、标题、Scope 或关键词即可检索。'}</p>
       <div class="sm-cat-grid">${types.map(typeCard).join('')}</div>
       <section class="sm-home-block">
@@ -807,7 +807,8 @@
       [EN ? 'Versions' : '版本', fmt(meta.versions)],
       [EN ? 'Locally mirrored' : '本地已镜像', fmt(meta.local_versions)],
       [EN ? 'Keyword entries' : '关键词条', fmt(meta.keywords)],
-      [EN ? 'OCR fallback' : 'OCR 补充', fmt(meta.ocr || 0)],
+      [EN ? 'OCR processed' : 'OCR 处理', fmt(meta.ocr || 0)],
+      [EN ? 'Index scope' : '索引范围', EN ? 'Designation, title, scope, keywords' : '编号、标题、Scope、关键词'],
       [EN ? 'Official snapshot' : '官网快照', esc(meta.snapshot_date || '')],
       [EN ? 'Index built' : '索引构建', esc(meta.built_at || '')],
       [EN ? 'Types' : '类型', Object.entries(meta.types || {}).map(([k, v]) => `${k} ${fmt(v)}`).join(' · ')],
@@ -835,7 +836,7 @@
       <h2>${EN ? 'How it is built' : '构建方式'}</h2>
       <ul>
         <li>${EN ? 'Titles, states, versions and official URLs are crawled from pub.smpte.org and cached as a snapshot.' : '标题、状态、版本与官网链接来自 pub.smpte.org 的快照抓取；'}</li>
-        <li>${EN ? 'Full text is extracted from the local mirror (PDF / HTML package) only to build the Pagefind index.' : '全文来自本地镜像（PDF / HTML 包）的抽取，仅用于生成 Pagefind 索引；'}</li>
+        <li>${EN ? 'Pagefind indexes only designations, titles, scopes and keywords; document bodies are not included.' : 'Pagefind 只索引编号、标题、Scope 与关键词，不包含标准正文；'}</li>
         <li>${EN ? 'Results open the official entry; local files never leave this machine.' : '结果跳转官网条目；本地文件不进入站点、不对外提供。'}</li>
       </ul>
       <p class="sm-note">${EN ? 'SMPTE, the SMPTE logo and document texts are property of the Society of Motion Picture and Television Engineers. This is an independent research index.' : 'SMPTE 名称、标识与文档正文归 Society of Motion Picture and Television Engineers 所有；本页是独立的研究性索引。'}</p>

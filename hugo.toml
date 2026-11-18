@@ -20,13 +20,8 @@ pygmentsCodefences       = true
     homepage             = "main"                           # What to call the home page link, link will not be rendered if empty
     footerText           = ""
 
-[[params.mainMenu]]
-    link = "/posts/"
-    text = "posts"
-
-[[params.mainMenu]]
-    link = "/gallery/"
-    text = "gallery"
+# 首页入口：目前只公开 colour 与 tools。其余页面内容未就绪，先不接入导航
+# （页面仍然构建、可直链访问，只是不出现在首页大链接和页脚菜单里）；恢复时取消注释即可。
 
 [[params.mainMenu]]
     link = "/colour/"
@@ -36,13 +31,21 @@ pygmentsCodefences       = true
     link = "/tools/"
     text = "tools"
 
-[[params.mainMenu]]
-    link = "/archive"
-    text = "archive"
-
-[[params.mainMenu]]
-    link = "/about"
-    text = "Gao Huyuchen"
+# [[params.mainMenu]]
+#     link = "/posts/"
+#     text = "posts"
+#
+# [[params.mainMenu]]
+#     link = "/gallery/"
+#     text = "gallery"
+#
+# [[params.mainMenu]]
+#     link = "/archive"
+#     text = "archive"
+#
+# [[params.mainMenu]]
+#     link = "/about"
+#     text = "Gao Huyuchen"
 
 [markup.goldmark.renderer]
   # 页面正文里用了少量原生 HTML（<strong>、<details>）；默认 unsafe=false 会把它们静默丢掉
