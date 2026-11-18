@@ -95,6 +95,9 @@ jobs:
       - name: 公开边界检查
         run: bash scripts/verify/public-boundary.sh
 
+      - name: 同步检查
+        run: node scripts/verify/sync_check.mjs --built public
+
       - name: 上传构建产物
         uses: actions/upload-pages-artifact@v3
         with:

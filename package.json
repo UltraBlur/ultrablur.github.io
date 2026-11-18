@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "hugo serve",
     "build": "hugo --gc --minify",
-    "test": "bash scripts/verify/tests.sh"
+    "test": "bash scripts/verify/tests.sh",
+    "verify": "node scripts/verify/sync_check.mjs",
+    "verify:built": "node scripts/verify/sync_check.mjs --built public"
   },
   "repository": {
     "type": "git",

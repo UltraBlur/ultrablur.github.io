@@ -35,6 +35,9 @@ run aces13            assets/js/lib/aces13.js data/aces13.json tests/fixtures/ac
 run volume-geometry   assets/js/colour-volume-geom.js assets/js/colour-models.js assets/js/lib/aces-jmh.js data/pointerGamut.json
 run local-exclude
 
+echo "== sync"
+node scripts/verify/sync_check.mjs
+
 if [ "$skipped" -gt 0 ]; then
   echo "（${skipped} 个套件因缺少公开依赖被跳过）"
 fi

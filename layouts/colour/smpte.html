@@ -10,6 +10,7 @@
 {{ define "section_content" }}
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
+{{ $meta := transform.Unmarshal (os.ReadFile "static/smpte/data/meta.json") }}
 <div class="c-page sm-page" data-lang="{{ $lang }}">
   <nav class="c-crumb" aria-label="breadcrumb">
     <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ cond $en "Home" "首页" }}</a> /
@@ -21,12 +22,12 @@
     <div class="sm-hero-text">
       <p class="sm-kicker">SMPTE Document Library</p>
       <h1>{{ cond $en "SMPTE standards" "SMPTE 文档库" }}</h1>
-      <p class="sm-lead">{{ cond $en "Designations, titles, keywords and official scopes. Results open the official entry on pub.smpte.org." "905 部标准 · 1,234 个版本 · 元数据检索 · 关键词索引 · 一键直达 SMPTE 官网对应条目" }}</p>
+      <p class="sm-lead">{{ cond $en (printf "%d standards in %s versions · metadata search over titles, scopes and keywords · straight to pub.smpte.org" (int $meta.families) (lang.FormatNumber 0 (int $meta.versions))) (printf "%d 部标准 · %s 个版本 · 元数据检索 · 关键词索引 · 一键直达 SMPTE 官网对应条目" (int $meta.families) (lang.FormatNumber 0 (int $meta.versions))) }}</p>
     </div>
     <div class="sm-hero-side" id="sm-hero-side">
-      <div class="sm-stat"><b>905</b><span>{{ cond $en "documents" "文档" }}</span></div>
-      <div class="sm-stat"><b>1,234</b><span>{{ cond $en "versions" "版本" }}</span></div>
-      <div class="sm-stat"><b>11-11</b><span>{{ cond $en "snapshot" "官网快照" }}</span></div>
+      <div class="sm-stat"><b>{{ int $meta.families }}</b><span>{{ cond $en "documents" "文档" }}</span></div>
+      <div class="sm-stat"><b>{{ lang.FormatNumber 0 (int $meta.versions) }}</b><span>{{ cond $en "versions" "版本" }}</span></div>
+      <div class="sm-stat"><b>{{ substr $meta.snapshot_date 5 }}</b><span>{{ cond $en "snapshot" "官网快照" }}</span></div>
     </div>
   </header>
 

@@ -110,3 +110,35 @@ bash scripts/verify/public-boundary.sh   # 构建后边界检查
 - 不引入第三方 JS；
 - 不擅自改发布流程或密钥；
 - 不把未公开内容写进公开提交信息或公开文档。
+
+## 11. 同步规则（同一事实只维护一份）
+
+同一数字、名称或统计一旦出现在两个以上地方，就是「同步点」。硬性规则：
+
+1. **能由数据算出的，页面必须从数据取**，不要另写一份：
+   - 色域条目/分类 → `data/colourspaces.yaml`（模板用 `partial "tool-spaces.html"` 计算）
+   - SMPTE 文档数、版本数、快照日期 → `static/smpte/data/meta.json`（模板用 `os.ReadFile` 读取）
+2. **确实要写死在文案里的数字**（选项数、手写统计），必须在 `scripts/verify/sync_check.mjs` 里加一条断言；不登记就不允许合并。
+3. **改完必须跑**：
+
+   ```bash
+   npm test                    # 源码级同步检查 + 公开测试
+   hugo --gc --minify          # 构建
+   npm run verify:built        # 构建产物级检查（描述、统计、内链、锚点）
+   ```
+
+   CI 在构建后、部署前跑同一检查；任何一项不通过都不部署。
+
+4. **新增工具/页面的顺序**：先建页面并登记数据 → 再改导航/索引 → 最后加描述；描述里的数字如果是写死的，回第 2 条登记断言。
+
+### 同步点清单
+
+| 事实 | 唯一来源 | 关联位置 | 兜底检查 |
+|---|---|---|---|
+| 色域条目、分类 | `data/colourspaces.yaml` | 页面、侧栏、`/colour/` 索引、比对工具 | 数据 ↔ 页面集合、中英页数 |
+| 色域计数 | 模板实时计算 | `/tools/` 描述、比对页数据 | 构建产物描述 vs 数据 |
+| SMPTE 文档/版本/快照 | `static/smpte/data/meta.json` | SMPTE 页统计、`/tools/` 描述 | 源码/产物 vs meta、Pagefind 页数 |
+| 坐标/平面/纵轴数 | 各自模板的 option 列表 | `/tools/` 描述 | 选项数 vs 描述 |
+| Pointer / Munsell 点数 | `data/pointerGamut.json`、`data/munsellRenotation.json` | 色体积、`/tools/` 描述 | 数据 vs 描述 |
+| 中英页面 | `content/colour/<slug>` + 英文页 `ref` | 语言切换 | ref 指向存在页面 |
+| 内链与锚点 | 页面自身 | 全站 | 构建产物零坏链/坏锚点 |
