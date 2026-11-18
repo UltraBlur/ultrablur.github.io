@@ -12,11 +12,11 @@
      页面不存在（未建、draft、内部页不在公开分支）就不渲染条目，避免死链。
      所以新增工具时：写好页面，再往下面两个 slice 里加一行说明即可。 */}}
 {{ $tools := slice
-  (dict "slug" "gamut-volume" "zhd" "显示空间的三维色体 · 11 种坐标（含 CAM16 / Hellwig JMh / ZCAM）· 可叠 Pointer's Gamut 叠加层" "end" "3D volumes of display spaces · 11 coordinate systems (CAM16, Hellwig JMh, ZCAM…) · optional Pointer's Gamut overlay")
-  (dict "slug" "compare" "zhd" (printf "全部 %d 个色域任选两个 · CIE 1931 轨迹上的原色三角形 · xy 面积、交集与 Pointer's Gamut 覆盖率" $gamutCount) "end" (printf "Any two of the %d gamuts · primaries triangles on CIE 1931 · xy area, intersection and Pointer's Gamut coverage" $gamutCount))
-  (dict "slug" "transfer" "zhd" "编码 / 解码双向叠加 · 纵轴线性、对数、相对峰值、档位或 PQ 码值 · 曲线自选、参数可读" "end" "OETF and EOTF overlaid · y axis in cd/m², log, relative, stops or PQ code · curves picked per space")
+  (dict "slug" "gamut-volume" "zhd" "显示空间的三维色体 · 11 种坐标（含 CAM16 / Hellwig JMh / ZCAM / JzAzBz）· 三种叠加层：Pointer's Gamut（576 实测点）、Munsell 2734、光谱轨迹 · 正交 / 透视" "end" "3D volumes of display spaces · 11 coordinate systems (CAM16, Hellwig JMh, ZCAM, JzAzBz…) · three overlays: Pointer's Gamut (576 measured points), Munsell 2734 and the spectral locus · orthographic or perspective")
+  (dict "slug" "compare" "zhd" (printf "全部 %d 个色域任选两个 · CIE 1931 轨迹上的原色三角形 · xy 面积、交集、交集占 A/B 比例与 Pointer's Gamut 覆盖率" $gamutCount) "end" (printf "Any two of the %d gamuts · primaries triangles on CIE 1931 · xy area, intersection, share of A/B and Pointer's Gamut coverage" $gamutCount))
+  (dict "slug" "transfer" "zhd" "编码 / 解码双向叠加 · 5 种纵轴：cd/m² 线性、对数、相对峰值、档位、PQ 码值 · 曲线自选、参数可读" "end" "OETF and EOTF overlaid · five y axes: cd/m² linear/log, relative to peak, stops, PQ code · curves picked per space, parameters shown")
   (dict "slug" "inspector" "zhd" "六种选色平面：HSV / LCH / OKLCH / JMH（CAM02）/ JMH（Hellwig）/ JzCH · 全模型坐标、越界灰显" "end" "Six picking planes: HSV, LCH, OKLCH, JMH (CAM02), JMH (Hellwig), JzCH · every model's coordinates, out-of-gamut greyed")
-  (dict "slug" "smpte" "zhd" "905 部标准 / 1,234 个版本 · 全文检索、关键词索引、目录浏览 · 一键直达 pub.smpte.org" "end" "905 standards in 1,234 versions · full-text search, keyword index, catalogue · straight to pub.smpte.org")
+  (dict "slug" "smpte" "zhd" "905 部标准 / 1,234 个版本 · 标题 / Scope / 关键词元数据检索 · 类型、状态、年份筛选 · 一键直达 pub.smpte.org" "end" "905 standards in 1,234 versions · metadata search over titles, scopes and keywords · type, state and year filters · straight to pub.smpte.org")
 }}
 {{/* 内部页面：内容不进公开仓库，公开分支上没有这些文件，条目随之消失 */}}
 {{ $internal := slice
