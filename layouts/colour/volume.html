@@ -92,6 +92,12 @@
 
         <div class="c-vol-custom" data-vol-custom hidden>
           <div class="c-vol-custom-top">
+            <label class="c-vol-custom-field">{{ cond $en "Y values" "亮度设定" }}
+              <select id="vol-custom-ymode" title="{{ cond $en "From white point: the white point is the input and Y is solved. Entered directly: your Y values decide the white point, which becomes a result." "按白点分配：白点是输入，Y 由它解出。直接输入 Y：Y 决定白点，白点变成结果。" }}">
+                <option value="auto">{{ cond $en "From white point" "按白点分配" }}</option>
+                <option value="manual">{{ cond $en "Entered directly" "直接输入 Y" }}</option>
+              </select>
+            </label>
             <label class="c-vol-custom-field">{{ cond $en "Primaries" "基色数量" }}
               <select id="vol-custom-n">
                 <option value="3">3</option>
@@ -102,38 +108,56 @@
                 <option value="8">8</option>
               </select>
             </label>
-            <label class="c-vol-custom-field">{{ cond $en "White preset" "白点预设" }}
-              <select id="vol-custom-wpreset">
-                <option value="d65" selected>D65</option>
-                <option value="d50">D50</option>
-                <option value="dci">DCI</option>
-                <option value="c">C</option>
-                <option value="custom">{{ cond $en "Custom" "自定义" }}</option>
-              </select>
-            </label>
-            <label class="c-vol-custom-field">{{ cond $en "White x" "白点 x" }}
-              <input id="vol-custom-wx" type="text" size="8" value="0.3127">
-            </label>
-            <label class="c-vol-custom-field">{{ cond $en "White y" "白点 y" }}
-              <input id="vol-custom-wy" type="text" size="8" value="0.3290">
-            </label>
+            <span class="c-vol-white-group" data-vol-white-group>
+              <label class="c-vol-custom-field">{{ cond $en "White preset" "白点预设" }}
+                <select id="vol-custom-wpreset">
+                  <option value="d65" selected>D65</option>
+                  <option value="d50">D50</option>
+                  <option value="dci">DCI</option>
+                  <option value="c">C</option>
+                  <option value="custom">{{ cond $en "Custom" "自定义" }}</option>
+                </select>
+              </label>
+              <label class="c-vol-custom-field">{{ cond $en "White x" "白点 x" }}
+                <input id="vol-custom-wx" type="text" size="8" value="0.3127">
+              </label>
+              <label class="c-vol-custom-field">{{ cond $en "White y" "白点 y" }}
+                <input id="vol-custom-wy" type="text" size="8" value="0.3290">
+              </label>
+            </span>
+            <span class="c-vol-custom-actual" data-vol-actual-white></span>
+            <button type="button" id="vol-custom-normalize" class="c-vol-btn" hidden>{{ cond $en "Normalise Y (ΣY = 1)" "归一化 Y（ΣY = 1）" }}</button>
+          </div>
+          <details class="c-vol-custom-pin" data-vol-pin hidden>
+            <summary>{{ cond $en "Adjust the Y split" "调整亮度分配" }}</summary>
+            <div class="c-vol-custom-pin-body">
+              <label class="c-vol-custom-field">{{ cond $en "Fix" "固定" }}
+                <select id="vol-custom-pinkey"></select>
+              </label>
+              <span class="c-vol-custom-pin-range" data-vol-pin-range hidden>
+                <input id="vol-custom-pinval" type="range" min="0" max="1" step="0.002" value="0" aria-label="{{ cond $en "Fixed Y" "固定 Y" }}">
+                <span class="c-vol-custom-pinread" data-vol-pinread></span>
+              </span>
+              <span class="c-vol-custom-pin-hint">{{ cond $en "the rest are solved from the white point" "其余按白点解出" }}</span>
+            </div>
+          </details>
+          <div class="c-vol-custom-rowhead" aria-hidden="true"><span></span><span>x</span><span>y</span><span>Y</span></div>
+          <div class="c-vol-custom-rows" id="vol-custom-rows"></div>
+          <div class="c-vol-custom-bottom">
             <button type="button" id="vol-custom-apply" class="c-vol-btn">{{ cond $en "Apply" "应用" }}</button>
             <span class="c-vol-custom-status" data-vol-custom-status></span>
           </div>
-          <div class="c-vol-custom-rows" id="vol-custom-rows"></div>
           <details class="c-vol-custom-adv">
-            <summary>{{ cond $en "Paste list / luminance weights" "批量粘贴 / 亮度权重" }}</summary>
+            <summary>{{ cond $en "Examples and paste" "示例与批量粘贴" }}</summary>
             <div class="c-vol-custom-adv-body">
               <textarea id="vol-custom-primaries" rows="4" spellcheck="false" autocapitalize="off" placeholder="R 0.708 0.292&#10;G 0.170 0.797&#10;B 0.131 0.046"></textarea>
               <div class="c-vol-custom-adv-side">
+                <button type="button" id="vol-custom-ex-rgb" class="c-vol-btn">{{ cond $en "sRGB, 3 primaries" "sRGB 三基色" }}</button>
+                <button type="button" id="vol-custom-ex-rgbw" class="c-vol-btn">{{ cond $en "sRGB + W" "sRGB + W" }}</button>
                 <button type="button" id="vol-custom-parse" class="c-vol-btn">{{ cond $en "Fill from text" "从文本填入" }}</button>
-                <label class="c-vol-custom-field">{{ cond $en "Weights (blank = solve)" "亮度权重（留空自动求）" }}
-                  <input id="vol-custom-weights" type="text" placeholder="{{ cond $en "auto" "自动" }}" size="18">
-                </label>
               </div>
             </div>
           </details>
-          <p class="c-vol-hint">{{ cond $en "Volume = Minkowski sum of the primary vectors (2·C(n,2) parallelogram facets). Weights solve ΣY·u = white; n>3 uses the minimum-norm solution. Multi-primary displays have no public standard dataset — coordinates are vendor/paper specific, so enter your own." "体积 = 各基色向量的闵可夫斯基和（2·C(n,2) 个平行四边形面片）。权重由 ΣY·u = 白点 解出；n>3 取最小范数解。多基色显示没有公开标准数据集——坐标因样机而异，请填自己的实测值。" }}</p>
         </div>
 
         <div class="c-vol-controls c-ctl">

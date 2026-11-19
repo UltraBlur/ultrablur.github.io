@@ -45,6 +45,9 @@
 
   /* 自定义多基色：不走 data/ 里的空间清单，由用户输入原色实时构造 */
   var CUSTOM_SLUG = 'custom-multi';
+  var pageLang = (document.querySelector('.c-page') || {}).getAttribute
+    ? document.querySelector('.c-page').getAttribute('data-lang') : 'zh';
+  function T(zh, en) { return pageLang === 'en' ? en : zh; }
   var DEFAULT_CUSTOM = {
     primaries: [[0.708, 0.292], [0.170, 0.797], [0.131, 0.046], [0.068, 0.351]],
     white: [0.3127, 0.329],
@@ -199,16 +202,23 @@
 
   var LAYER_KEYS = ['pointer', 'munsell', 'locus'];
 
-  /* 用「原色 + 白点（+ 权重）」造一个多基色空间对象 */
+  /* 用「原色 + 白点（+ 权重）」造一个多基色空间对象。
+     权重缺省时若有固定项，先按固定项把其余基色的 Y 解出来——URL 回填走的是这条路，
+     否则固定状态在刷新后会退回最小范数解。 */
   function buildCustomSpace(data) {
     if (!data || !data.primaries || data.primaries.length < 3) return null;
+    var white = data.white || [0.3127, 0.329];
+    var weights = data.weights && data.weights.length === data.primaries.length ? data.weights : null;
+    if (!weights && data.pin && data.pin.index >= 0 && data.pin.index < data.primaries.length) {
+      weights = geom.solvePinned(data.primaries, white, data.pin.index, data.pin.value) || null;
+    }
     try {
       return geom.makeMultiSpace({
         slug: CUSTOM_SLUG,
         title: '自定义多基色',
         primaries: data.primaries,
-        white: data.white || [0.3127, 0.329],
-        weights: data.weights && data.weights.length === data.primaries.length ? data.weights : null
+        white: white,
+        weights: weights
       }, cfg.srgbMatrix, JMH);
     } catch (e) { return null; }
   }
@@ -983,15 +993,25 @@
       var p = prim[i] || [0.4, 0.4];
       var row = document.createElement('label');
       row.className = 'c-vol-custom-pri';
+      var mark = document.createElement('span');
+      mark.className = 'c-vol-custom-mark';
       var sw = document.createElement('span');
       sw.className = 'swatch';
       var idx = document.createElement('span');
+      idx.className = 'c-vol-custom-idx';
       idx.textContent = String(i + 1);
+      mark.appendChild(sw); mark.appendChild(idx);
       var ix = document.createElement('input');
       ix.type = 'text'; ix.value = Number(p[0]).toFixed(4); ix.setAttribute('data-x', '1');
       var iy = document.createElement('input');
       iy.type = 'text'; iy.value = Number(p[1]).toFixed(4); iy.setAttribute('data-y', '1');
-      row.appendChild(sw); row.appendChild(idx); row.appendChild(ix); row.appendChild(iy);
+      var iYv = document.createElement('input');
+      iYv.type = 'text'; iYv.setAttribute('data-yv', '1');
+      iYv.title = T('该基色满值时的最大 Y（白点 Y = 1）', 'Max Y at full value (white Y = 1)');
+      if (data && data.weights && isFinite(data.weights[i])) iYv.value = Number(data.weights[i]).toFixed(6);
+      var auto = autoYOn();
+      iYv.disabled = auto;
+      row.appendChild(mark); row.appendChild(ix); row.appendChild(iy); row.appendChild(iYv);
       box.appendChild(row);
       ix.addEventListener('input', updateSwatches);
       iy.addEventListener('input', updateSwatches);
@@ -1006,9 +1026,161 @@
     Array.prototype.forEach.call(box.querySelectorAll('.c-vol-custom-pri'), function (row) {
       var x = parseFloat(row.querySelector('[data-x]').value);
       var y = parseFloat(row.querySelector('[data-y]').value);
-      out.push([isFinite(x) ? x : NaN, isFinite(y) ? y : NaN]);
+      var yvEl = row.querySelector('[data-yv]');
+      var yv = yvEl ? parseFloat(yvEl.value) : NaN;
+      out.push({ x: isFinite(x) ? x : NaN, y: isFinite(y) ? y : NaN, Y: isFinite(yv) ? yv : NaN });
     });
     return out;
+  }
+
+  /* 亮度设定有两种口径：按白点分配（白点是输入、Y 是解）与直接输入 Y（Y 是输入、
+     白点是结果）。两者互斥，靠一个下拉切换，切换时不动已知的那一半。 */
+  function yMode() {
+    var el = document.getElementById('vol-custom-ymode');
+    return el && el.value === 'manual' ? 'manual' : 'auto';
+  }
+
+  function autoYOn() { return yMode() !== 'manual'; }
+
+  function whiteXY() {
+    var wx = parseFloat((document.getElementById('vol-custom-wx') || {}).value);
+    var wy = parseFloat((document.getElementById('vol-custom-wy') || {}).value);
+    return (isFinite(wx) && isFinite(wy) && wy > 0) ? [wx, wy] : [0.3127, 0.329];
+  }
+
+  function isCoord(p) {
+    return isFinite(p.x) && isFinite(p.y) && p.x > 0 && p.y > 0 && p.x + p.y <= 1.000001;
+  }
+
+  /* 表格里坐标合法的行（按显示顺序）；白点方程只对这些行有定义 */
+  function validRows() {
+    return readCustomRows().filter(isCoord).map(function (p) { return [p.x, p.y]; });
+  }
+
+  function syncYButtons() {
+    syncWhiteControls();
+  }
+
+  /* 白点的语义随口径变：按白点分配时它是输入；直接输入 Y 时它是结果。
+     手动口径下把整组白点输入隐藏，只留「实际白点」；归一化按钮反过来只在手动口径出现。 */
+  function syncWhiteControls() {
+    var auto = autoYOn();
+    var group = document.querySelector('[data-vol-white-group]');
+    if (group) group.hidden = !auto;
+    var btn = document.getElementById('vol-custom-normalize');
+    if (btn) btn.hidden = auto;
+    var aw = document.querySelector('[data-vol-actual-white]');
+    if (aw) aw.hidden = auto;
+    syncPinControls();
+  }
+
+  /* 「调整亮度分配」只在按白点分配、且基色多于 3 个时出现：3 个基色时 Y 已经唯一。 */
+  function syncPinControls() {
+    var wrap = document.querySelector('[data-vol-pin]');
+    var rows = validRows();
+    var show = autoYOn() && rows.length >= 4;
+    if (wrap && !show) wrap.open = false;
+    if (wrap) wrap.hidden = !show;
+    var sel = document.getElementById('vol-custom-pinkey');
+    if (!sel) return;
+    var keep = sel.value;
+    sel.innerHTML = '';
+    var o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = T('不固定', 'Not fixed');
+    sel.appendChild(o0);
+    for (var i = 0; i < rows.length; i++) {
+      var o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = 'P' + (i + 1);
+      sel.appendChild(o);
+    }
+    sel.value = (keep !== '' && +keep < rows.length) ? keep : '';
+    refreshPinRange(false);
+  }
+
+  /* 固定项读回来：{ index, value }；未固定（或不可调）时为 null */
+  function pinState() {
+    var sel = document.getElementById('vol-custom-pinkey');
+    var rng = document.getElementById('vol-custom-pinval');
+    var holder = document.querySelector('[data-vol-pin-range]');
+    if (!sel || !rng || sel.value === '' || !holder || holder.hidden) return null;
+    var k = parseInt(sel.value, 10), v = parseFloat(rng.value);
+    if (!(k >= 0) || !isFinite(v)) return null;
+    return { index: k, value: v };
+  }
+
+  function currentWeight(k) {
+    var els = document.querySelectorAll('#vol-custom-rows .c-vol-custom-pri [data-yv]');
+    return els[k] ? parseFloat(els[k].value) : NaN;
+  }
+
+  function writeYColumn(weights) {
+    var els = document.querySelectorAll('#vol-custom-rows .c-vol-custom-pri [data-yv]');
+    for (var i = 0; i < els.length; i++) {
+      if (weights && isFinite(weights[i])) els[i].value = Number(weights[i]).toFixed(6);
+    }
+  }
+
+  function updatePinRead() {
+    var rng = document.getElementById('vol-custom-pinval');
+    var read = document.querySelector('[data-vol-pinread]');
+    if (!rng || !read) return;
+    var v = parseFloat(rng.value);
+    if (!isFinite(v)) { read.textContent = ''; return; }
+    var lo = parseFloat(rng.min), hi = parseFloat(rng.max);
+    read.textContent = 'Y ' + v.toFixed(3) + T('　可行 ', '  of ') + lo.toFixed(3) + '–' + hi.toFixed(3);
+  }
+
+  /* 滑块范围 = 其余基色还能合出白点的区间；默认吸附到当前解上 */
+  function refreshPinRange(snap) {
+    var sel = document.getElementById('vol-custom-pinkey');
+    var rng = document.getElementById('vol-custom-pinval');
+    var holder = document.querySelector('[data-vol-pin-range]');
+    if (!sel || !rng || !holder) return;
+    var k = sel.value === '' ? -1 : parseInt(sel.value, 10);
+    if (!(k >= 0)) { holder.hidden = true; return; }
+    var rows = validRows();
+    var range = k < rows.length ? geom.pinnedRange(rows, whiteXY(), k) : null;
+    if (!range || !(range.hi - range.lo > 5e-4)) { holder.hidden = true; return; }
+    holder.hidden = false;
+    rng.min = range.lo.toFixed(4);
+    rng.max = range.hi.toFixed(4);
+    var v = parseFloat(rng.value);
+    if (snap || !isFinite(v) || v < range.lo - 1e-9 || v > range.hi + 1e-9) {
+      var cur = currentWeight(k);
+      if (!(isFinite(cur) && cur >= range.lo && cur <= range.hi)) cur = (range.lo + range.hi) / 2;
+      rng.value = String(Math.min(range.hi, Math.max(range.lo, cur)));
+    }
+    updatePinRead();
+  }
+
+  /* 体积自身的白点 = Σ g_k（含共线合并的平移）归一化 */
+  function actualWhiteOf(sp) {    if (!sp || !sp.gens) return null;
+    var off = sp.offset || [0, 0, 0];
+    var sx = off[0], sy = off[1], sz = off[2];
+    for (var i = 0; i < sp.gens.length; i++) {
+      sx += sp.gens[i][0]; sy += sp.gens[i][1]; sz += sp.gens[i][2];
+    }
+    var sum = sx + sy + sz;
+    if (!(sum > 1e-9)) return null;
+    return [sx / sum, sy / sum];
+  }
+
+  /* 白点的 Y 分量：自动口径恒为 1，手动口径由 Y 之和决定（≠1 就说明整卷相对白点缩放） */
+  function actualYOf(sp) {
+    if (!sp || !sp.gens) return NaN;
+    var off = sp.offset || [0, 0, 0];
+    var sy = off[1];
+    for (var i = 0; i < sp.gens.length; i++) sy += sp.gens[i][1];
+    return sy;
+  }
+
+  function showActualWhite(sp) {
+    var el = document.querySelector('[data-vol-actual-white]');
+    if (!el) return;
+    var w = actualWhiteOf(sp);
+    el.textContent = w ? T('实际白点 (', 'Actual white (') + w[0].toFixed(4) + ', ' + w[1].toFixed(4) + ')' : '';
   }
 
   function updateSwatches() {
@@ -1029,19 +1201,22 @@
     });
   }
 
-  function fillCustomPanel(data) {
+  function fillCustomPanel(data, mode) {
     if (!data) return;
     var nEl = document.getElementById('vol-custom-n');
     if (nEl) nEl.value = String(Math.max(3, Math.min(8, data.primaries.length)));
+    var m = mode || (data.weights && data.weights.length ? 'manual' : 'auto');
+    var modeEl = document.getElementById('vol-custom-ymode');
+    if (modeEl) modeEl.value = m;
     renderCustomRows(data);
     var wx = document.getElementById('vol-custom-wx');
     var wy = document.getElementById('vol-custom-wy');
     if (wx && data.white) wx.value = Number(data.white[0]).toFixed(4);
     if (wy && data.white) wy.value = Number(data.white[1]).toFixed(4);
-    var gEl = document.getElementById('vol-custom-weights');
-    if (gEl) gEl.value = data.weights ? data.weights.map(function (v) { return v.toFixed(4); }).join(', ') : '';
+    syncYButtons();
     var pre = document.getElementById('vol-custom-wpreset');
     if (pre) pre.value = matchPreset(data.white);
+    restorePin(data.pin);
     var tEl = document.getElementById('vol-custom-primaries');
     if (tEl) {
       tEl.value = data.primaries.map(function (p, i) {
@@ -1050,11 +1225,60 @@
     }
   }
 
+  /* 把固定项（哪个基色、值多少）还原到控件上 */
+  function restorePin(pin) {
+    var sel = document.getElementById('vol-custom-pinkey');
+    if (!sel) return;
+    if (pin && pin.index >= 0 && pin.index < sel.options.length - 1) {
+      sel.value = String(pin.index);
+      refreshPinRange(true);
+      var rng = document.getElementById('vol-custom-pinval');
+      if (rng) { rng.value = String(pin.value); updatePinRead(); }
+    } else {
+      sel.value = '';
+      refreshPinRange(false);
+    }
+  }
+
   function syncCustomPanel() {
     if (customPanel) customPanel.hidden = state.primary !== CUSTOM_SLUG;
   }
 
-  function applyCustom() {
+  /* 面板状态行：说清这一版色体的 Y 是怎么定下来的 */
+  function customStatusText(prim, sp, mode, pin, extra) {
+    var msg = prim.length + T(' 基色', ' primaries') + (extra || '');
+    if (sp.negativeWeights) {
+      return msg + T(' · ⚠ 白点不在原色锥内：体积含负亮度，形状不可信（换白点或补基色）',
+        ' · white point outside the primary cone: negative luminance in the volume');
+    }
+    if (mode === 'manual') {
+      var aw = actualWhiteOf(sp);
+      msg += T(' · 直接输入 Y · 实际白点 ', ' · Y entered · white point ') +
+        '(' + aw[0].toFixed(4) + ', ' + aw[1].toFixed(4) + ')';
+      var sy = actualYOf(sp);
+      if (isFinite(sy)) msg += ' · ΣY = ' + sy.toFixed(3);
+    } else {
+      msg += T(' · 按白点分配', ' · split by white point');
+      if (pin) {
+        msg += T(' · 固定 P' + (pin.index + 1) + ' 的 Y = ' + pin.value.toFixed(3),
+          ' · P' + (pin.index + 1) + ' fixed at Y = ' + pin.value.toFixed(3));
+      }
+      /* 还有几个基色要去满足白点：超过 3 个就仍不唯一，说明这只是其中一组 */
+      if ((pin ? prim.length - 1 : prim.length) > 3) {
+        msg += T(' · 分配不唯一，当前为一组可行解',
+          ' · allocation is not unique; this is one feasible split');
+      }
+    }
+    if (sp.mergedGroups && sp.mergedGroups.length) {
+      msg += T(' · 合并了 ' + sp.mergedGroups.length + ' 组共线基色',
+        ' · merged ' + sp.mergedGroups.length + ' collinear group(s)');
+    }
+    return msg;
+  }
+
+  /* opts.live：滑块拖动时只更新几何与 Y 列，不重排表格（否则滑块会被抢焦点） */
+  function applyCustom(opts) {
+    var live = !!(opts && opts.live);
     /* 已经是自定义空间时（用户改了坐标再点应用），保持画面比例：
        正交下视觉大小 ∝ zoom / fitHalfH，所以按新旧 fitHalfH 补偿 zoom；
        透视下 dist = fitDist / zoom，zoom 不变即视觉不变，无需处理。 */
@@ -1062,57 +1286,168 @@
     var keepHalfH = state.fitHalfH > 0 && isFinite(state.fitHalfH)
       ? state.fitHalfH / state.zoom : 0;
     var rows = readCustomRows();
-    var valid = rows.filter(function (p) {
-      return isFinite(p[0]) && isFinite(p[1]) && p[0] > 0 && p[1] > 0 && p[0] + p[1] <= 1.000001;
-    });
-    var wx = parseFloat((document.getElementById('vol-custom-wx') || {}).value);
-    var wy = parseFloat((document.getElementById('vol-custom-wy') || {}).value);
-    var white = (isFinite(wx) && isFinite(wy) && wy > 0) ? [wx, wy] : [0.3127, 0.329];
-    var gEl = document.getElementById('vol-custom-weights');
-    var weights = parseNumbers(gEl ? gEl.value : '', 3);
+    var valid = rows.filter(isCoord);
+    var white = whiteXY();
     if (valid.length < 3) {
-      setStatus('至少需要 3 个合法基色（x > 0、y > 0、x + y ≤ 1）');
+      setStatus(T('至少需要 3 个合法基色（x > 0、y > 0、x + y ≤ 1）',
+        'Need at least 3 valid primaries (x > 0, y > 0, x + y ≤ 1)'));
       return;
     }
-    var data = {
-      primaries: valid,
+    var prim = valid.map(function (p) { return [p.x, p.y]; });
+    var mode = yMode();
+    var pin = mode === 'auto' ? pinState() : null;
+    if (pin && pin.index >= prim.length) pin = null;
+    var extra = '';
+    var weights = null;
+    if (mode === 'manual') {
+      if (valid.some(function (p) { return !isFinite(p.Y); })) {
+        setStatus(T('直接输入 Y：请给每个基色填一个 Y', 'Y entered directly: give every primary a Y'));
+        return;
+      }
+      weights = valid.map(function (p) { return p.Y; });
+    } else if (pin) {
+      var sol = geom.solvePinned(prim, white, pin.index, pin.value);
+      if (!sol) {
+        /* 换了白点或基色后，原来的固定值可能越界：先按新条件收窄；
+           收不进去就取消固定，别让用户卡在一个点不动的状态里 */
+        var nr = geom.pinnedRange(prim, white, pin.index);
+        var t2 = nr ? Math.min(nr.hi, Math.max(nr.lo, pin.value)) : NaN;
+        if (nr && isFinite(t2)) sol = geom.solvePinned(prim, white, pin.index, t2);
+        if (sol) {
+          pin = { index: pin.index, value: t2 };
+          extra = T(' · 可行区间收窄，固定值收到 ' + t2.toFixed(3),
+            ' · feasible range narrowed; value moved to ' + t2.toFixed(3));
+        } else {
+          extra = T(' · P' + (pin.index + 1) + ' 在新白点下无法固定，已取消',
+            ' · P' + (pin.index + 1) + ' cannot be fixed under the new white point; unfixed');
+          pin = null;
+        }
+      }
+      weights = sol || null;
+    }
+    var sp = buildCustomSpace({ primaries: prim, white: white, weights: weights });
+    if (!sp) { setStatus(T('构造失败：检查原色是否共线', 'Failed: check for collinear primaries')); return; }
+    state.custom = {
+      primaries: prim,
       white: white,
-      weights: weights && weights.length === valid.length ? weights : null
+      weights: mode === 'manual' ? weights : null,
+      pin: pin ? { index: pin.index, value: pin.value } : null
     };
-    var sp = buildCustomSpace(data);
-    if (!sp) { setStatus('构造失败：检查原色是否共线'); return; }
-    state.custom = data;
     customSpace = sp;
     state.primary = CUSTOM_SLUG;
     if (primarySel) primarySel.value = CUSTOM_SLUG;
-    var msg = valid.length + ' 基色';
-    if (rows.length > valid.length) msg += '（忽略 ' + (rows.length - valid.length) + ' 行非法坐标）';
-    if (sp.negativeWeights) {
-      msg += ' · ⚠ 白点不在原色锥内：体积含负亮度，形状不可信（换白点或补基色）';
-    } else {
-      msg += ' · 白点残差 ' + sp.whiteError.toExponential(1);
+
+    if (rows.length > valid.length) {
+      extra = T('（忽略 ' + (rows.length - valid.length) + ' 行非法坐标）',
+        ' (' + (rows.length - valid.length) + ' invalid row(s) ignored)') + extra;
     }
-    if (sp.mergedGroups && sp.mergedGroups.length) {
-      msg += ' · 合并了 ' + sp.mergedGroups.length + ' 组共线基色';
-    }
-    setStatus(msg);
-    fillCustomPanel(data);
-    syncCustomPanel();
+    setStatus(customStatusText(prim, sp, mode, pin, extra));
+
+    if (live) writeYColumn(weights || sp.weights);
+    else fillCustomPanel({ primaries: prim, white: white, weights: weights || sp.weights, pin: pin }, mode);
+    showActualWhite(sp);
+    if (!live) syncCustomPanel();
     rebuild();
     if (wasCustom && state.proj === 'ortho' && keepHalfH > 0) {
       state.zoom = clampZoom(state.fitHalfH / keepHalfH);
       state.dist = state.fitDist / state.zoom;
       requestRender();
     }
-    persistState();
+    if (!live) persistState();
   }
 
   bind('vol-custom-apply', 'click', function (e) { e.preventDefault(); applyCustom(); });
 
+  bind('vol-custom-normalize', 'click', function (e) {
+    e.preventDefault();
+    if (autoYOn()) return;
+    var rows = readCustomRows();
+    var vals = rows.map(function (p) { return p.Y; });
+    if (vals.some(function (v) { return !isFinite(v) || v < 0; })) {
+      setStatus(T('归一化失败：请先给每个基色填非负 Y', 'Normalize failed: fill a non-negative Y for every primary'));
+      return;
+    }
+    var sum = vals.reduce(function (a, b) { return a + b; }, 0);
+    if (!(sum > 1e-9)) { setStatus(T('归一化失败：Y 之和为 0', 'Normalize failed: sum of Y is 0')); return; }
+    var inputs = document.querySelectorAll('.c-vol-custom-pri');
+    rows.forEach(function (p, i) {
+      var el = inputs[i] && inputs[i].querySelector('[data-yv]');
+      if (el) el.value = (p.Y / sum).toFixed(6);
+    });
+    setStatus(T('已归一化 ΣY = 1（原 ΣY = ', 'Normalized ΣY = 1 (was ΣY = ') + sum.toFixed(4) + T('），点应用生效', '), click Apply to commit'));
+  });
+
+  bind('vol-custom-ymode', 'change', function () {
+    var rows = readCustomRows();
+    var keep = rows.filter(isCoord).map(function (p) { return [p.x, p.y]; });
+    var ws = rows.filter(isCoord).map(function (p) { return p.Y; });
+    /* 切换口径不重算几何：把眼前这组 Y 原样交给新的可编辑/只读状态 */
+    if (!autoYOn()) {
+      var cur = state.custom && state.custom.weights;
+      renderCustomRows({ primaries: keep, weights: (cur && cur.length === keep.length) ? cur : ws });
+      syncYButtons();
+      if (customSpace && state.primary === CUSTOM_SLUG) showActualWhite(customSpace);
+      setStatus(T('直接输入 Y：白点由 Y 决定，旁边的「实际白点」是结果',
+        'Y entered directly: the Y values decide the white point, shown next to them'));
+      return;
+    }
+    renderCustomRows({ primaries: keep, weights: ws });
+    syncYButtons();
+    if (state.primary === CUSTOM_SLUG) {
+      /* 切回按白点分配：立刻按白点重新解 Y，否则体积还停在手填值上 */
+      applyCustom();
+    }
+  });
+
+  /* 选哪个基色做固定项：滑块吸附到它当前解出的 Y 上，再按新范围拖动 */
+  bind('vol-custom-pinkey', 'change', function () {
+    refreshPinRange(true);
+    if (pinState()) applyCustom({ live: true });
+  });
+
+  bind('vol-custom-pinval', 'input', function () {
+    updatePinRead();
+    applyCustom({ live: true });
+  });
+  bind('vol-custom-pinval', 'change', function () {
+    updatePinRead();
+    applyCustom({ live: false });
+  });
+
+  /* 理想示例：sRGB 三基色；再加一个色度等于白点的 W，用来对比两种「增加 W」 */
+  function loadExample(list, white) {
+    var nEl = document.getElementById('vol-custom-n');
+    if (nEl) nEl.value = String(Math.max(3, Math.min(8, list.length)));
+    var modeEl = document.getElementById('vol-custom-ymode');
+    if (modeEl) modeEl.value = 'auto';
+    var wx = document.getElementById('vol-custom-wx');
+    var wy = document.getElementById('vol-custom-wy');
+    if (wx) wx.value = white[0].toFixed(4);
+    if (wy) wy.value = white[1].toFixed(4);
+    var pre = document.getElementById('vol-custom-wpreset');
+    if (pre) pre.value = matchPreset(white);
+    var sel = document.getElementById('vol-custom-pinkey');
+    if (sel) sel.value = '';
+    renderCustomRows({ primaries: list });
+    syncYButtons();
+    applyCustom();
+  }
+  bind('vol-custom-ex-rgb', 'click', function (e) {
+    e.preventDefault();
+    loadExample([[0.640, 0.330], [0.300, 0.600], [0.150, 0.060]], [0.3127, 0.3290]);
+  });
+  bind('vol-custom-ex-rgbw', 'click', function (e) {
+    e.preventDefault();
+    loadExample([[0.640, 0.330], [0.300, 0.600], [0.150, 0.060], [0.3127, 0.3290]], [0.3127, 0.3290]);
+  });
+
   /* 基色数量变化：保留已有行的坐标 */
   bind('vol-custom-n', 'change', function () {
-    var keep = readCustomRows().filter(function (p) { return isFinite(p[0]) && isFinite(p[1]); });
-    renderCustomRows({ primaries: keep });
+    var rows = readCustomRows();
+    var keep = rows.filter(isCoord).map(function (p) { return [p.x, p.y]; });
+    var weights = autoYOn() ? null : rows.filter(isCoord).map(function (p) { return p.Y; });
+    renderCustomRows({ primaries: keep, weights: weights });
+    syncYButtons();
   });
 
   /* 白点预设 ↔ 手填 */
@@ -1162,6 +1497,13 @@
     syncCustomPanel();
     rebuild();
     persistState();
+    /* 表格是空的（刚切过来）就把解出来的 Y 补上，否则只剩坐标没有分配 */
+    if (state.primary === CUSTOM_SLUG) {
+      var hasY = Array.prototype.some.call(
+        document.querySelectorAll('#vol-custom-rows .c-vol-custom-pri [data-yv]'),
+        function (el) { return el.value !== ''; });
+      if (!hasY) applyCustom();
+    }
   });
 
   bind('vol-coord', 'change', function (e) {
@@ -1336,8 +1678,22 @@
   });
 
   updateCondVisibility();
-  if (state.custom) fillCustomPanel(state.custom);
-  else renderCustomRows(DEFAULT_CUSTOM);
+  if (state.custom) {
+    /* 回填时把「解出来的 Y」一起显示：自动口径下 URL 里不带权重，
+       但面板必须给出这一版色体实际用的分配，否则看起来像还没算过 */
+    fillCustomPanel({
+      primaries: state.custom.primaries,
+      white: state.custom.white,
+      weights: (customSpace && customSpace.weights) || null,
+      pin: state.custom.pin
+    }, state.custom.weights ? 'manual' : 'auto');
+    if (state.primary === CUSTOM_SLUG && customSpace) {
+      setStatus(customStatusText(state.custom.primaries, customSpace,
+        state.custom.weights ? 'manual' : 'auto', state.custom.pin, ''));
+    }
+  } else renderCustomRows(DEFAULT_CUSTOM);
+  syncYButtons();
+  syncWhiteControls();
   syncCustomPanel();
 
   window.addEventListener('popstate', function () {

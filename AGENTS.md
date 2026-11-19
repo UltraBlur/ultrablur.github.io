@@ -34,6 +34,7 @@ node tests/<name>.test.mjs        # 单个测试
 hugo server --port 1313           # 本地预览（端口 1300–1499 自选）
 hugo --gc --minify                # 生产构建
 bash scripts/verify/public-boundary.sh   # 构建后边界检查
+bash scripts/verify/preflight.sh         # push 前完整预检（在 release worktree 里跑）
 ```
 
 ## 4. 通用工作流（所有页面与组件）
@@ -122,12 +123,12 @@ bash scripts/verify/public-boundary.sh   # 构建后边界检查
 3. **改完必须跑**：
 
    ```bash
-   npm test                    # 源码级同步检查 + 公开测试
-   hugo --gc --minify          # 构建
-   npm run verify:built        # 构建产物级检查（描述、统计、内链、锚点）
+   bash scripts/verify/preflight.sh --base main
+   # 等价于：npm test → hugo 构建 → public-boundary → verify:built → 发布规则干跑
    ```
 
    CI 在构建后、部署前跑同一检查；任何一项不通过都不部署。
+   发布规则干跑需要 `UB_PREFLIGHT_POLICY` 指向策略文件；未设置时自动跳过（公开仓库不含策略文件）。
 
 4. **新增工具/页面的顺序**：先建页面并登记数据 → 再改导航/索引 → 最后加描述；描述里的数字如果是写死的，回第 2 条登记断言。
 

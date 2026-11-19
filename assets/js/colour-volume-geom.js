@@ -724,6 +724,135 @@
     return null;
   }
 
+  /* Σ w_k·unit_k 与目标 W 的距离，用来判断一组权重是否真的合成了白点 */
+  function weightResidual(unit, w, W) {
+    var acc = 0;
+    for (var r = 0; r < 3; r++) {
+      var s = 0;
+      for (var i = 0; i < unit.length; i++) s += unit[i][r] * w[i];
+      acc += (s - W[r]) * (s - W[r]);
+    }
+    return Math.sqrt(acc);
+  }
+
+  /* 色品 (x, y) → Y = 1 的 XYZ 方向向量；白点按 Σ w_k·unit_k 合成，所以 Σ w_k = 1 */
+  function multiUnit(primaries) {
+    return (primaries || []).map(function (p) {
+      var y = Math.max(p[1], 1e-6);
+      return [p[0] / y, 1, (1 - p[0] - p[1]) / y];
+    });
+  }
+
+  /* 用不超过 3 个生成元表示 target（3 维下可行解总能压到 3 个非零分量）。
+     返回与 idx 等长的系数数组，失败返回 null。 */
+  function coneSubset(gens, idx, target) {
+    var sub = idx.map(function (i) { return gens[i]; });
+    var w = solveWeightsNonNeg(sub, target);
+    if (!w) return null;
+    if (weightResidual(sub, w, target) > 1e-7) return null;
+    for (var i = 0; i < w.length; i++) if (!(w[i] >= -1e-9)) return null;
+    return w;
+  }
+
+  /* target 是否落在 gens 张成的锥里——白点能不能只靠这些基色合成 */
+  function coneWeights(gens, target) {
+    var n = gens.length;
+    if (!n) return null;
+    var w = solveWeightsNonNeg(gens, target);
+    if (w && weightResidual(gens, w, target) < 1e-7) return w;
+    /* 全量解出负数时，枚举子集再试：三维里可行解必有不超过 3 个非零分量 */
+    var out = null;
+    if (n >= 3) {
+      for (var i = 0; i < n && !out; i++) {
+        for (var j = i + 1; j < n && !out; j++) {
+          for (var k = j + 1; k < n && !out; k++) {
+            var sub = coneSubset(gens, [i, j, k], target);
+            if (sub) {
+              out = new Array(n);
+              for (var z = 0; z < n; z++) out[z] = 0;
+              out[i] = Math.max(sub[0], 0); out[j] = Math.max(sub[1], 0); out[k] = Math.max(sub[2], 0);
+            }
+          }
+        }
+      }
+    }
+    if (!out && n >= 2) {
+      for (var a = 0; a < n && !out; a++) {
+        for (var b = a + 1; b < n && !out; b++) {
+          var s2 = coneSubset(gens, [a, b], target);
+          if (s2) {
+            out = new Array(n);
+            for (var z2 = 0; z2 < n; z2++) out[z2] = 0;
+            out[a] = Math.max(s2[0], 0); out[b] = Math.max(s2[1], 0);
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  /* 固定第 k 个基色的 Y = t，其余基色仍要合成白点：解 Σ_{i≠k} w_i·unit_i = W − t·unit_k。
+     返回完整权重数组（第 k 位为 t），t 不可行时返回 null。 */
+  function solvePinned(primaries, whiteXY, k, t) {
+    var unit = multiUnit(primaries);
+    if (!unit.length || !(k >= 0 && k < unit.length) || !(t >= -1e-12)) return null;
+    var W = whiteXYZ(whiteXY || [0.3127, 0.329]);
+    var target = [
+      W[0] - t * unit[k][0],
+      W[1] - t * unit[k][1],
+      W[2] - t * unit[k][2]
+    ];
+    if (target[0] < -1e-9 || target[1] < -1e-9 || target[2] < -1e-9) return null;
+    var rest = [], idx = [];
+    for (var i = 0; i < unit.length; i++) {
+      if (i === k) continue;
+      rest.push(unit[i]); idx.push(i);
+    }
+    var sub = coneWeights(rest, target);
+    if (!sub) return null;
+    var out = new Array(unit.length);
+    for (var z = 0; z < unit.length; z++) out[z] = 0;
+    for (var q = 0; q < idx.length; q++) out[idx[q]] = Math.max(sub[q], 0);
+    out[k] = t;
+    return out;
+  }
+
+  /* 固定第 k 个基色时，t 的可行区间。白点方程对 t 线性，可行集是区间，
+     所以采样定出大致位置后二分两次边界即可。 */
+  function pinnedRange(primaries, whiteXY, k) {
+    var unit = multiUnit(primaries);
+    if (!unit.length || !(k >= 0 && k < unit.length)) return null;
+    var W = whiteXYZ(whiteXY || [0.3127, 0.329]);
+    function feasible(t) {
+      if (t < -1e-12) return false;
+      var target = [W[0] - t * unit[k][0], W[1] - t * unit[k][1], W[2] - t * unit[k][2]];
+      if (target[0] < -1e-9 || target[1] < -1e-9 || target[2] < -1e-9) return false;
+      var rest = [], idx = [];
+      for (var i = 0; i < unit.length; i++) {
+        if (i === k) continue;
+        rest.push(unit[i]); idx.push(i);
+      }
+      return !!coneWeights(rest, target);
+    }
+    var N = 64, first = -1, last = -1;
+    for (var i = 0; i <= N; i++) {
+      if (feasible(i / N)) { if (first < 0) first = i; last = i; }
+    }
+    if (first < 0) return null;
+    var lo = 0, hi = 1;
+    if (first > 0) {
+      var a = (first - 1) / N, b = first / N;
+      for (var it = 0; it < 60; it++) { var m = (a + b) / 2; if (feasible(m)) b = m; else a = m; }
+      lo = b;
+    }
+    if (last < N) {
+      var c = last / N, d = (last + 1) / N;
+      for (var it2 = 0; it2 < 60; it2++) { var m2 = (c + d) / 2; if (feasible(m2)) c = m2; else d = m2; }
+      hi = c;
+    }
+    return lo <= hi ? { lo: lo, hi: hi } : null;
+  }
+
   /* 共线生成元合并：两个基色向量平行时，其 2-zone 退化成线段、面片会缺失（破面）。
      [0,a]+[0,b]（同向）= [0,a+b]；反向 = [b,a] = b + [0,a−b]，
      所以合并后只需一个新段 + 一个整体平移 offset。 */
@@ -857,8 +986,10 @@
     return { primaries: primaries, bad: bad };
   }
 
-  /* 自定义多基色的 URL 编解码：`x1,y1_x2,y2_…*wx,wy*w1,w2,…`（权重段可选）。
-     分隔符选 _ 和 *：URLSearchParams 只对字母数字与 -._* 不编码，逗号由 ToolState 还原。 */
+  /* 自定义多基色的 URL 编解码：`x1,y1_x2,y2_…*wx,wy*第三段`。
+     第三段有空 / 权重表 / 固定项三种：`w1,w2,…` 是手填 Y，`p<k>,<t>` 表示把第 k 个
+     基色的 Y 固定为 t（其余按白点解）。分隔符选 _ 和 *：URLSearchParams 只对字母数字
+     与 -._* 不编码，逗号由 ToolState 还原。 */
   function encodeMulti(data) {
     if (!data || !data.primaries || !data.primaries.length) return '';
     var prim = data.primaries.map(function (p) {
@@ -866,7 +997,9 @@
     }).join('_');
     var w = data.white || [0.3127, 0.329];
     var out = prim + '*' + w[0].toFixed(4) + ',' + w[1].toFixed(4);
-    if (data.weights && data.weights.length) {
+    if (data.pin && data.pin.index >= 0 && data.pin.index < data.primaries.length) {
+      out += '*p' + data.pin.index + ',' + Number(data.pin.value).toFixed(4);
+    } else if (data.weights && data.weights.length) {
       out += '*' + data.weights.map(function (v) { return v.toFixed(4); }).join(',');
     }
     return out;
@@ -887,12 +1020,20 @@
       var w = seg[1].split(',').map(Number);
       if (w.length === 2 && isFinite(w[0]) && isFinite(w[1]) && w[1] > 0) white = [w[0], w[1]];
     }
-    var weights = null;
+    var weights = null, pin = null;
     if (seg[2]) {
-      var ws = seg[2].split(',').map(Number).filter(function (v) { return isFinite(v); });
-      if (ws.length === primaries.length) weights = ws;
+      if (seg[2].charAt(0) === 'p') {
+        var pv = seg[2].slice(1).split(',').map(Number);
+        var pi = Math.round(pv[0]);
+        if (pv.length === 2 && isFinite(pi) && isFinite(pv[1]) && pi >= 0 && pi < primaries.length && pv[1] >= 0) {
+          pin = { index: pi, value: pv[1] };
+        }
+      } else {
+        var ws = seg[2].split(',').map(Number).filter(function (v) { return isFinite(v); });
+        if (ws.length === primaries.length) weights = ws;
+      }
     }
-    return { primaries: primaries, white: white, weights: weights };
+    return { primaries: primaries, white: white, weights: weights, pin: pin };
   }
 
   /* 面片枚举：返回 [{ base, gi, gj, sgn }] */
@@ -1217,6 +1358,10 @@
     buildCustomGrid: buildCustomGrid,
     solveWeights: solveWeights,
     solveWeightsNonNeg: solveWeightsNonNeg,
+    weightResidual: weightResidual,
+    multiUnit: multiUnit,
+    solvePinned: solvePinned,
+    pinnedRange: pinnedRange,
     makeMultiSpace: makeMultiSpace,
     mergeCollinear: mergeCollinear,
     parsePrimaries: parsePrimaries,

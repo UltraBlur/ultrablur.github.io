@@ -25,23 +25,66 @@
 .c-vol-cap[hidden], .c-vol-check[hidden] { display: none; }
 /* 控件分三组：色体 / 叠加层 / 视图；「实测点」是 Pointer 的子选项，单独缩进一行 */
 .c-vol-group { flex: 0 0 3.4rem; font-size: .72rem; letter-spacing: .09em; color: #9a9a9a; }
-.c-vol-custom { margin: -.5rem 0 .9rem; padding: .7rem .9rem; border: 1px solid #e8e8e8; background: #fbfbfb; }
+.c-vol-custom { margin: -.4rem 0 .9rem; padding: .75rem .9rem .55rem; border: 1px solid #e6e6e6; border-radius: 3px; background: #fbfbfb; }
 .c-vol-custom[hidden] { display: none; }
-.c-vol-custom-row { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; align-items: flex-start; }
-.c-vol-custom-field { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: #555; }
-.c-vol-custom textarea { font: .8rem/1.5 var(--mono, ui-monospace, monospace); padding: .4rem .5rem; border: 1px solid #ddd; background: #fff; color: #333; min-width: 12rem; resize: vertical; }
-.c-vol-custom input { font: .8rem/1.4 var(--mono, ui-monospace, monospace); padding: .25rem .45rem; border: 1px solid #ddd; background: #fff; color: #333; }
-.c-vol-custom-side { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: flex-end; }
-.c-vol-custom-status { font-size: .76rem; color: #666; align-self: center; }
-.c-vol-custom-top { display: flex; flex-wrap: wrap; gap: .6rem 1.1rem; align-items: flex-end; margin-bottom: .6rem; }
-.c-vol-custom-rows { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin: .2rem 0 .6rem; }
-.c-vol-custom-pri { display: flex; align-items: center; gap: .35rem; font-size: .78rem; color: #666; }
-.c-vol-custom-pri .swatch { width: 1.15rem; height: 1.15rem; border: 1px solid #ddd; border-radius: 2px; }
-.c-vol-custom-pri input { width: 5.2rem; font: .78rem/1.3 var(--mono, ui-monospace, monospace); padding: .18rem .3rem; border: 1px solid #ddd; background: #fff; color: #333; }
-.c-vol-custom-adv { margin-top: .3rem; font-size: .78rem; color: #777; }
+
+/* 顶部一行：模式开关（加粗）+ 基色数量 + 白点组，全部单行居中 */
+.c-vol-custom-top { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; padding-bottom: .55rem; margin-bottom: .5rem; border-bottom: 1px solid #ececec; }
+/* 面板里的复选框与其它字段同字号、同色、同高，文字垂直居中 */
+.c-vol-custom .c-vol-check {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  height: 1.75rem;
+  line-height: 1;
+  font-size: .74rem;
+  color: #555;
+}
+.c-vol-custom .c-vol-check input { vertical-align: middle; }
+.c-vol-custom-field { display: flex; flex-direction: row; align-items: center; gap: .4rem; font-size: .74rem; color: #6b6b6b; white-space: nowrap; }
+.c-vol-custom select,
+.c-vol-custom input { height: 1.75rem; font: .78rem/1.75rem var(--mono, ui-monospace, monospace); padding: 0 .4rem; border: 1px solid #d9d9d9; border-radius: 2px; background: #fff; color: #333; }
+.c-vol-custom select { font-family: inherit; padding-right: 1.1rem; }
+.c-vol-white-group { display: inline-flex; flex-wrap: wrap; gap: .45rem .9rem; align-items: center; }
+.c-vol-white-group[hidden], .c-vol-custom-field[hidden], .c-vol-btn[hidden] { display: none; }
+.c-vol-custom-actual { font: .74rem/1.2 var(--mono, ui-monospace, monospace); color: #555; }
+
+/* 基色表：表头与数值都右对齐，列宽收窄 */
+.c-vol-custom-mark { display: inline-flex; align-items: center; gap: .4rem; }
+.c-vol-custom-idx { font-size: .7rem; color: #9a9a9a; width: .8rem; text-align: right; }
+.c-vol-custom-rowhead,
+.c-vol-custom-pri { display: grid; grid-template-columns: 2.3rem minmax(4.2rem, 1fr) minmax(4.2rem, 1fr) minmax(4.2rem, 1fr); gap: .28rem .6rem; align-items: center; }
+.c-vol-custom-rowhead { font-size: .7rem; letter-spacing: .04em; color: #9a9a9a; margin-bottom: .1rem; }
+.c-vol-custom-rowhead span:nth-child(n+2) { text-align: center; }
+.c-vol-custom-rows { display: flex; flex-direction: column; gap: .2rem; margin-bottom: .5rem; }
+.c-vol-custom-pri { font-size: .72rem; color: #8a8a8a; }
+.c-vol-custom-pri .swatch { width: 1rem; height: 1rem; border: 1px solid #d9d9d9; border-radius: 2px; }
+.c-vol-custom-pri input { width: 100%; height: 1.6rem; font: .76rem/1.6rem var(--mono, ui-monospace, monospace); padding: 0 .4rem; text-align: center; }
+.c-vol-custom-pri input[disabled] { background: #f4f4f4; color: #9a9a9a; }
+
+/* 底部：应用 + 状态，与表格用细分隔线分开 */
+.c-vol-custom-bottom { display: flex; align-items: center; gap: 1rem; padding-top: .5rem; border-top: 1px solid #ececec; }
+.c-vol-custom-status { font-size: .74rem; color: #666; }
+
+.c-vol-custom textarea { font: .78rem/1.5 var(--mono, ui-monospace, monospace); padding: .4rem .5rem; border: 1px solid #d9d9d9; border-radius: 2px; background: #fff; color: #333; min-width: 12rem; resize: vertical; }
+.c-vol-custom-adv { margin-top: .45rem; font-size: .72rem; color: #888; }
+.c-vol-custom-adv-body { display: flex; flex-wrap: wrap; gap: .7rem 1.2rem; align-items: flex-start; margin-top: .45rem; }
+.c-vol-custom-adv-side { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 .c-vol-custom-adv summary { cursor: pointer; }
 .c-vol-custom-adv-body { display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: flex-start; margin-top: .5rem; }
 .c-vol-custom-adv-side { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
+
+/* 调整亮度分配：默认收起，只在「按白点分配 + 4 基色以上」出现 */
+.c-vol-custom-pin { margin: 0 0 .55rem; font-size: .72rem; color: #888; }
+.c-vol-custom-pin[hidden] { display: none; }
+.c-vol-custom-pin summary { cursor: pointer; }
+.c-vol-custom-pin-body { display: flex; flex-wrap: wrap; gap: .45rem .9rem; align-items: center; margin-top: .45rem; }
+.c-vol-custom-pin-range { display: inline-flex; align-items: center; gap: .55rem; }
+.c-vol-custom-pin-range[hidden] { display: none; }
+/* 覆盖 .c-vol-custom input 的文本框样式，滑块不该有边框和 1.75rem 高度 */
+.c-vol-custom .c-vol-custom-pin-range input[type="range"] { width: 11rem; height: 1.1rem; padding: 0; border: 0; background: transparent; }
+.c-vol-custom-pinread { font: .74rem/1.2 var(--mono, ui-monospace, monospace); color: #555; }
+.c-vol-custom-pin-hint { font-size: .7rem; color: #9a9a9a; }
 .c-vol-subrow { margin-top: -.5rem; padding-left: 4.35rem; }
 .c-vol-subrow[hidden] { display: none; }
 .c-vol-subarrow { color: #b8b8b8; }

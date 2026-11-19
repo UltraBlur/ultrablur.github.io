@@ -220,6 +220,67 @@ ok('白点不可达/xyY：没有缺失顶点', unMesh.missing === 0, 'missing=' 
 
 function stringifyWeights(w) { return (w || []).map((v) => v.toFixed(4)).join(', '); }
 
+/* ---------- 11. 固定一个基色的 Y，其余按白点解 ---------- */
+const SRGB_P = [[0.640, 0.330], [0.300, 0.600], [0.150, 0.060]];
+const SRGB_W = SRGB_P.concat([[0.3127, 0.3290]]);   /* 理想 RGB + W：W 的色度就是白点 */
+
+/* 三个基色时没有自由度：可行集退化成一个点（测度为零），采样找不到 → 返回 null，
+   界面也只在 4 基色以上才给这个控件。唯一的那个点仍然解得出来。 */
+const rgbOnly = Geom.makeMultiSpace({ primaries: SRGB_P, white: D65 }, null, JMh);
+ok('3 基色：没有可调区间', Geom.pinnedRange(SRGB_P, D65, 1) === null,
+  JSON.stringify(Geom.pinnedRange(SRGB_P, D65, 1)));
+const p3 = Geom.solvePinned(SRGB_P, D65, 1, rgbOnly.weights[1]);
+ok('3 基色：固定唯一值可以解出来',
+  p3 && near(p3[1], rgbOnly.weights[1], 1e-9) && near(p3[0], rgbOnly.weights[0], 1e-9),
+  stringifyWeights(p3));
+
+/* 四个基色：固定 W 之后其余三个唯一确定，且 RGB 按 (1−t) 等比让位 */
+const r4 = Geom.pinnedRange(SRGB_W, D65, 3);
+ok('RGB+W：W 的可行区间是 [0, 1]', r4 && near(r4.lo, 0, 1e-6) && near(r4.hi, 1, 1e-6), JSON.stringify(r4));
+for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+  const w = Geom.solvePinned(SRGB_W, D65, 3, t);
+  const sum = w ? w.reduce((a, b) => a + b, 0) : NaN;
+  ok(`RGB+W：固定 W = ${t} 时 Σw = 1`, w && near(sum, 1, 1e-9), String(sum));
+  ok(`RGB+W：固定 W = ${t} 时合出白点`,
+    w && Geom.weightResidual(Geom.multiUnit(SRGB_W), w, Geom.whiteXYZ(D65)) < 1e-9,
+    w && String(Geom.weightResidual(Geom.multiUnit(SRGB_W), w, Geom.whiteXYZ(D65))));
+  ok(`RGB+W：固定 W = ${t} 时 RGB 按比例让位`,
+    w && near(w[0], rgbOnly.weights[0] * (1 - t), 1e-9) && near(w[3], t, 1e-12),
+    w && stringifyWeights(w));
+}
+
+/* 越界值必须判为无解，不能悄悄给出负权重 */
+ok('RGB+W：W 固定为 1.2 无解', Geom.solvePinned(SRGB_W, D65, 3, 1.2) === null);
+ok('RGB+W：固定 R = 0.99 无解（其余基色合不出剩下的白点）',
+  Geom.solvePinned(SRGB_W, D65, 0, 0.99) === null);
+const rR = Geom.pinnedRange(SRGB_W, D65, 0);
+/* R 最多只能占它在纯 RGB 解里的份额：多出来的部分没有通道能补白 */
+ok('RGB+W：R 的可行上界 = 纯 RGB 解里的 R 份额',
+  rR && near(rR.lo, 0, 1e-6) && near(rR.hi, rgbOnly.weights[0], 1e-6), JSON.stringify(rR));
+
+/* 五基色固定一个之后仍有 4 个要满足白点 → 仍不唯一，但都要落在可行区间里 */
+const FIVE = SRGB_P.concat([[0.3127, 0.3290], [0.068, 0.351]]);
+const r5 = Geom.pinnedRange(FIVE, D65, 3);
+ok('5 基色：固定项可行区间非空', r5 && r5.hi > r5.lo, JSON.stringify(r5));
+if (r5) {
+  for (const t of [r5.lo, (r5.lo + r5.hi) / 2, r5.hi]) {
+    const w = Geom.solvePinned(FIVE, D65, 3, t);
+    ok(`5 基色：固定 W = ${t.toFixed(3)} 仍能合出白点`,
+      w && Geom.weightResidual(Geom.multiUnit(FIVE), w, Geom.whiteXYZ(D65)) < 1e-7,
+      w && String(Geom.weightResidual(Geom.multiUnit(FIVE), w, Geom.whiteXYZ(D65))));
+  }
+}
+
+/* 固定项要能进出 URL：否则刷新后就退回最小范数解 */
+const encPin = Geom.encodeMulti({ primaries: SRGB_W, white: D65, weights: null, pin: { index: 3, value: 0.4 } });
+const decPin = Geom.decodeMulti(encPin);
+ok('编解码：固定项往返一致',
+  decPin && decPin.pin && decPin.pin.index === 3 && near(decPin.pin.value, 0.4, 1e-4) && !decPin.weights,
+  encPin);
+ok('编解码：固定项不会被误读成权重', decPin && decPin.weights === null, encPin);
+const encPlain = Geom.encodeMulti({ primaries: SRGB_P, white: D65, weights: null });
+ok('编解码：不带固定项时不产生第三段', encPlain.split('*').length === 2, encPlain);
+
 /* ---------- 汇总 ---------- */
 console.log(`${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach((f) => console.log('  ✗ ' + f)); process.exit(1); }

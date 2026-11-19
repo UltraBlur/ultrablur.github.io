@@ -25,8 +25,9 @@ else
   err "缺少 static/internal"
 fi
 
-if [ ! -d public ]; then
-  err "public/ 不存在：请先跑 hugo 构建"
+pub="${PUBLIC_DIR:-public}"
+if [ ! -d "$pub" ]; then
+  err "$pub/ 不存在：请先跑 hugo 构建"
   exit 1
 fi
 
@@ -36,7 +37,7 @@ for dir in static/internal/tools/*/ static/internal/en/tools/*/; do
   slug=$(basename "$dir")
   # 公开站与内部站双开的页面：公开构建里本来就有同名页
   [ "$slug" = "gamut-volume" ] && continue
-  for prefix in "public/tools" "public/en/tools"; do
+  for prefix in "$pub/tools" "$pub/en/tools"; do
     if [ -f "$prefix/$slug/index.html" ]; then
       err "公开构建里出现内部页明文：$prefix/$slug/index.html"
     fi
@@ -44,10 +45,10 @@ for dir in static/internal/tools/*/ static/internal/en/tools/*/; do
 done
 
 # 4) 公开构建不得包含本地扩展或其内部函数名
-if [ -d public/js/local ]; then
-  err "public/js/local 存在"
+if [ -d "$pub/js/local" ]; then
+  err "$pub/js/local 存在"
 fi
-if grep -rIlq -e 'lmsToEab' -e 'volume-ext' public 2>/dev/null; then
+if grep -rIlq -e 'lmsToEab' -e 'volume-ext' "$pub" 2>/dev/null; then
   err "公开构建里含本地扩展标识（lmsToEab / volume-ext）"
 fi
 
