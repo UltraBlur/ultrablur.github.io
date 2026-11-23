@@ -43,6 +43,7 @@ const RED = {
   lab:    [80.09, 53.24, 67.20],           // [a*, L*, b*]
   luv:    [175.00982, 53.23712, 37.76509], // [u*, L*, v*]（colour-science 0.4.6 实测）
   oklab:  [0.22489, 0.62793, 0.12580],     // [a, L, b]
+  ipt:    [0.620930, 0.456161, 0.442809],  // [P, I, T]（colou-science IPT 现算）
   cam02:  [42.0278, 60.2050, 26.4858],     // [a', J', b']
   cam16:  [44.3760, 59.3129, 23.0163],     // [a', J', b']
   zcam:   [35.8997, 51.1973, 32.8695],     // [az, Jz, bz]
@@ -61,6 +62,7 @@ const AXIS = {
   lab: ['a*', 'L*', 'b*'],
   luv: ['u*', 'L*', 'v*'],
   oklab: ['a', 'L', 'b'],
+  ipt: ['P', 'I', 'T'],
   cam02: ["a'", "J'", "b'"],
   cam16: ["a'", "J'", "b'"],
   zcam: ['az', 'Jz', 'bz'],
@@ -86,6 +88,7 @@ for (const coord of Object.keys(RED)) {
   if (coord === 'xyz') { wantV = 1; wantSide = null; }
   if (coord === 'xyy') { wantV = 1; wantSide = null; }
   if (coord === 'oklab') { wantV = 1; wantSide = 0; }
+  if (coord === 'ipt') { wantV = 1; wantSide = 0; }
   if (coord === 'ictcp') { wantV = 0.50808; wantSide = 0; }  // PQ 编码：100 nit 的白
   if (coord === 'jzazbz') { wantV = 0.16717; wantSide = 0; }  // Jz(100 nit)
   const okV = got && near(got[1], wantV, 1e-3);

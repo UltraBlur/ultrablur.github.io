@@ -93,6 +93,7 @@
     }
     if (coord === 'luv') out = models.luv && models.luv(xyz, W);
     else if (coord === 'oklab') out = models.oklab && models.oklab(xyz);
+    else if (coord === 'ipt') out = models.ipt && models.ipt(xyz);
     else if (coord === 'ictcp') out = models.ictcp && models.ictcp(xyz, lum);
     else if (coord === 'jzazbz') out = models.jzazbz && models.jzazbz(xyz, lum);
     else if (coord === 'cam02' || coord === 'cam16' || coord === 'zcam') {

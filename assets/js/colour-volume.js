@@ -58,6 +58,10 @@
   var spaceBySlug = {};
   spaces.forEach(function (s) { spaceBySlug[s.slug] = s; });
 
+  /* 光谱轨迹 / Munsell / Pointer 都是「观察者侧」的数据，不属于当前显示空间：
+     统一用固定参考空间换算，换色彩空间时它们不会跟着白点漂移。 */
+  var locusRef = spaceBySlug['primaries-srgb-rec709'] || spaces[0];
+
   /* 一次重建共用一套转换上下文，避免逐点构造对象 */
   function viewOpts() {
     return {
@@ -81,6 +85,7 @@
     lab: ['a*', 'L*', 'b*'],
     luv: ['u*', 'L*', 'v*'],
     oklab: ['a', 'L', 'b'],
+    ipt: ['P', 'I', 'T'],
     xyz: ['X', 'Y', 'Z'],
     xyy: ['x', 'Y', 'y'],
     ictcp: ['Ct', 'I', 'Cp'],
@@ -98,16 +103,22 @@
     }
   }
 
-  /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
-  function buildAxes(coord, bbox) {
-    var pad = 0.10;
+  /* 包围盒向外留 10%（纵轴压到 0 以下），坐标轴与取景用同一套边界 */
+  function padBox(minIn, maxIn) {
     var lo = [], hi = [];
     for (var k = 0; k < 3; k++) {
-      var span = (bbox[1][k] - bbox[0][k]) || 1;
-      lo.push(bbox[0][k] - span * pad);
-      hi.push(bbox[1][k] + span * pad);
+      var span = (maxIn[k] - minIn[k]) || 1;
+      lo.push(minIn[k] - span * 0.10);
+      hi.push(maxIn[k] + span * 0.10);
     }
     lo[1] = Math.min(0, lo[1]);
+    return { lo: lo, hi: hi };
+  }
+
+  /* 坐标轴摆在数据包围盒的底边，刻度朝外，返回线与标签 */
+  function buildAxes(coord, bbox) {
+    var padded = padBox(bbox[0], bbox[1]);
+    var lo = padded.lo, hi = padded.hi;
     var names = AXIS_NAMES[coord] || AXIS_NAMES.xyz;
     var tick = 0.022 * Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     var pos = [], labels = [];
@@ -197,7 +208,9 @@
     fitHalfH: 1,       // 当前朝向下「刚好装下」的正交半高
     auto: false,
     bounds: null,
-    labels: []
+    labels: [],
+    /* 取景是否被超大色体撑开过（撑开过就允许下一次重建收回） */
+    fitGrown: false
   };
 
   var LAYER_KEYS = ['pointer', 'munsell', 'locus'];
@@ -321,30 +334,106 @@
     return b;
   }
 
-  /* 全局中心与尺度：以主空间为准，叠加体共用 */
-  function computeFrame(meshes) {
+  /* 该坐标系的「参考范围」：所有内置色彩空间的包围盒。坐标轴、刻度和取景变换
+     都以它为准，与当前选中哪个空间无关，所以换空间时画面不重排、刻度也不跳。
+     只统计内置空间：自定义多基色是用户随时在改的，放进来会让所有空间跟着它缩放；
+     它自己超出时由 extendFit 把取景撑开即可。 */
+  function referenceRange(coord) {
     var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-    meshes.forEach(function (m) {
-      var p = m.pos;
-      for (var i = 0; i < p.length; i += 3) {
+    var o = viewOpts();
+    for (var s = 0; s < spaces.length; s++) {
+      var m;
+      try {
+        m = spaces[s].multi
+          ? geom.buildMultiSurface(spaces[s], coord, 6, o)
+          : geom.buildSurface(spaces[s], coord, 6, o);
+      } catch (e) { m = null; }
+      if (!m || !m.pos || !m.pos.length) continue;
+      var pos = m.pos;
+      for (var i = 0; i < pos.length; i += 3) {
         for (var k = 0; k < 3; k++) {
-          if (p[i + k] < min[k]) min[k] = p[i + k];
-          if (p[i + k] > max[k]) max[k] = p[i + k];
+          if (pos[i + k] < min[k]) min[k] = pos[i + k];
+          if (pos[i + k] > max[k]) max[k] = pos[i + k];
         }
       }
-    });
-    // 以第一个（主）体积的中心对焦，轴框只参与定尺度，避免色体偏向一侧
-    var c0 = meshes[0].pos, cm = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
-    for (var i = 0; i < c0.length; i += 3) {
-      for (var k = 0; k < 3; k++) {
-        if (c0[i + k] < cm[0][k]) cm[0][k] = c0[i + k];
-        if (c0[i + k] > cm[1][k]) cm[1][k] = c0[i + k];
-      }
     }
-    var center = [(cm[0][0] + cm[1][0]) / 2, (cm[0][1] + cm[1][1]) / 2, (cm[0][2] + cm[1][2]) / 2];
-    // 用包围盒半对角线做半径，保证整个色体都在视野里
+    if (!isFinite(min[0])) return { min: [-1, -1, -1], max: [1, 1, 1] };
+    return { min: min, max: max };
+  }
+
+  /* 由参考范围定中心与尺度：中心取范围中心，尺度取半对角线 */
+  function frameFromBox(box) {
+    var min = box.min, max = box.max;
+    var center = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
     var radius = 0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
     return { center: center, scale: 1 / radius };
+  }
+
+  /* 当前色体超出参考范围时把取景框撑到装得下（只影响相机，不改刻度） */
+  function extendFit(pos) {
+    if (!state.fitLo) return;
+    for (var i = 0; i < pos.length; i += 3) {
+      for (var k = 0; k < 3; k++) {
+        if (pos[i + k] < state.fitLo[k]) state.fitLo[k] = pos[i + k];
+        if (pos[i + k] > state.fitHi[k]) state.fitHi[k] = pos[i + k];
+      }
+    }
+  }
+
+  function extendFitBox(box) {
+    if (!state.fitLo || !box) return;
+    for (var k = 0; k < 3; k++) {
+      if (box.min[k] < state.fitLo[k]) state.fitLo[k] = box.min[k];
+      if (box.max[k] > state.fitHi[k]) state.fitHi[k] = box.max[k];
+    }
+  }
+
+  /* 叠加层（光谱轨迹 / Munsell / Pointer）的包围盒。取景框**始终**把它们算进去，
+     与复选框开关无关——否则勾一下「光谱轨迹」画面就缩一圈。
+     按「坐标 + 亮度 + 观察条件 + 主空间」缓存：这些量不换，盒子就不变。 */
+  var overlayBoxes = {};
+  function overlayExtent(coord) {
+    var key = [coord, LUM, COND.surround, COND.bg, COND.laFactor].join('|');
+    if (overlayBoxes[key]) return overlayBoxes[key];
+    var o = viewOpts();
+    var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    function add(q) {
+      for (var k = 0; k < 3; k++) {
+        if (q[k] < min[k]) min[k] = q[k];
+        if (q[k] > max[k]) max[k] = q[k];
+      }
+    }
+    var i, q;
+    if (MUNSELL && MUNSELL.points && pointerSpace) {
+      for (i = 0; i < MUNSELL.points.length; i++) {
+        var row = MUNSELL.points[i];
+        var mx = row[0], my = row[1], mY = row[2] / 100;
+        if (!(my > 1e-4) || !(mY > 0)) continue;
+        q = geom.pointForXyz(pointerSpace, coord, [mx * mY / my, mY, (1 - mx - my) * mY / my], o);
+        if (q && isFinite(q[0]) && isFinite(q[1]) && isFinite(q[2])) add(q);
+      }
+    }
+    if (LOCUS3D && LOCUS3D.points && LOCUS3D.points.length > 2) {
+      for (i = 0; i < LOCUS3D.points.length; i++) {
+        var lr = LOCUS3D.points[i];
+        var lx = lr[0], ly = lr[1], lY = lr[2];
+        if (!(ly > 1e-4) || !(lY > 0)) continue;
+        q = geom.pointForXyz(locusRef, coord, [lx * lY / ly, lY, (1 - lx - ly) * lY / ly], o);
+        if (q && isFinite(q[0]) && isFinite(q[1]) && isFinite(q[2])) add(q);
+      }
+    }
+    if (pointerSpace) {
+      var cage = geom.buildCustomGrid(pointerSpace, coord, pointerSpace.ringStep || 4, 6, o);
+      var cp = cage.pos;
+      for (i = 0; i < cp.length; i += 3) {
+        if (isFinite(cp[i]) && isFinite(cp[i + 1]) && isFinite(cp[i + 2])) {
+          add([cp[i], cp[i + 1], cp[i + 2]]);
+        }
+      }
+    }
+    var box = isFinite(min[0]) ? { min: min, max: max } : null;
+    overlayBoxes[key] = box;
+    return box;
   }
 
   function applyFrame(arr, frame) {
@@ -367,7 +456,10 @@
     }
   }
 
-  function rebuild() {
+  /* opts.keepView：换色彩空间时用。取景框与刻度都由坐标系定，换空间不重新取景；
+     只有新色体超出参考框（自定义多基色）时才撑开并重新取景。 */
+  function rebuild(opts) {
+    var keepView = !!(opts && opts.keepView);
     var primary;
     if (state.primary === CUSTOM_SLUG) {
       primary = customSpace || buildCustomSpace(state.custom || DEFAULT_CUSTOM);
@@ -398,7 +490,10 @@
     }
     mesh.bbox = bb;
 
-    var axes = buildAxes(coord, mesh.bbox);
+    /* 坐标轴按「本坐标系的参考范围」（所有内置空间的并集）画，而不是当前色体的
+       包围盒：换空间时刻度值、刻度位置、轴长都不变，只有色体本身变大变小 */
+    var refBox = referenceRange(coord);
+    var axes = buildAxes(coord, [refBox.min, refBox.max]);
 
     /* ---------- 叠加层 ----------
        每层先按当前坐标算出「未变换」的顶点，统一取景后再各自上传。 */
@@ -438,7 +533,7 @@
         var lx = row[0], ly = row[1], lY = row[2];
         if (!(ly > 1e-4) || !(lY > 0)) { lprev = null; continue; }
         var lxyz = [lx * lY / ly, lY, (1 - lx - ly) * lY / ly];
-        var q = geom.pointForXyz(primary, coord, lxyz, opts);
+        var q = geom.pointForXyz(locusRef, coord, lxyz, opts);
         if (!q || !isFinite(q[0]) || !isFinite(q[1]) || !isFinite(q[2])) { lprev = null; continue; }
         var cur = [q[0], q[1], q[2]];
         if (lprev) lp.push(lprev[0], lprev[1], lprev[2], cur[0], cur[1], cur[2]);
@@ -465,12 +560,51 @@
       }
     }
 
-    var frameInputs = [{ pos: axes.pos }];
-    for (var lf = 0; lf < layerSpecs.length; lf++) frameInputs.push({ pos: layerSpecs[lf].pos });
-    var frame = computeFrame([mesh].concat(frameInputs));
+    /* 取景变换（中心 + 尺度）以「坐标系」为口径，不跟着选中的色彩空间走：
+       直接由坐标轴的范围定，于是换空间时色体该多大就多大，刻度一个都不跳。
+       否则每个色体都被拉成一样大，体积根本没法比。 */
+    var frame = frameFromBox({ min: axes.lo, max: axes.hi });
 
     applyFrame(mesh.pos, frame);
     applyFrame(axes.pos, frame);
+    /* 相机取景框 = 轴范围 ∪ 叠加层 ∪ 当前色体；叠加层或自定义色体超出轴范围时
+       只把取景撑开，刻度与其它空间的大小关系不变 */
+    var boxLo = [
+      (axes.lo[0] - frame.center[0]) * frame.scale,
+      (axes.lo[1] - frame.center[1]) * frame.scale,
+      (axes.lo[2] - frame.center[2]) * frame.scale
+    ];
+    var boxHi = [
+      (axes.hi[0] - frame.center[0]) * frame.scale,
+      (axes.hi[1] - frame.center[1]) * frame.scale,
+      (axes.hi[2] - frame.center[2]) * frame.scale
+    ];
+    state.fitLo = boxLo.slice();
+    state.fitHi = boxHi.slice();
+    /* 取景框固定包含三类东西，且都不看复选框状态，所以勾选/取消叠加层时画面不动：
+       ① 当前色体（自定义多基色超出参考范围时才起作用）
+       ② 三个叠加层的数据范围（光谱轨迹 / Munsell / Pointer），无论当前开没开
+       ③ axes 范围（上面那一步已经包含） */
+    /* 叠加层的盒子是原始坐标，先过一遍同一个 frame 才和 fitLo/fitHi 同量纲 */
+    var obox = overlayExtent(coord);
+    if (obox) {
+      extendFitBox({
+        min: [(obox.min[0] - frame.center[0]) * frame.scale,
+              (obox.min[1] - frame.center[1]) * frame.scale,
+              (obox.min[2] - frame.center[2]) * frame.scale],
+        max: [(obox.max[0] - frame.center[0]) * frame.scale,
+              (obox.max[1] - frame.center[1]) * frame.scale,
+              (obox.max[2] - frame.center[2]) * frame.scale]
+      });
+    }
+    /* 到这里为止的取景框与「当前是哪个色彩空间」无关，换空间时沿用即可 */
+    var baseLo = state.fitLo.slice(), baseHi = state.fitHi.slice();
+    extendFit(mesh.pos);
+    /* 只有色体自己撑破了基准框（超大的自定义多基色）才算「需要重新取景」 */
+    var grew = false;
+    for (var gk = 0; gk < 3; gk++) {
+      if (state.fitLo[gk] < baseLo[gk] - 1e-9 || state.fitHi[gk] > baseHi[gk] + 1e-9) grew = true;
+    }
     var liveLayers = {};
     for (var lg = 0; lg < layerSpecs.length; lg++) {
       applyFrame(layerSpecs[lg].pos, frame);
@@ -543,7 +677,10 @@
     state.mesh = mesh;
     state.frame = frame;
     state.bbox = mesh.bbox;
-    fitCamera();
+    /* 上一次取景被撑开过（超大自定义色体）时，回到正常色体要收回去；
+       正常情况下换空间一律不动相机 */
+    if (!keepView || grew || state.fitGrown) fitCamera();
+    state.fitGrown = grew;
     if (/voldebug/.test(location.search)) {
       var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
       for (var bi = 0; bi < mesh.pos.length; bi += 3) {
@@ -600,24 +737,13 @@
   }
 
 
-  /* 在当前朝向下，把包围盒投影塞进画布的 86%：
-     透视求最小距离，正交求最小半高。两份都存下来，切换投影时不必重算。 */
+  /* 在当前朝向下，把取景框投影塞进画布的 86%：
+     透视求最小距离，正交求最小半高。两份都存下来，切换投影时不必重算。
+     取景框是 rebuild 里算好的 state.fitLo/fitHi（坐标系参考范围 ∪ 当前色体），
+     所以同一坐标下换色彩空间不会重新取景。 */
   function fitCamera() {
-    if (!state.mesh) return;
-    var pos = state.mesh.pos;
-    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
-    /* 取景要连坐标轴一起算：轴家具比色体大 10%，只按色体取景时
-       俯视/贴边的视角会把刻度和轴名裁到画布外。 */
-    var all = [pos, state.axesPos || new Float32Array(0)].concat(state.layerPos || []);
-    for (var ai = 0; ai < all.length; ai++) {
-      var arr = all[ai];
-      for (var i = 0; i < arr.length; i += 3) {
-        for (var k = 0; k < 3; k++) {
-          if (arr[i + k] < bb[0][k]) bb[0][k] = arr[i + k];
-          if (arr[i + k] > bb[1][k]) bb[1][k] = arr[i + k];
-        }
-      }
-    }
+    if (!state.fitLo || !state.mesh) return;
+    var bb = [state.fitLo.slice(), state.fitHi.slice()];
     var corners = [];
     for (var c = 0; c < 8; c++) {
       corners.push([
@@ -647,7 +773,6 @@
       }
       if (worst <= 0.86) { best = d; break; }
     }
-    state.fitDist = best;
 
     // 正交：角点转到视空间后，取横向/纵向需要的最大半高
     var rot = lookAt([dir[0] * 10, dir[1] * 10, dir[2] * 10], [0, 0, 0], [0, 1, 0]);
@@ -658,8 +783,8 @@
       var vy = rot[1] * p1[0] + rot[5] * p1[1] + rot[9] * p1[2];
       need = Math.max(need, Math.abs(vy), Math.abs(vx) / aspect);
     }
+    state.fitDist = best;
     state.fitHalfH = need / 0.86;
-
     state.dist = state.fitDist / state.zoom;
   }
 
@@ -1495,7 +1620,8 @@
       customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
     }
     syncCustomPanel();
-    rebuild();
+    /* 同一坐标下换色彩空间：不动取景与刻度，色体该多大就多大，便于比较体积 */
+    rebuild({ keepView: true });
     persistState();
     /* 表格是空的（刚切过来）就把解出来的 Y 补上，否则只剩坐标没有分配 */
     if (state.primary === CUSTOM_SLUG) {

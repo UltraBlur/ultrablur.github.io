@@ -146,6 +146,30 @@
     return [out[1], out[0], out[2]]; // [a, L, b]
   }
 
+  /* ---------- IPT（Ebner & Fairchild 1998） ----------
+
+     经「归一化锥响应」的均匀色空间：LMS 矩阵按 D65 归一（白 → 1,1,1），
+     0.43 次幂压缩后线性组合成 I（明度）/ P（红绿）/ T（黄蓝）。
+     矩阵指数与 colour-science 的 XYZ_to_IPT 一致（2026-11-23 对 doctest 核过）。
+     与 oklab 同为固定 D65 的变换，不随显示空间的白点归一。 */
+
+  var IPT_XYZ_LMS = [0.4002, 0.7075, -0.0807,
+                     -0.2280, 1.1500, 0.0612,
+                     0.0000, 0.0000, 0.9184];
+  var IPT_LMS_IPT = [0.4000, 0.4000, 0.2000,
+                     4.4550, -4.8510, 0.3960,
+                     0.8056, 0.3572, -1.1628];
+
+  function ipt(xyz) {
+    var lms = mulv(IPT_XYZ_LMS, xyz);
+    var out = mulv(IPT_LMS_IPT, [
+      signPow(lms[0], 0.43),
+      signPow(lms[1], 0.43),
+      signPow(lms[2], 0.43)
+    ]);
+    return [out[1], out[0], out[2]]; // [P, I, T]
+  }
+
   /* ---------- CIE 1976 L*u*v* ---------- */
 
   function luv(xyz, W) {
@@ -384,6 +408,7 @@
     ictcp: ictcp,
     jzazbz: jzazbz,
     oklab: oklab,
+    ipt: ipt,
     luv: luv,
     cam02ucs: cam02ucs,
     cam16ucs: cam16ucs,

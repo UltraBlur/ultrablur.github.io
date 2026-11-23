@@ -73,7 +73,7 @@ const toolsIndex = read('layouts/colour/tools-index.html');
 const vol = read('layouts/colour/volume.html');
 const insp = read('layouts/colour/inspector.html');
 const tr = read('layouts/colour/transfer.html');
-const coordVals = ['xyz', 'xyy', 'lab', 'luv', 'oklab', 'cam02', 'cam16', 'jmh', 'ictcp', 'jzazbz', 'zcam'];
+const coordVals = ['xyz', 'xyy', 'lab', 'luv', 'oklab', 'ipt', 'cam02', 'cam16', 'jmh', 'ictcp', 'jzazbz', 'zcam'];
 const planeVals = ['hsv', 'lch', 'oklch', 'jmh', 'jmhh', 'jzch'];
 const axisVals = ['abs', 'log', 'rel', 'stops', 'pq'];
 const coordCount = coordVals.filter((v) => new RegExp(`<option value="${v}"`).test(vol)).length;
@@ -82,7 +82,7 @@ const axisCount = axisVals.filter((v) => new RegExp(`<option value="${v}"`).test
 const overlayCount = (vol.match(/id="vol-ov-[a-z]+"/g) || []).length;
 const CN = { 1: '一', 2: '两', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九' };
 const coordClaim = Number((toolsIndex.match(/(\d+) 种坐标/) || [])[1]);
-expect('色体积坐标数 = 实际选项数 = 描述', coordCount === 11 && coordClaim === coordCount, `选项 ${coordCount}，描述 ${coordClaim}`);
+expect('色体积坐标数 = 实际选项数 = 描述', coordCount === 12 && coordClaim === coordCount, `选项 ${coordCount}，描述 ${coordClaim}`);
 expect('色体积叠加层数 = 实际复选框数 = 描述', overlayCount === 3 && toolsIndex.includes(`${CN[overlayCount]}种叠加层`), `复选框 ${overlayCount}`);
 expect('取色读数平面数 = 实际选项数 = 描述', planeCount === 6 && toolsIndex.includes(`${CN[planeCount]}种选色平面`), `选项 ${planeCount}`);
 expect('传递函数纵轴数 = 实际选项数 = 描述', axisCount === 5 && toolsIndex.includes(`${axisCount} 种纵轴`), `选项 ${axisCount}`);

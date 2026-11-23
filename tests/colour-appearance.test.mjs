@@ -110,8 +110,40 @@ ok('ZCAM：L_A = Y_b = 100 的 sRGB 红',
   zcamHi && near(zcamHi[0], 36.87568) && near(zcamHi[1], 54.45163) && near(zcamHi[2], 33.76309),
   zcamHi && zcamHi.map((v) => v.toFixed(5)).join(', '));
 
-/* ---------- 共同性质 ---------- */
+/* ---------- IPT（Ebner & Fairchild 1998） ----------
+   基准值取 colour-science XYZ_to_IPT 的 doctest：
+   XYZ = [0.20654008, 0.12197225, 0.05136952] → (I, P, T) = (0.3842619, 0.3848730, 0.1888683)。
+   我们返回显示序 [P, I, T]。 */
 
+const iptDoc = CM.ipt([0.20654008, 0.12197225, 0.05136952]);
+ok('IPT：colour-science doctest 向量',
+  iptDoc && near(iptDoc[0], 0.3848730, 1e-6) && near(iptDoc[1], 0.3842619, 1e-6) && near(iptDoc[2], 0.1888683, 1e-6),
+  iptDoc && iptDoc.map((v) => v.toFixed(7)).join(', '));
+
+/* 矩阵按 D65 归一：D65 白必须落在 I = 1、P = T = 0（不是 100，IPT 的 I 是 0–1） */
+const iptWhite = CM.ipt(mulv(SRGB, [1, 1, 1]));
+ok('IPT：D65 白 = (P=0, I=1, T=0)',
+  iptWhite && near(iptWhite[0], 0, 1e-3) && near(iptWhite[1], 1, 1e-4) && near(iptWhite[2], 0, 1e-3),
+  iptWhite && iptWhite.map((v) => v.toFixed(6)).join(', '));
+
+/* sRGB 三原色（线性）：符号与量级要和 IPT 定义一致——红偏黄（T>0）、绿偏黄、蓝偏蓝 */
+for (const [name, rgb, want] of [
+  ['红', [1, 0, 0], [0.620930, 0.456161, 0.442809]],
+  ['绿', [0, 1, 0], [-0.453397, 0.760385, 0.530848]],
+  ['蓝', [0, 0, 1], [-0.237230, 0.444310, -0.748548]]
+]) {
+  const got = CM.ipt(mulv(SRGB, rgb));
+  ok('IPT：sRGB ' + name,
+    got && got.every((v, i) => near(v, want[i], 1e-5)),
+    got && got.map((v) => v.toFixed(6)).join(', '));
+}
+
+/* 负锥响应要走 signPow，不能产生 NaN（深蓝近黑的区域会出现负 LM） */
+const iptNeg = CM.ipt([-0.02, 0.001, 0.01]);
+ok('IPT：负输入不产生 NaN', iptNeg && iptNeg.every((v) => isFinite(v)),
+  JSON.stringify(iptNeg));
+
+/* ---------- 共同性质 ---------- */
 const w16 = run(CM.cam16ucs, SRGB, [1, 1, 1]);
 const wz = run(CM.zcam, SRGB, [1, 1, 1]);
 ok('CAM16 / ZCAM：白点 J = 100', w16 && near(w16[1], 100, 1e-6) && wz && near(wz[1], 100, 1e-6),
