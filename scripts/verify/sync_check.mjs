@@ -95,9 +95,13 @@ const gamma24Code = Math.pow(0.18, 1 / 2.4);
 const gammaCodeDiff = Math.round((gamma24Code - gamma22Code) * (940 - 64));
 const gammaZh = read('content/colour/tf-power/index.md');
 const gammaEn = read('content/en/colour/tf-power/index.md');
-expect('纯幂 18% 灰在 10-bit legal 的码差与中英文文案一致',
-  gammaCodeDiff === 27 && gammaZh.includes('约 **27 个码值**') && gammaEn.includes('about **27 code values**'),
-  `复算 ${gammaCodeDiff}`);
+if (gammaZh.includes('纯幂数值对照') || gammaEn.includes('Pure-power comparison')) {
+  expect('纯幂 18% 灰在 10-bit legal 的码差与中英文文案一致',
+    gammaCodeDiff === 27 && gammaZh.includes('约 **27 个码值**') && gammaEn.includes('about **27 code values**'),
+    `复算 ${gammaCodeDiff}`);
+} else {
+  console.log('  – 跳过纯幂码差文案：页面已移除该段');
+}
 
 const ptr = readJSON('data/pointerGamut.json');
 const munsell = readJSON('data/munsellRenotation.json');
