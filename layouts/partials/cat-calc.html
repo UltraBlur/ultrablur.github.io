@@ -1,0 +1,39 @@
+{{/* 一个变换走完一遍的数值：拿到 M、M⁻¹ 与源/目标白点，返回各步结果。
+   参数：m（嵌套 3×3）、mi（嵌套 3×3）、src、dst（白点名）。
+   白点表与 assets/js/lib/cat.js 的 WHITES 保持一致。 */}}
+{{- $W := dict
+  "A"   (slice 0.44757 0.40745)
+  "C"   (slice 0.31006 0.31616)
+  "D50" (slice 0.3457 0.3585)
+  "D55" (slice 0.3324 0.3474)
+  "D60" (slice 0.32168 0.33767)
+  "D65" (slice 0.3127 0.3290)
+  "D75" (slice 0.2990 0.3149)
+  "E"   (slice (div 1.0 3.0) (div 1.0 3.0))
+-}}
+{{- $flat := slice -}}
+{{- range $row := .m }}{{ range $c := $row }}{{ $flat = $flat | append (float $c) }}{{ end }}{{ end -}}
+{{- $flati := slice -}}
+{{- range $row := .mi }}{{ range $c := $row }}{{ $flati = $flati | append (float $c) }}{{ end }}{{ end -}}
+
+{{- $xys := index $W .src -}}
+{{- $xs := index $xys 0 -}}{{- $ys := index $xys 1 -}}
+{{- $XYZs := slice (div (mul 100.0 $xs) $ys) 100.0 (div (mul 100.0 (sub 1.0 $xs $ys)) $ys) -}}
+{{- $xyd := index $W .dst -}}
+{{- $xd := index $xyd 0 -}}{{- $yd := index $xyd 1 -}}
+{{- $XYZd := slice (div (mul 100.0 $xd) $yd) 100.0 (div (mul 100.0 (sub 1.0 $xd $yd)) $yd) -}}
+
+{{- $bs := partial "cat-mulv.html" (dict "m" $flat "v" $XYZs) -}}
+{{- $bd := partial "cat-mulv.html" (dict "m" $flat "v" $XYZd) -}}
+{{- $k := slice
+  (div (index $bd 0) (index $bs 0))
+  (div (index $bd 1) (index $bs 1))
+  (div (index $bd 2) (index $bs 2)) -}}
+
+{{- /* 样品：XYZ = (16.67, 20.0, 30.0)，约对应 xy = 0.25 / 0.30、Y = 20 */ -}}
+{{- $S := slice 16.67 20.0 30.0 -}}
+{{- $b := partial "cat-mulv.html" (dict "m" $flat "v" $S) -}}
+{{- $bp := slice (mul (index $k 0) (index $b 0)) (mul (index $k 1) (index $b 1)) (mul (index $k 2) (index $b 2)) -}}
+{{- $out := partial "cat-mulv.html" (dict "m" $flati "v" $bp) -}}
+
+{{- return (dict "bs" $bs "bd" $bd "k" $k "b" $b "bp" $bp "out" $out "sample" $S) -}}

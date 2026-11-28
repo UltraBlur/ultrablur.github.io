@@ -1,0 +1,47 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $lib := resources.Get "js/lib/cat.js" | minify | fingerprint }}
+<script defer src="{{ $lib.RelPermalink }}" integrity="{{ $lib.Data.Integrity }}"></script>
+{{ $viz := resources.Get "js/cat-viz.js" | minify | fingerprint }}
+<script defer src="{{ $viz.RelPermalink }}" integrity="{{ $viz.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $prefix := cond $en "/en/" "/" }}
+{{ $vd := partial "cat-viz-data.html" (dict "en" $en) }}
+<div class="c-page c-page--wide" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink "en" $en) }}
+    <div class="c-main">
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Home" "首页") "url" (cond $en "/en/" "/" | relURL)))
+      ) }}
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <div class="c-prose">{{ .Content }}</div>
+
+      <h2>{{ cond $en "Laboratory" "交互实验室" }}</h2>
+      <p class="c-hint">{{ cond $en
+        "Pick two transforms and a pair of white points; the patches and the vectors update together. Everything runs in the browser — no colour data leaves the page."
+        "任选两条变换与一对白点，色块与位移矢量同步更新。全部在浏览器里算，不上传任何颜色数据。" }}</p>
+      <script type="application/json" id="cat-viz-data">{{ dict
+        "lang" $vd.lang
+        "cats" $vd.cats
+        "locus" $vd.locus
+        "locusStep" $vd.locusStep
+        "defaults" (dict "src" "A" "dst" "D65" "a" "bradford" "b" "xyz-scaling")
+        | jsonify | safeJS }}</script>
+      <div data-cat-viz="sandbox"></div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}
+{{ define "bottom-menu" }}
+{{ $en := eq .Params.variant "en" }}
+<nav class="bottom-menu"><p><a href="{{ cond $en "/en/" "/" | relURL }}">{{ if $en }}Home{{ else }}首页{{ end }}</a></p></nav>
+{{ end }}

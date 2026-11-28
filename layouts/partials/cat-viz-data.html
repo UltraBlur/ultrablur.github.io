@@ -1,0 +1,20 @@
+{{/* 色适应实验室的注入数据：CAT 清单按语言取名，光谱轨迹按 1 nm 注入。
+   模板只负责取数与裁剪；数值计算全部在 assets/js/lib/cat.js。 */}}
+{{- $en := .en -}}
+{{- $cats := slice -}}
+{{- range hugo.Data.cat -}}
+  {{- $cats = $cats | append (dict
+        "slug" .slug
+        "name" (cond $en .en .zh)
+        "year" (printf "%v" .year)
+        "note" (cond $en .enNote .zhNote)
+        "use" (cond $en .enUse .zhUse)) -}}
+{{- end -}}
+{{/* 直接注入 1 nm 的 [x, y, ybar]；数组的数组不能再经 append 压平，
+      交给 JS 按 locusStep 使用。321 个点经 gzip 后只有几 KB。 */}}
+{{- $locus := hugo.Data.spectralLocus.points -}}
+{{- return (dict
+      "lang" (cond $en "en" "zh")
+      "cats" $cats
+      "locus" $locus
+      "locusStep" 1) -}}

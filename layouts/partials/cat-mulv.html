@@ -1,0 +1,9 @@
+{{/* 3×3 矩阵乘 3 维向量，返回 slice。参数：m（9 项扁平）、v（3 项）。 */}}
+{{- $m := .m -}}
+{{- $v := .v -}}
+{{- $r := slice
+  (add (mul (index $m 0) (index $v 0)) (mul (index $m 1) (index $v 1)) (mul (index $m 2) (index $v 2)))
+  (add (mul (index $m 3) (index $v 0)) (mul (index $m 4) (index $v 1)) (mul (index $m 5) (index $v 2)))
+  (add (mul (index $m 6) (index $v 0)) (mul (index $m 7) (index $v 1)) (mul (index $m 8) (index $v 2)))
+-}}
+{{- return $r -}}

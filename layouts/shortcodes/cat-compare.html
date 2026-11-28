@@ -1,0 +1,41 @@
+{{/* 同一批白点、同一个样品，十条变换各算一次。用法：{{< cat-compare >}} */}}
+{{- $en := eq .Page.Params.variant "en" -}}
+{{- $prefix := cond $en "/en" "" -}}
+{{- $rows := slice -}}
+{{- range hugo.Data.cat -}}
+  {{- $slug := .slug -}}
+  {{- with site.GetPage (printf "/cat/%s" $slug) -}}
+    {{- if .Params.matrix -}}
+      {{- $r := partial "cat-calc.html" (dict
+            "m" .Params.matrix
+            "mi" .Params.matrixInv
+            "src" (.Params.srcWhite | default "D65")
+            "dst" (.Params.dstWhite | default "D50")) -}}
+      {{- $rows = $rows | append (dict "slug" $slug "title" .Title "k" $r.k "out" $r.out) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+<div class="c-tablewrap">
+<table class="c-cat-run">
+  <thead>
+    <tr>
+      <th>{{ cond $en "transform" "变换" }}</th>
+      <th>D<sub>R</sub></th><th>D<sub>G</sub></th><th>D<sub>B</sub></th>
+      <th>X<sub>c</sub></th><th>Y<sub>c</sub></th><th>Z<sub>c</sub></th>
+    </tr>
+  </thead>
+  <tbody>
+    {{- range $rows }}
+    <tr>
+      <th><a href="{{ printf "%s/cat/%s/" $prefix .slug | relURL }}">{{ .title }}</a></th>
+      {{- range $v := .k }}<td>{{ printf "%.4f" $v }}</td>{{ end }}
+      {{- range $v := .out }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+    {{- end }}
+  </tbody>
+</table>
+</div>
+<p class="c-hint">{{ cond $en "The table scrolls horizontally." "表格可横向滚动。" }}</p>
+<p class="c-cat-axis">{{ cond $en
+  "Sample XYZ = 16.67 / 20.00 / 30.00 under D65 (Y = 100), adapted to D50 with D = 1; the three coefficient columns are R_wr/R_w and its G, B counterparts."
+  "样品在 D65 下为 XYZ = 16.67 / 20.00 / 30.00（Y = 100），取 D = 1 换到 D50；三列系数就是 R_wr/R_w 及其 G、B 两路。" }}</p>

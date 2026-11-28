@@ -1,0 +1,112 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ $lib := resources.Get "js/lib/cat.js" | minify | fingerprint }}
+<script defer src="{{ $lib.RelPermalink }}" integrity="{{ $lib.Data.Integrity }}"></script>
+{{ $viz := resources.Get "js/cat-viz.js" | minify | fingerprint }}
+<script defer src="{{ $viz.RelPermalink }}" integrity="{{ $viz.Data.Integrity }}"></script>
+{{ $page := resources.Get "js/cat-page.js" | minify | fingerprint }}
+<script defer src="{{ $page.RelPermalink }}" integrity="{{ $page.Data.Integrity }}"></script>
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+{{ $ref := .Params.ref | default "" }}
+{{ $src := . }}
+{{ if $ref }}{{ with site.GetPage (printf "/cat/%s" $ref) }}{{ $src = . }}{{ end }}{{ end }}
+{{ $d := $src.Params }}
+{{ $slug := cond (ne $ref "") $ref (path.Base .File.Dir) }}
+{{ $srcWhite := $d.srcWhite | default "D65" }}
+{{ $dstWhite := $d.dstWhite | default "D50" }}
+{{ $vd := partial "cat-viz-data.html" (dict "en" $en) }}
+<div class="c-page" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink "en" $en) }}
+    <div class="c-main">
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Chromatic adaptation" "色适应变换") "url" (cond $en "/en/cat/" "/cat/" | relURL)))
+      ) }}
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      <div class="c-prose">
+        {{ with .Params.intro }}<p class="c-intro">{{ . }}</p>{{ end }}
+        <table class="c-kv c-cat-meta">
+          <tbody>
+            <tr><th>{{ cond $en "Year" "年" }}</th><td>{{ $d.year }}</td></tr>
+            <tr><th>{{ cond $en "First published in" "出处" }}</th><td>{{ if $en }}{{ $d.standardEn | default $d.standard }}{{ else }}{{ $d.standard }}{{ end }}</td></tr>
+            <tr><th>{{ cond $en "Cone space" "锥体空间" }}</th><td>{{ cond $en $d.coneEn $d.cone }}</td></tr>
+          </tbody>
+        </table>
+
+        <h2>{{ cond $en "Transform" "变换式" }}</h2>
+        <div class="c-eq">
+          <span class="c-eq-l">(R<sub>w</sub>, G<sub>w</sub>, B<sub>w</sub>)ᵀ = M · XYZ<sub>w</sub></span>
+          <span class="c-eq-r">{{ cond $en "the source white into cone space (Eq. D.1)" "源白进锥体空间（式 D.1）" }}</span>
+          <span class="c-eq-l">(R<sub>wr</sub>, G<sub>wr</sub>, B<sub>wr</sub>)ᵀ = M · XYZ<sub>wr</sub></span>
+          <span class="c-eq-r">{{ cond $en "the reference white, likewise (Eq. D.1)" "参考白（目标白）同样算一次（式 D.1）" }}</span>
+          <span class="c-eq-l">D<sub>R</sub> = D · R<sub>wr</sub>/R<sub>w</sub> + 1 − D</span>
+          <span class="c-eq-r">{{ cond $en "one per channel; at D = 1 this is just R_wr/R_w (Eq. D.2)" "三路各一；D = 1 时就是 R_wr/R_w（式 D.2）" }}</span>
+          <span class="c-eq-l">(R, G, B)ᵀ = M · XYZ</span>
+          <span class="c-eq-r">{{ cond $en "the sample, into the same space (Eq. D.14)" "样品进同一个空间（式 D.14）" }}</span>
+          <span class="c-eq-l">(R<sub>c</sub>, G<sub>c</sub>, B<sub>c</sub>)ᵀ = diag(D<sub>R</sub>, D<sub>G</sub>, D<sub>B</sub>) · (R, G, B)ᵀ</span>
+          <span class="c-eq-r">{{ cond $en "multiplied channel by channel (Eq. D.15)" "逐通道相乘（式 D.15）" }}</span>
+          <span class="c-eq-l">(X<sub>c</sub>, Y<sub>c</sub>, Z<sub>c</sub>)ᵀ = M⁻¹ · (R<sub>c</sub>, G<sub>c</sub>, B<sub>c</sub>)ᵀ</span>
+          <span class="c-eq-r">{{ cond $en "back to tristimulus values" "回到三刺激值" }}</span>
+        </div>
+        <p class="c-gamutnote">{{ cond $en
+          "The equation numbers are CIE 15:2018 Annex D's own (they write out CIECAM02's CAT02; another M changes nothing structural). D is the degree of chromatic adaptation — one scalar; D_R, D_G, D_B are the three coefficients. Different quantities, similar names."
+          "式号是 CIE 15:2018 Annex D 的 CIECAM02 编号，换成别的 M 结构不变。D 是色适应程度，一个标量；D_R、D_G、D_B 是三个系数——两个名字相近，不是一回事。" }}</p>
+
+        <h2>{{ cond $en "Matrix" "矩阵" }}</h2>
+        <p class="c-cat-axis">{{ cond $en "XYZ → cone responses" "XYZ → 锥体响应" }}</p>
+        {{ partial "cat-matrix.html" (dict "m" $d.matrix) }}
+        {{ with $d.matrixInv }}
+        <p class="c-cat-axis">{{ cond $en "Cone responses → XYZ (inverse of M)" "锥体响应 → XYZ（由 M 求逆）" }}</p>
+        {{ partial "cat-matrix.html" (dict "m" .) }}
+        {{ end }}
+
+        <h2>{{ cond $en "Effective cone sensitivities" "有效锥体光谱灵敏度" }}</h2>
+        <p class="c-cat-axis">{{ cond $en
+          "Solid: this transform. Dashed: Hunt–Pointer–Estevez for comparison. The curve is M applied to the CIE 1931 2° colour-matching functions, normalised per channel."
+          "实线是本变换，虚线是 Hunt–Pointer–Estevez 对照。曲线由 CIE 1931 2° 光谱三刺激值经 M 计算，每通道按峰值归一。" }}</p>
+        <div data-cat-viz="cones" data-slug="{{ $slug }}" data-ref="von-kries" data-compact="true"></div>
+
+        <h2>{{ cond $en "White point" "白点" }}</h2>
+        <p class="c-cat-axis">{{ cond $en
+          "Change the source or target white and the degree D; the equivalent matrix and the white-point check recompute below."
+          "改源白、目标白与适应度 D，下面的等效矩阵与白点校验表会实时重算。" }}</p>
+        <div id="cat-adapt"></div>
+
+        {{ partial "cat-walk.html" (dict "m" $d.matrix "mi" $d.matrixInv "src" $srcWhite "dst" $dstWhite "en" $en) }}
+
+        {{ with (cond $en $d.dNoteEn $d.dNote) }}
+        <h2>{{ cond $en "Degree of chromatic adaptation" "色适应程度 D" }}</h2>
+        <p>{{ . }}</p>
+        {{ end }}
+
+        {{ with .Content }}{{ . }}{{ end }}
+        {{ partial "colour-sources.html" (dict "ctx" . "heading" (cond $en "Sources" "来源")) }}
+      </div>
+    </div>
+  </div>
+  <script type="application/json" id="cat-data">{{ dict
+    "slug" $slug
+    "src" $srcWhite
+    "dst" $dstWhite
+    "lang" $lang
+    | jsonify | safeJS }}</script>
+  <script type="application/json" id="cat-viz-data">{{ dict
+    "lang" $vd.lang
+    "cats" $vd.cats
+    "locus" $vd.locus
+    "locusStep" $vd.locusStep
+    | jsonify | safeJS }}</script>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}
+{{ define "bottom-menu" }}
+{{ $en := eq .Params.variant "en" }}
+<nav class="bottom-menu"><p><a href="{{ cond $en "/en/cat/" "/cat/" | relURL }}">{{ if $en }}Chromatic adaptation{{ else }}色适应变换{{ end }}</a> · <a href="{{ .Site.Home.RelPermalink }}">{{ if $en }}Home{{ else }}首页{{ end }}</a></p></nav>
+{{ end }}

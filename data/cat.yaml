@@ -1,0 +1,104 @@
+# 色适应变换清单
+#
+# /cat/ 索引页与侧栏「色适应变换」都读这份数据；加条目只改这里。
+# 页面按 /cat/<slug>/ 挂：写好后把 status 改成 wip / done，链接自动出现。
+# 顺序即索引表与侧栏的顺序（按年份，XYZ Scaling 作为基准反例排在最前）。
+- slug: xyz-scaling
+  zh: XYZ Scaling
+  en: XYZ Scaling
+  year: "—"
+  zhNote: 基准反例：直接在 XYZ 上按白点比值缩放，不做锥体转换
+  enNote: "Baseline counterexample: scale XYZ directly by the white-point ratios, with no cone transform"
+  zhUse: 对照基准 · 说明锥体空间为什么必要
+  enUse: Baseline · why a cone space is needed
+  status: done
+
+- slug: von-kries
+  zh: von Kries
+  en: von Kries
+  year: 1902
+  zhNote: 系数律本身：锥体响应逐通道缩放。这里用 HPE 锥体空间
+  enNote: The coefficient law itself — per-channel scaling of cone responses, here in Hunt–Pointer–Estevez space
+  zhUse: CIE 109-1994 的锥体空间
+  enUse: Cone space of CIE 109-1994
+  status: done
+
+- slug: bradford
+  zh: Bradford
+  en: Bradford
+  year: 1985
+  zhNote: 锐化锥体空间；出自 Lam 1985 论文，ICC 规范推荐用它的线性版本做 PCS 白点适应
+  enNote: Sharpened cone space from Lam's 1985 thesis; ICC recommends its linearised form for PCS adaptation
+  zhUse: ICC PCS 推荐白点适应
+  enUse: Recommended ICC PCS adaptation
+  status: done
+
+- slug: sharp
+  zh: Sharp
+  en: Sharp
+  year: 2000
+  zhNote: 按视觉对应色实验拟合出的光谱锐化矩阵；等效响应不是实测相机或人眼锥体
+  enNote: Spectral-sharpening matrix fitted to visual corresponding-colour data; its effective responses are not measured camera or cone curves
+  zhUse: 对应色预测 · 光谱锐化
+  enUse: Corresponding-colour prediction · spectral sharpening
+  status: done
+
+- slug: cmccat2000
+  zh: CMCCAT2000
+  en: CMCCAT2000
+  year: 2002
+  zhNote: 英国色彩测量委员会（CMC）提出的 CAT；完整公式额外带亮度因子 a
+  enNote: CAT from the Colour Measurement Committee (CMC); the full model adds a luminance factor a
+  zhUse: 对应色预测 · CMC 委员会推荐
+  enUse: Corresponding-colour prediction · CMC recommendation
+  status: done
+
+- slug: cat02
+  zh: CAT02
+  en: CAT02
+  year: 2004
+  zhNote: CIECAM02 的 CAT；D 因子按环绕条件 F 折算，470 nm 处 ρ 出现负响应
+  enNote: The CAT of CIECAM02; D is scaled by the surround factor F, and ρ goes negative at 470 nm
+  zhUse: CIECAM02 · CAM02-UCS
+  enUse: CIECAM02 · CAM02-UCS
+  status: done
+
+- slug: cat02-brill
+  zh: CAT02 Brill 2008
+  en: CAT02 Brill 2008
+  year: 2008
+  zhNote: Brill & Süsstrunk 的修正：把 CAT02 第三行换成 [0, 0, 1]，修色域问题
+  enNote: "The Brill & Süsstrunk repair: replace CAT02's third row with [0, 0, 1] to fix gamut problems"
+  zhUse: CIECAM02 的色域修补 · 负响应讨论
+  enUse: CIECAM02 gamut repair · negative-response discussion
+  status: done
+
+- slug: bianco-schettini
+  zh: Bianco–Schettini
+  en: Bianco–Schettini
+  year: 2010
+  zhNote: 数值优化得到的锐化锥体；论文给了两组解
+  enNote: A sharpened cone space found by numerical optimisation; the paper gives two solutions
+  zhUse: 相机色彩校正
+  enUse: Camera colour correction
+  status: done
+
+- slug: bianco-pc
+  zh: Bianco PC 2010
+  en: Bianco PC 2010
+  year: 2010
+  zhNote: 正约束解：显著压制负瓣，代价是拟合自由度
+  enNote: The positive-constrained solution — negative lobes largely suppressed, at the cost of some fitting freedom
+  zhUse: 负瓣敏感的场景 · 与无约束解对照
+  enUse: Where negative lobes matter · contrast with the unconstrained solution
+  status: done
+
+- slug: cat16
+  zh: CAT16
+  en: CAT16
+  year: 2017
+  zhNote: CAM16 的 CAT；色适应与亮度适应在同一个空间完成
+  enNote: The CAT of CAM16, completing colour and luminance adaptation in one space
+  zhUse: CAM16 · CAM16-UCS
+  enUse: CAM16 · CAM16-UCS
+  status: done

@@ -1,0 +1,47 @@
+{{/* 逐步演算一个样品。参数：m、mi、src、dst、en。 */}}
+{{- $en := .en -}}
+{{- $r := partial "cat-calc.html" (dict "m" .m "mi" .mi "src" .src "dst" .dst) -}}
+{{- $src := .src -}}{{- $dst := .dst -}}
+<h2>{{ cond $en "Worked example" "逐步演算" }}</h2>
+<p class="c-cat-axis">{{ cond $en
+  "Sample: xy = 0.25 / 0.30, Y = 20, i.e. XYZ = 16.67 / 20.00 / 30.00 (normalised to Y = 100; about sRGB #528392). Degree of adaptation D = 1 here, so the coefficients are simply the ratios of the two whites. XYZ to three decimals, coefficients to four."
+  "样品取 xy = 0.25 / 0.30、Y = 20，即 XYZ = 16.67 / 20.00 / 30.00（Y 归一到 100，约 sRGB #528392）。这里取 D = 1（完全适应），所以系数就是两个白点的比值。XYZ 取三位小数，系数取四位。" }}</p>
+<div class="c-tablewrap">
+<table class="c-cat-run c-run-steps">
+  <thead>
+    <tr><th></th><th>R</th><th>G</th><th>B</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th><span class="c-run-n">1</span>(R<sub>w</sub>, G<sub>w</sub>, B<sub>w</sub>)ᵀ = M · XYZ<sub>w</sub>({{ $src }})</th>
+      {{ range $v := $r.bs }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+    <tr>
+      <th><span class="c-run-n">2</span>(R<sub>wr</sub>, G<sub>wr</sub>, B<sub>wr</sub>)ᵀ = M · XYZ<sub>wr</sub>({{ $dst }})</th>
+      {{ range $v := $r.bd }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+    <tr class="c-run-hi">
+      <th><span class="c-run-n">3</span>D<sub>R</sub> = R<sub>wr</sub> / R<sub>w</sub></th>
+      {{ range $v := $r.k }}<td class="c-kcell"><b>{{ printf "%.4f" $v }}</b><span class="c-kb"><i style="width:{{ printf "%.1f" (div (mul $v 100.0) 1.15) }}%"></i></span></td>{{ end }}
+    </tr>
+    <tr class="c-run-note"><td colspan="4">{{ cond $en
+      "The whites go through the same M. Dividing one by the other gives the three coefficients — they depend only on the two white points, never on the colour."
+      "白点也过同一个 M。两者相除就是三个系数——只由两个白点决定，与颜色无关。" }}</td></tr>
+    <tr>
+      <th><span class="c-run-n">4</span>(R, G, B)ᵀ = M · XYZ</th>
+      {{ range $v := $r.b }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+    <tr>
+      <th><span class="c-run-n">5</span>R<sub>c</sub> = D<sub>R</sub> · R（{{ cond $en "same for G, B" "G、B 同理" }}）</th>
+      {{ range $v := $r.bp }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+    <tr class="c-run-hi">
+      <th><span class="c-run-n">6</span>(X<sub>c</sub>, Y<sub>c</sub>, Z<sub>c</sub>)ᵀ = M⁻¹ · (R<sub>c</sub>, G<sub>c</sub>, B<sub>c</sub>)ᵀ</th>
+      {{ range $v := $r.out }}<td>{{ printf "%.3f" $v }}</td>{{ end }}
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="c-gamutnote">{{ cond $en
+  (printf "Reading the coefficients: D_B = %.4f means the blue response is multiplied by %.4f, so %.1f%% of it is discounted — D65's white is far bluer than D50's, and removing that blue is what makes the colour look the same under the warmer white. R goes the other way, times %.4f. Note that Y_c is not Y: here 20.000 becomes %.3f, because a pure chromatic adaptation pins the white points, not every luminance." (index $r.k 2) (index $r.k 2) (mul (sub 1.0 (index $r.k 2)) 100.0) (index $r.k 0) (index $r.out 1))
+  (printf "怎么读系数：D_B = %.4f，即蓝响应乘 %.4f、扣掉 %.1f%%——D65 的白比 D50 蓝得多，扣掉这部分蓝，颜色在暖白下才看起来一样；R 反过来，乘 %.4f。注意 Y_c 并不等于 Y：这里是 20.000 → %.3f，纯色适应只保证白点对上，不保证每个颜色的亮度不变。" (index $r.k 2) (index $r.k 2) (mul (sub 1.0 (index $r.k 2)) 100.0) (index $r.k 0) (index $r.out 1)) }}</p>

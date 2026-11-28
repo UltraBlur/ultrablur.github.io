@@ -1,0 +1,45 @@
+{{/* 全站统一的面包屑 + 中英切换。
+
+  参数（dict）：
+    ctx     当前页面，必填
+    en      当前页是否英文镜像（布尔），必填
+    items   父级面包屑数组，每项 dict "title" "url"；可选
+    current 覆盖当前页标题；可选，默认取 $ctx.Title
+    altUrl  显式指定对侧语言 URL；可选，省略时按 RelPermalink 自动推导
+
+  对侧链接一律经 site.GetPage 校验：目标页面不存在（单语草稿、内部页、
+  尚未镜像的新页）就不渲染 <a class="c-lang">，保证构建产物零死链。
+  需要特例时传 altUrl 覆盖，不要在模板里另写一份 <nav class="c-crumb">。
+*/}}
+{{- $ctx := .ctx -}}
+{{- $en := .en -}}
+{{- $items := .items | default slice -}}
+{{- $cur := .current | default $ctx.Title -}}
+{{- $alt := "" -}}
+{{- with .altUrl -}}
+  {{- $alt = . -}}
+{{- else -}}
+  {{- $path := strings.TrimSuffix "/" $ctx.RelPermalink -}}
+  {{- if $en -}}
+    {{- with site.GetPage (strings.TrimPrefix "/en" $path) -}}
+      {{- if ne .RelPermalink $ctx.RelPermalink -}}{{- $alt = .RelPermalink -}}{{- end -}}
+    {{- end -}}
+  {{- else -}}
+    {{- with site.GetPage (printf "/en%s" $path) -}}
+      {{- if ne .RelPermalink $ctx.RelPermalink -}}{{- $alt = .RelPermalink -}}{{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $altLang := cond $en "zh" "en" -}}
+{{- $altText := cond $en "中文" "English" -}}
+<nav class="c-crumb" aria-label="breadcrumb">
+  <span class="c-crumb-trail">
+    {{- range $items -}}
+    <a href="{{ .url }}">{{ .title }}</a><span class="c-crumb-sep">/</span>
+    {{- end -}}
+    <span class="c-crumb-cur" aria-current="page">{{ $cur }}</span>
+  </span>
+  {{- with $alt }}
+  <a class="c-lang" href="{{ . }}" hreflang="{{ $altLang }}" lang="{{ $altLang }}">{{ $altText }}</a>
+  {{- end }}
+</nav>

@@ -1,0 +1,46 @@
+{{ define "head_resources" }}
+{{ $css := resources.Get "css/colour.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+{{ if .Params.catViz }}
+{{ $lib := resources.Get "js/lib/cat.js" | minify | fingerprint }}
+<script defer src="{{ $lib.RelPermalink }}" integrity="{{ $lib.Data.Integrity }}"></script>
+{{ $viz := resources.Get "js/cat-viz.js" | minify | fingerprint }}
+<script defer src="{{ $viz.RelPermalink }}" integrity="{{ $viz.Data.Integrity }}"></script>
+{{ end }}
+{{ end }}
+{{ define "section_title" }}<!-- -->{{ end }}
+{{ define "section_content" }}
+{{ $en := eq .Params.variant "en" }}
+{{ $lang := cond $en "en" "zh" }}
+<div class="c-page" data-lang="{{ $lang }}">
+  <div class="c-layout">
+    {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink "en" $en) }}
+    <div class="c-main">
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Chromatic adaptation" "色适应变换") "url" (cond $en "/en/cat/" "/cat/" | relURL)))
+      ) }}
+      <header class="c-hero"><h1>{{ .Title }}</h1></header>
+      {{ if .Params.catViz }}
+      {{ $vd := partial "cat-viz-data.html" (dict "en" $en) }}
+      <script type="application/json" id="cat-viz-data">{{ dict
+        "lang" $vd.lang
+        "cats" $vd.cats
+        "locus" $vd.locus
+        "locusStep" $vd.locusStep
+        | jsonify | safeJS }}</script>
+      {{ end }}
+      <div class="c-prose">
+        {{ .Content }}
+        {{ partial "colour-sources.html" (dict "ctx" . "heading" (cond $en "Sources" "来源")) }}
+      </div>
+    </div>
+  </div>
+  <script>document.documentElement.lang = "{{ $lang }}";</script>
+</div>
+{{ end }}
+{{ define "bottom-menu" }}
+{{ $en := eq .Params.variant "en" }}
+<nav class="bottom-menu"><p><a href="{{ cond $en "/en/cat/" "/cat/" | relURL }}">{{ if $en }}Chromatic adaptation{{ else }}色适应变换{{ end }}</a> · <a href="{{ .Site.Home.RelPermalink }}">{{ if $en }}Home{{ else }}首页{{ end }}</a></p></nav>
+{{ end }}
