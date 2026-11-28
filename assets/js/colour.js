@@ -804,6 +804,27 @@
     return 10000 * Math.pow(num / den, 1 / PQ_M1);
   }
 
+  /* 纯幂函数 EOTF 的幂指数：键与 layouts/partials/colour-figure.html 的下拉表一一对应。
+     自定义模式（custom）用输入的 γ，不走这张表。 */
+  var EOTF_GAMMA = {
+    gamma18: 1.8,
+    gamma1961: 1.961,
+    gamma563: 563 / 256,
+    gamma22: 2.2,
+    gamma2222: 20 / 9,
+    gamma235: 2.35,
+    gamma24: 2.4,
+    gamma26: 2.6,
+    gamma28: 2.8
+  };
+  /* 自定义 γ 的允许区间：太小的幂指数在 0 附近斜率发散，太大只是把暗部压平 */
+  var CUSTOM_GAMMA_MIN = 0.1, CUSTOM_GAMMA_MAX = 5;
+
+  function clampGamma(g) {
+    if (!isFinite(g)) return 2.2;
+    return Math.min(Math.max(g, CUSTOM_GAMMA_MIN), CUSTOM_GAMMA_MAX);
+  }
+
   function initEOTF(fig) {
     var chart = fig.querySelector('.c-chart');
     var svg = fig.querySelector('svg');
@@ -815,6 +836,7 @@
     } else { CINITY_PTS = null; }
     var lwInput = fig.querySelector('.c-eotf-lw');
     var lbInput = fig.querySelector('.c-eotf-lb');
+    var gInput = fig.querySelector('.c-eotf-g');
     var logBox = fig.querySelector('.c-eotf-log');
     var xSel = fig.querySelector('.c-eotf-xmode');
     var bitSel = fig.querySelector('.c-eotf-bits');
@@ -838,6 +860,7 @@
         lw: lwInput ? Math.max(parseFloat(lwInput.value) || 100, 0.01) : 100,
         lb: lbInput ? Math.max(parseFloat(lbInput.value) || 0, 0) : 0,
         log: logBox ? logBox.checked : false,
+        gamma: clampGamma(gInput ? parseFloat(gInput.value) : 2.2),
         xmode: xSel ? xSel.value : 'norm',
         bits: bits,
         range: range,
@@ -859,7 +882,7 @@
       return lw * Math.pow(Math.max(e, 0), g);
     }
 
-    function eotf(type, v, lw, lb) {
+    function eotf(type, v, lw, lb, gam) {
       if (type === 'pq') return pqEotf(v);
       if (type === 'hlg') return hlgEotf(v, lw);
       if (type === 'cinity') return cinityEotf(v, lw);
@@ -873,8 +896,9 @@
         var b = Math.pow(lb, 1 / g) / (Math.pow(lw, 1 / g) - Math.pow(lb, 1 / g));
         return a * Math.pow(Math.max(v + b, 0), g);
       }
-      var gam = { gamma22: 2.2, gamma24: 2.4, gamma26: 2.6, gamma1961: 1.961, gamma18: 1.8, gamma563: 563 / 256 }[type] || 2.2;
-      return lw * Math.pow(v, gam);
+      /* 纯幂函数：custom 用输入的 γ，其余查 EOTF_GAMMA */
+      var power = type === 'custom' ? gam : (EOTF_GAMMA[type] || 2.2);
+      return lw * Math.pow(Math.max(v, 0), power);
     }
 
     /* 码值 → 归一化信号；范围外裁切 */
@@ -977,7 +1001,7 @@
       for (i = 0; i <= N; i++) {
         var xv2 = xMax * i / N;
         var V = codeMode ? codeToSignal(xv2, p) : xv2;
-        var L2 = eotf(p.type, V, p.lw, p.lb);
+        var L2 = eotf(p.type, V, p.lw, p.lb, p.gamma);
         if (L2 > yMax * 1.0001) break;
         d += (d ? 'L' : 'M') + sx(xv2).toFixed(1) + ',' + sy(L2).toFixed(1);
       }
@@ -1017,7 +1041,7 @@
       var xv = (px - M.l) / geo.plotW * geo.xMax;
       var p = geo.p;
       var V = geo.codeMode ? codeToSignal(xv, p) : xv;
-      var L = eotf(p.type, V, p.lw, p.lb);
+      var L = eotf(p.type, V, p.lw, p.lb, p.gamma);
       var cx = geo.sx(xv), cy = geo.sy(L);
       geo.cross.setAttribute('opacity', '1');
       geo.cross.children[0].setAttribute('x1', cx);
@@ -1042,6 +1066,7 @@
       var p = params();
       if (lbInput) lbInput.disabled = p.type !== 'bt1886';
       if (lwInput) lwInput.disabled = p.type === 'pq';
+      if (gInput) gInput.disabled = p.type !== 'custom';
       var codeMode = p.xmode === 'code';
       if (bitSel) bitSel.disabled = !codeMode;
       if (rangeSel) rangeSel.disabled = !codeMode;
@@ -1052,8 +1077,13 @@
     [sel, xSel, bitSel, rangeSel].forEach(function (el) {
       if (el) el.addEventListener('change', function () { syncControls(); draw(); hide(); });
     });
-    [lwInput, lbInput].forEach(function (el) {
+    [lwInput, lbInput, gInput].forEach(function (el) {
       if (el) el.addEventListener('input', function () { draw(); });
+    });
+    /* 手动 γ 超出区间时曲线按钳位值画，离开输入框后把数值也写回钳位值，避免显示与曲线不一致 */
+    if (gInput) gInput.addEventListener('change', function () {
+      gInput.value = String(clampGamma(parseFloat(gInput.value)));
+      draw();
     });
     if (logBox) logBox.addEventListener('change', function () { draw(); });
     chart.addEventListener('mousemove', onMove);

@@ -1,24 +1,39 @@
 /* 三维色体积预览（试验） */
-.c-vol { margin: 1.2rem 0 2.4rem; }
-.c-vol-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem 1.1rem; font-size: .82rem; color: #444; margin-bottom: .9rem; }
-.c-vol-controls label { display: inline-flex; align-items: center; gap: .35rem; margin: 0; }
-.c-vol-controls select { font: inherit; font-size: .82rem; padding: .15rem .3rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-page--vol .c-crumb { margin-bottom: .75rem; }
+.c-page--vol .c-hero { margin-bottom: .7rem; }
+.c-vol { margin: .4rem 0 2rem; }
+.c-vol-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; font-size: .82rem; color: #444; margin-bottom: .45rem; }
+.c-vol-controls--view { margin-bottom: .35rem; padding-top: .35rem; border-top: 1px solid var(--border-subtle, #ececec); }
+.c-vol-controls label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: 0; }
+.c-vol-controls select { font: inherit; font-size: .82rem; padding: .2rem .4rem; border: 1px solid var(--border, #ddd); border-radius: var(--radius-sm, 3px); background: var(--bg, #fff); color: var(--ink, #333); font-variant-numeric: tabular-nums; }
 .c-vol-check input { margin: 0; }
-.c-vol-btn { font: inherit; font-size: .82rem; padding: .2rem .8rem; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; }
-.c-vol-btn:hover { border-color: #b5b5b5; color: #000; }
-.c-vol-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 520px; margin: 0 auto; }
-.c-vol-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.c-vol-btn { font: inherit; font-size: .82rem; padding: .22rem .65rem; border: 1px solid var(--border, #ddd); border-radius: var(--radius-sm, 3px); background: var(--bg, #fff); color: var(--ink-2, #333); cursor: pointer; }
+.c-vol-btn:hover { border-color: var(--border-strong, #b5b5b5); background: var(--surface-hover, #f7f7f7); color: var(--ink, #000); }
+.c-vol-coord-note { margin: -.15rem 0 .5rem; padding: 0 0 0 4.3rem; font-size: .74rem; line-height: 1.45; color: #7a5c2e; }
+.c-vol-coord-note[hidden] { display: none; }
+.c-vol-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: clamp(320px, calc(100vh - 280px), 520px); margin: 0 auto; }
+.c-vol-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; border-radius: var(--radius-sm, 3px); }
+.c-vol-stage canvas:focus-visible { outline: 2px solid var(--accent, #365d78); outline-offset: 2px; }
 .c-vol-stage canvas.is-dragging { cursor: grabbing; }
 .c-vol-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .c-vol-label { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-size: 11px; line-height: 1; color: #8f8f8f; white-space: nowrap; letter-spacing: .02em; }
 .c-vol-label.is-vertex { font-size: 10px; font-weight: 600; color: #4a4a4a; }
-.c-vol-cap { text-align: center; font-size: .76rem; color: #9a9a9a; margin: .5rem 0 0; }
+.c-vol-legend { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .3rem 1rem; margin: .35rem 0 0; padding: 0; font-size: .74rem; color: #555; }
+.c-vol-leg-item { display: inline-flex; align-items: center; gap: .35rem; }
+.c-vol-leg-swatch { display: inline-block; flex: 0 0 auto; }
+.c-vol-leg-swatch.is-solid { width: 10px; height: 10px; border-radius: 2px; background: linear-gradient(135deg, #d84b3a, #4aa854 52%, #3a6cd8); border: 1px solid rgba(0, 0, 0, .14); }
+.c-vol-leg-swatch.is-ref { width: 14px; height: 0; border-top: 2px solid #db4d1f; }
+.c-vol-leg-swatch.is-pointer { width: 14px; height: 0; border-top: 2px dashed #333d57; }
+.c-vol-leg-swatch.is-munsell { width: 7px; height: 7px; border-radius: 50%; background: #42424d; opacity: .7; }
+.c-vol-leg-swatch.is-locus { width: 14px; height: 0; border-top: 2px solid #4d4d57; }
+.c-vol-cap { text-align: center; font-size: .76rem; color: #9a9a9a; margin: .35rem 0 0; }
 .c-vol-note { margin-top: 1.8rem; padding-top: .8rem; border-top: 1px solid #eee; font-size: .86rem; color: #555; }
 .c-vol-note p { margin: .55rem 0; }
 .c-vol-note strong { color: #333; font-weight: 600; }
 .c-vol-fallback { margin: 1rem 0; color: #a33; font-size: .85rem; }
 @media (max-width: 720px) {
-  .c-vol-stage { aspect-ratio: 1 / 1; }
+  .c-vol-stage { aspect-ratio: 1 / 1; max-height: none; }
+  .c-vol-coord-note { padding-left: 0; }
 }
 .c-vol-fallback[hidden] { display: none; }
 /* 说明文字与「实测点」勾选框靠 hidden 属性开关；主题给 p / label 设了 display，得显式盖回来 */
@@ -43,7 +58,7 @@
 .c-vol-custom .c-vol-check input { vertical-align: middle; }
 .c-vol-custom-field { display: flex; flex-direction: row; align-items: center; gap: .4rem; font-size: .74rem; color: #6b6b6b; white-space: nowrap; }
 .c-vol-custom select,
-.c-vol-custom input { height: 1.75rem; font: .78rem/1.75rem var(--mono, ui-monospace, monospace); padding: 0 .4rem; border: 1px solid #d9d9d9; border-radius: 2px; background: #fff; color: #333; }
+.c-vol-custom input { height: 1.75rem; font: .78rem/1.75rem var(--mono, ui-monospace, monospace); padding: 0 .4rem; border: 1px solid var(--border, #d9d9d9); border-radius: var(--radius-sm, 2px); background: var(--bg, #fff); color: var(--ink, #333); font-variant-numeric: tabular-nums; }
 .c-vol-custom select { font-family: inherit; padding-right: 1.1rem; }
 .c-vol-white-group { display: inline-flex; flex-wrap: wrap; gap: .45rem .9rem; align-items: center; }
 .c-vol-white-group[hidden], .c-vol-custom-field[hidden], .c-vol-btn[hidden] { display: none; }
@@ -66,7 +81,7 @@
 .c-vol-custom-bottom { display: flex; align-items: center; gap: 1rem; padding-top: .5rem; border-top: 1px solid #ececec; }
 .c-vol-custom-status { font-size: .74rem; color: #666; }
 
-.c-vol-custom textarea { font: .78rem/1.5 var(--mono, ui-monospace, monospace); padding: .4rem .5rem; border: 1px solid #d9d9d9; border-radius: 2px; background: #fff; color: #333; min-width: 12rem; resize: vertical; }
+.c-vol-custom textarea { font: .78rem/1.5 var(--mono, ui-monospace, monospace); padding: .4rem .5rem; border: 1px solid var(--border, #d9d9d9); border-radius: var(--radius-sm, 2px); background: var(--bg, #fff); color: var(--ink, #333); min-width: 12rem; resize: vertical; }
 .c-vol-custom-adv { margin-top: .45rem; font-size: .72rem; color: #888; }
 .c-vol-custom-adv-body { display: flex; flex-wrap: wrap; gap: .7rem 1.2rem; align-items: flex-start; margin-top: .45rem; }
 .c-vol-custom-adv-side { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
@@ -98,23 +113,96 @@
 .c-vol-link { margin: .2rem 0 1.6rem; font-size: .95rem; }
 [data-vol-lum][hidden] { display: none; }
 [data-vol-vt][hidden] { display: none; }
-.c-ins-swatch { width: 44px; height: 24px; border: 1px solid #ccc; display: inline-block; }
-.c-cvt-grid { display: flex; gap: 1rem; flex-wrap: wrap; margin: .6rem 0 1rem; font-size: .85rem; }
-.c-cvt-grid input { width: 90px; font: inherit; padding: .15rem .3rem; border: 1px solid #ddd; }
-.c-vol-controls input[type=text] { font: inherit; font-size: .85rem; padding: .15rem .35rem; border: 1px solid #ddd; }
-.c-de { margin-top: .5rem; }
-.c-pick { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; margin: .4rem 0 1rem; }
-.c-pick canvas { border: 1px solid #ddd; cursor: crosshair; touch-action: none; }
-.c-pick-side { display: flex; flex-direction: column; gap: .6rem; font-size: .85rem; }
-.c-pick-side input[type=range] { width: 180px; }
-.c-pick { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: flex-start; margin: .4rem 0 1.2rem; }
-.c-pick canvas { border: 1px solid #ddd; border-radius: 2px; cursor: crosshair; touch-action: none; width: 320px; height: 240px; }
-.c-pick-side { display: flex; flex-direction: column; gap: .7rem; font-size: .85rem; }
-.c-pick-model select { margin-left: .4rem; font: inherit; padding: .15rem .3rem; border: 1px solid #ddd; }
-.c-pick-side input[type=range] { width: 200px; }
-.c-pick-hex { display: flex; align-items: center; gap: .5rem; }
-.c-pick-hex input { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .15rem .35rem; border: 1px solid #ddd; }
+/* ---- 取色读数工具（/tools/inspector/） ---- */
+/* 工具栏：上排浅灰控件条，下排一行动态提示 */
+.c-ins-toolbar { display: flex; flex-direction: column; gap: .45rem; margin: .4rem 0 .8rem; }
+.c-ins-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; padding: .42rem .8rem; background: #fafaf8; border: 1px solid #e6e6e0; border-radius: 4px; }
+.c-pick-model { display: inline-flex; align-items: center; gap: .3rem; margin: 0; font-size: .82rem; color: #555; }
+.c-pick-model.is-muted { opacity: .62; }
+/* 参考白在当前模型/曲线下不起作用：控件真的禁用，不只是变淡 */
+.c-pick-model select:disabled { background: #f4f4f2; color: #9a9a98; border-color: #e6e6e2; cursor: not-allowed; }
+.c-pick-model select { margin-left: .15rem; font: inherit; font-size: .82rem; padding: .16rem .28rem; border: 1px solid #ddd; background: #fff; color: #333; }
+.c-ins-wp { font-size: .68rem; line-height: 1.4; color: #6d5a38; background: #f4edde; border: 1px solid #e4d7bd; border-radius: 2px; padding: 0 .24rem; letter-spacing: .02em; white-space: nowrap; flex: 0 0 auto; }
+.c-ins-wp[hidden] { display: none; }
+.c-pick-note { margin: 0; padding: 0 .15rem; font-size: .74rem; color: #8a8a8a; line-height: 1.45; }
+
+.c-ins-swatch { width: 52px; height: 32px; border: 1px solid #ccc; display: inline-block; border-radius: 2px; flex: 0 0 auto; }
+.c-ins-oogs { font-size: .68rem; line-height: 1.6; color: #8a6a2f; background: #fbf4e6; border: 1px solid #e8d9bd; border-radius: 2px; padding: 0 .3rem; white-space: nowrap; }
+.c-ins-oogs[hidden] { display: none; }
+.c-ins-hexlabel { font-size: .72rem; color: #8a8a8a; }
+.c-ins-unit { font-size: .72rem; color: #999; }
+.c-ins-pair { font: inherit; font-size: .74rem; color: #5b6b86; background: #f3f7ff; border: 1px solid #d6e0f0; border-radius: 3px; padding: .14rem .5rem; cursor: pointer; }
+.c-ins-pair:hover { border-color: #a9bfe3; color: #33517d; }
+.c-ins-pair[hidden] { display: none; }
+.c-ins-fit { align-self: flex-start; font: inherit; font-size: .76rem; color: #8a6a2f; background: #fbf4e6; border: 1px solid #e8d9bd; border-radius: 3px; padding: .2rem .6rem; cursor: pointer; }
+.c-ins-fit:hover { border-color: #d3bd90; color: #6b4f1d; }
+.c-ins-fit[hidden] { display: none; }
+/* 编码 RGB 的标题会带色域 + 曲线名，允许换行，不能把输入框挤走 */
+#ins-rgb-title { white-space: normal; line-height: 1.25; align-self: center; }
+#ins-lb { width: 5rem; font: inherit; font-family: ui-monospace, Menlo, monospace; font-size: .78rem; padding: .08rem .24rem; border: 1px solid #ddd; }
+#ins-lb-label[hidden] { display: none; }
+
+/* 双栏：左轮右切片；右列下方紧贴读数卡与状态，两列高度基本齐平 */
+.c-pick { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; margin: .2rem 0 .7rem; }
+.c-pick-fig { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
+.c-pick-right { display: flex; flex-direction: column; gap: .7rem; min-width: 0; }
+.c-fig-cap { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.c-fig-name { font-size: .8rem; letter-spacing: .04em; color: #777; }
+.c-fig-val { font-family: ui-monospace, Menlo, monospace; font-size: .9rem; color: #333; font-variant-numeric: tabular-nums; }
+.c-fig-val--hue { display: inline-flex; align-items: baseline; gap: .22rem; }
+.c-fig-k { color: #999; font-style: italic; }
+.c-fig-deg { color: #999; }
+.c-fig-val--hue input { width: 62px; font: inherit; font-family: ui-monospace, Menlo, monospace; font-size: .9rem; padding: .05rem .25rem; border: 1px solid #ddd; border-radius: 3px; text-align: right; }
+.c-pick canvas { display: block; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 2px; background: #fff; touch-action: none; cursor: crosshair; }
+.c-pick-fig--wheel canvas { max-width: 380px; margin: 0 auto; }
+.c-pick-fig--slice canvas { max-width: 420px; margin: 0 auto; }
 .c-pick-axes { font-size: .74rem; color: #999; line-height: 1.5; }
-.c-ins-table { margin-top: .4rem; }
+
+.c-ins-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: 0 0 1rem; padding: 0; font-size: .74rem; color: #8a8a8a; }
+.c-ins-legend li { display: inline-flex; align-items: center; gap: .4rem; }
+.c-ins-legend li[hidden] { display: none; }
+.c-leg { width: 12px; height: 12px; display: inline-block; border: 1px solid #d5d5d5; border-radius: 2px; }
+.c-leg--color { background: #e4846c; border-color: #d0765f; }
+.c-leg--project { background: #ececec; }
+.c-leg--ring { background: linear-gradient(90deg, #ff4d4d, #ffd24d, #63d94e, #4dd7d9, #4d7bff, #c94dff, #ff4d4d); }
+
+/* 读数卡：色块 + HEX + 超 sRGB 徽标一行，RGB 与模型坐标两行紧凑排列 */
+.c-pick-readout { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: .5rem .65rem .55rem; background: #fbfbf8; border: 1px solid #e6e6e0; border-radius: 4px; }
+.c-pick-hex { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.c-pick-hex input { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .15rem .35rem; border: 1px solid #ddd; width: 6.5rem; }
+.c-pick-inputs { display: flex; flex-direction: column; gap: .28rem; }
+/* 每行固定四列（标题 + 三个通道）：列宽随卡片收缩，输入框不再换行散开 */
+.c-pick-inputs-row { display: grid; grid-template-columns: 5.8rem repeat(3, minmax(0, 1fr)); align-items: center; gap: .3rem .4rem; }
+.c-pick-inputs-title { color: #8a8a8a; font-size: .72rem; white-space: nowrap; }
+.c-pick-inputs-row label { display: flex; align-items: center; gap: .16rem; min-width: 0; color: #888; font-size: .78rem; }
+.c-pick-inputs-row input { width: 100%; max-width: 64px; min-width: 0; font: inherit; font-family: ui-monospace, Menlo, monospace; font-size: .8rem; padding: .08rem .22rem; border: 1px solid #ddd; }
+.c-pick-status { margin: 0; font-size: .76rem; color: #a86a00; }
+.c-pick-status.is-info { color: #5b6b86; }
+.c-pick-status[hidden] { display: none; }
+
+.c-ins-table { border-collapse: collapse; margin: .2rem 0 1rem; width: 100%; }
+.c-ins-table th { text-align: left; font-weight: 500; color: #999; font-size: .76rem; padding: .35rem .6rem; border-bottom: 1px solid #e4e4e4; }
+.c-ins-table th:last-child { width: 2.4rem; }
+.c-ins-table td { padding: .34rem .6rem; border-bottom: 1px solid #efefef; font-size: .84rem; vertical-align: baseline; }
 .c-ins-table td:first-child { color: #888; width: 12rem; }
-.c-ins-table td:last-child { font-family: ui-monospace, Menlo, monospace; }
+.c-ins-table td:nth-child(2) { font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.c-ins-row.is-group-start td { border-top: 2px solid #e4e4e0; }
+.c-ins-row.is-active td { background: #f3f7ff; }
+.c-ins-tag { font-size: .7rem; color: #999; border: 1px solid #e4e4e4; border-radius: 2px; padding: 0 .18rem; white-space: nowrap; }
+.c-ins-k { color: #9a9a9a; }
+.c-ins-copycell { text-align: right; width: 2.4rem; }
+.c-ins-copy { font: inherit; line-height: 1; padding: .14rem .32rem; border: 1px solid #e4e4e4; border-radius: 3px; background: #fff; color: #b0b0b0; cursor: pointer; }
+.c-ins-copy:hover { border-color: #b9b9b9; color: #555; }
+.c-ins-copy.is-done { color: #1a7f37; border-color: #b7e1c1; }
+.c-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.c-pick input:focus-visible, .c-pick-fig input:focus-visible, .c-ins-copy:focus-visible {
+  outline: 2px solid #4c7dff; outline-offset: 1px;
+}
+
+@media (max-width: 760px) {
+  /* 单列：轮在前，切片、读数卡、状态依次在后。画布不再放宽到 100%——超过逻辑尺寸会被放大变糊 */
+  .c-pick { grid-template-columns: minmax(0, 1fr); }
+  .c-ins-table td:first-child { width: auto; }
+  .c-ins-table td:nth-child(2) { white-space: normal; }
+}

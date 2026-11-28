@@ -29,9 +29,11 @@
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Tools" "工具") "url" (cond $en "/en/tools/" "/tools/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="transfer-data">{{ dict "spaces" $list "lang" $lang | jsonify | safeJS }}</script>
       <div class="c-tf" data-tf>

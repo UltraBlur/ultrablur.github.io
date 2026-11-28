@@ -3,12 +3,14 @@
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
 {{ $vol := resources.Get "css/colour-volume.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $vol.RelPermalink }}" integrity="{{ $vol.Data.Integrity }}">
-{{ $models := resources.Get "js/colour-models.js" | minify | fingerprint }}
-<script defer src="{{ $models.RelPermalink }}" integrity="{{ $models.Data.Integrity }}"></script>
 {{ $jmh := resources.Get "js/lib/aces-jmh.js" | minify | fingerprint }}
 <script defer src="{{ $jmh.RelPermalink }}" integrity="{{ $jmh.Data.Integrity }}"></script>
+{{ $codec := resources.Get "js/lib/colour-codec.js" | minify | fingerprint }}
+<script defer src="{{ $codec.RelPermalink }}" integrity="{{ $codec.Data.Integrity }}"></script>
 {{ $polar := resources.Get "js/colour-polar.js" | minify | fingerprint }}
 <script defer src="{{ $polar.RelPermalink }}" integrity="{{ $polar.Data.Integrity }}"></script>
+{{ $wheel := resources.Get "js/colour-wheel-geom.js" | minify | fingerprint }}
+<script defer src="{{ $wheel.RelPermalink }}" integrity="{{ $wheel.Data.Integrity }}"></script>
 {{ $tjs := resources.Get "js/tool-inspector.js" | minify | fingerprint }}
 <script defer src="{{ $tjs.RelPermalink }}" integrity="{{ $tjs.Data.Integrity }}"></script>
 {{ end }}
@@ -16,31 +18,105 @@
 {{ define "section_content" }}
 {{ $en := eq .Params.variant "en" }}
 {{ $lang := cond $en "en" "zh" }}
-<div class="c-page" data-lang="{{ $lang }}">
+{{/* 仅收录显示空间（scope = "dr"）：原色全部落在 CIE 1931 可见光谱轨迹内；
+     相机/工作空间/ACES 的虚原色超出可见光范围，不纳入取色读数。 */}}
+{{ $data := partial "tool-spaces.html" (dict "scope" "dr" "en" $en) }}
+{{/* 仅下发显示空间对应的采样曲线，不下发相机 Log 曲线 */}}
+{{ $curves := dict }}
+{{ range $data.spaces }}
+  {{ $slug := .slug }}
+  {{ with (index hugo.Data.curves $slug) }}
+    {{ $pairs := slice }}
+    {{ range . }}{{ $pairs = $pairs | append (dict "c" (index . 1) "s" (index . 0)) }}{{ end }}
+    {{ $curves = merge $curves (dict $slug $pairs) }}
+  {{ end }}
+{{ end }}
+{{/* 色域下拉：仅显示原色，按「原色 + 白点」去重（P3-D65 / P3-DCI 白点不同不合并） */}}
+{{ $groupOrder := slice "display-gamut" }}
+{{ $groupLabel := dict
+  "display-gamut" (cond $en "Display primaries" "显示原色") }}
+{{ $short := dict
+  "primaries-srgb-rec709" "sRGB"
+  "primaries-rec2020" "Rec.2020"
+  "primaries-p3-d65" "P3-D65"
+  "primaries-p3-dci" "P3-DCI"
+  "primaries-adobe-rgb" "Adobe RGB"
+  "cinity-rgb-d65" "Cinity" }}
+{{ $gamuts := slice }}
+{{ $seen := dict }}
+{{ range $groupOrder }}
+  {{ $grp := . }}
+  {{ range $data.spaces }}
+    {{ if eq .kind $grp }}
+      {{ $parts := slice }}
+      {{ range .primaries }}{{ $parts = $parts | append (printf "%.5f,%.5f" (index . 0) (index . 1)) }}{{ end }}
+      {{ $w := "none" }}
+      {{ with .white }}{{ $w = printf "%.5f,%.5f" (index . 0) (index . 1) }}{{ end }}
+      {{ $key := printf "%s|%s|%s" $grp (delimit $parts ";") $w }}
+      {{ if not (index $seen $key) }}
+        {{ $seen = merge $seen (dict $key true) }}
+        {{ $tagParts := split .title " / " }}
+        {{ $tag := index $short .slug | default (index $tagParts 0) }}
+        {{ $gamuts = $gamuts | append (dict
+          "key" .slug
+          "title" .title
+          "tag" $tag
+          "group" $grp
+          "primaries" .primaries
+          "white" .white
+          "whiteName" .whiteName
+          "matrix" .matrix) }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+<div class="c-page c-page--wide" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Tools" "工具") "url" (cond $en "/en/tools/" "/tools/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
-      <script type="application/json" id="inspect-data">{{ dict "lang" $lang | jsonify | safeJS }}</script>
+      <p class="c-intro">{{ cond $en
+        "Pick a colour in a perceptual model. The RGB space is configured independently: primaries and white point (gamut) on one side, encoding curve (transfer function) on the other. Switching a monotone, invertible curve keeps the same XYZ and the same Lab/OKLCH outline; only code values and encoded HSV change. The swatch and HEX are always a clipped sRGB preview."
+        "在感知模型里取色。RGB 空间由两项独立配置：原色与白点（色域）一侧，编码曲线（传递函数）另一侧。切换单调可逆的曲线保持同一 XYZ 与同一 Lab/OKLCH 轮廓，只有码值与编码 HSV 变化。色块与 HEX 始终是 sRGB 的裁切预览。" }}</p>
+      <script type="application/json" id="inspect-data">{{ dict
+        "lang" $lang
+        "gamuts" $gamuts
+        "spaces" $data.spaces
+        "curves" $curves
+        "groupLabel" $groupLabel
+      | jsonify | safeJS }}</script>
       <div class="c-ins" data-inspector>
-        <div class="c-pick">
-          <canvas id="ins-plane" width="240" height="180"></canvas>
-          <div class="c-pick-side">
+        <div class="c-ins-toolbar">
+          <div class="c-ins-controls">
             <label class="c-pick-model">{{ cond $en "Model" "选色模型" }}
               <select id="ins-model">
                 <option value="hsv">HSV</option>
-                <option value="lch">LCH（Lab）</option>
+                <option value="lch" selected>LCH (Lab)</option>
                 <option value="oklch">OKLCH</option>
-                <option value="jmh">JMH（CAM02）</option>
-                <option value="jmhh">JMH（Hellwig / ACES 2.0）</option>
+                <option value="jmh">JMH (CAM02)</option>
+                <option value="jmhh">JMH (Hellwig / ACES 2.0)</option>
                 <option value="jzch">JzCH</option>
               </select>
             </label>
-            <input id="ins-hue" type="range" min="0" max="360" step="1" value="0">
-            <label class="c-pick-model">{{ cond $en "Reference white" "参考白" }}
+            <label class="c-pick-model">{{ cond $en "Gamut" "色域（原色 + 白点）" }}
+              <select id="ins-gamut">
+                {{ range $gamuts }}
+                <option value="{{ .key }}"{{ if eq .key "primaries-srgb-rec709" }} selected{{ end }}>{{ .title }}</option>
+                {{ end }}
+              </select>
+              <span class="c-ins-wp" id="ins-gamut-white" hidden>D65</span>
+            </label>
+            <label class="c-pick-model">{{ cond $en "Transfer" "传递函数" }}
+              <select id="ins-transfer" aria-describedby="ins-transfer-kind"></select>
+              <span class="c-ins-wp" id="ins-transfer-kind" hidden></span>
+            </label>
+            <button type="button" class="c-ins-pair" id="ins-pair" hidden>{{ cond $en "Catalogue pairing" "按资料页配对" }}</button>
+            <label class="c-pick-model" id="ins-lum-label">{{ cond $en "L_w" "参考白 L_w" }}
               <select id="ins-lum">
                 <option value="48">48 cd/m²</option>
                 <option value="100" selected>100 cd/m²</option>
@@ -48,14 +124,83 @@
                 <option value="1000">1000 cd/m²</option>
               </select>
             </label>
-            <div class="c-pick-hex">
-              <span class="c-ins-swatch" id="ins-swatch"></span>
-              <input id="ins-hex" type="text" value="#FF0000" spellcheck="false" size="8">
+            <label class="c-pick-model" id="ins-lb-label" hidden>{{ cond $en "L_b" "黑位 L_b" }}
+              <input id="ins-lb" type="number" min="0" step="0.01" value="0">
+              <span class="c-ins-unit">cd/m²</span>
+            </label>
+          </div>
+          <p class="c-pick-note" id="ins-toolbar-note"></p>
+        </div>
+
+        <div class="c-pick">
+          <figure class="c-pick-fig c-pick-fig--wheel">
+            <figcaption class="c-fig-cap">
+              <span class="c-fig-name">{{ cond $en "Hue wheel" "色相轮" }}</span>
+              <span class="c-fig-val" id="ins-wheel-title">L* 65.00</span>
+            </figcaption>
+            <canvas id="ins-wheel" width="360" height="360" role="img"
+              title="{{ cond $en "Inside: hue and chroma; ring: hue only." "轮内：色相与彩度；外圈：只改色相。" }}"
+              aria-label="{{ cond $en "Hue and chroma at the current lightness; the outer ring changes hue only" "当前明度下的色相与彩度；外圈只改变色相" }}"></canvas>
+          </figure>
+          <div class="c-pick-right">
+            <figure class="c-pick-fig c-pick-fig--slice">
+              <figcaption class="c-fig-cap">
+                <span class="c-fig-name">{{ cond $en "Chroma × lightness" "彩度 × 明度" }}</span>
+                <span class="c-fig-val c-fig-val--hue">
+                  <label class="c-fig-k" for="ins-hue-num">h</label>
+                  <input id="ins-hue-num" type="number" min="0" max="360" step="0.1" value="40"
+                    aria-label="{{ cond $en "Hue angle in degrees" "色相角（度）" }}">
+                  <span class="c-fig-deg">&deg;</span>
+                </span>
+              </figcaption>
+              <canvas id="ins-plane" width="400" height="280" role="img"
+                title="{{ cond $en "Drag to change chroma and lightness." "拖动：彩度与明度。" }}"
+                aria-label="{{ cond $en "Chroma against lightness at the current hue" "当前色相下的彩度与明度切片" }}"></canvas>
+              <div class="c-pick-axes" id="ins-axes"></div>
+            </figure>
+
+            <div class="c-pick-readout">
+              <div class="c-pick-hex">
+                <span class="c-ins-swatch" id="ins-swatch" aria-hidden="true"></span>
+                <span class="c-ins-hexlabel">{{ cond $en "sRGB preview" "sRGB 预览" }}</span>
+                <input id="ins-hex" type="text" value="#E4846C" spellcheck="false" size="8"
+                  aria-label="{{ cond $en "Hex colour (sRGB preview)" "HEX 颜色（sRGB 预览）" }}">
+                <span class="c-ins-oogs" id="ins-oogs" hidden>{{ cond $en "Out of sRGB · clipped" "超 sRGB · 裁切预览" }}</span>
+              </div>
+              <div class="c-pick-inputs">
+                <div class="c-pick-inputs-row" id="ins-srgb">
+                  <span class="c-pick-inputs-title" id="ins-rgb-title">sRGB (0–255)</span>
+                  <label>R<input id="ins-srgb-r" type="number" min="0" max="255" step="1"></label>
+                  <label>G<input id="ins-srgb-g" type="number" min="0" max="255" step="1"></label>
+                  <label>B<input id="ins-srgb-b" type="number" min="0" max="255" step="1"></label>
+                </div>
+                <div class="c-pick-inputs-row" id="ins-mc">
+                  <span class="c-pick-inputs-title" id="ins-mc-title">{{ cond $en "Model" "模型坐标" }}</span>
+                  <label><span id="ins-mc-l-label">L*</span><input id="ins-mc-l" type="number" step="0.01"></label>
+                  <label><span id="ins-mc-c-label">C*</span><input id="ins-mc-c" type="number" step="0.01"></label>
+                  <label><span id="ins-mc-h-label">h</span><input id="ins-mc-h" type="number" min="0" max="360" step="0.1"></label>
+                </div>
+              </div>
             </div>
-            <div class="c-pick-axes" id="ins-axes"></div>
+            <p class="c-pick-status" id="ins-status" hidden></p>
+            <button type="button" class="c-ins-fit" id="ins-fit" hidden>{{ cond $en "Fit colour into this gamut" "把当前颜色贴合到所选色域" }}</button>
           </div>
         </div>
-        <table class="c-cmp-table c-ins-table">
+
+        <ul class="c-ins-legend">
+          <li><i class="c-leg c-leg--color"></i>{{ cond $en "Colour: current lightness" "彩色：当前明度" }}</li>
+          <li><i class="c-leg c-leg--project"></i>{{ cond $en "Grey: projection over all lightnesses" "灰：全明度上的投影" }}</li>
+          <li><i class="c-leg c-leg--ring"></i>{{ cond $en "Ring: hue angles" "外圈：色相角" }}</li>
+        </ul>
+
+        <table class="c-ins-table">
+          <thead>
+            <tr>
+              <th>{{ cond $en "Space" "空间" }}</th>
+              <th>{{ cond $en "Reading" "读数" }}</th>
+              <th><span class="c-sr-only">{{ cond $en "Copy" "复制" }}</span></th>
+            </tr>
+          </thead>
           <tbody id="ins-coord"></tbody>
         </table>
       </div>

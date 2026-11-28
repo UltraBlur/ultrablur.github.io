@@ -130,13 +130,21 @@
   }
 
   /* ---------- 换算 ---------- */
-  function coneToJMh(cone, p) {
+  /* 带中间量的版本：页面逐步演算要打印 LMS → 压缩 → A/a/b，数值与 coneToJMh 同源 */
+  function coneToJMhTrace(cone, p) {
     var y = [compF(cone[0]), compF(cone[1]), compF(cone[2])];
     var aab = mulMV(p.mConeToAab, y);
     var j = 100 * Math.pow(Math.max(aab[0], 0), p.cz);
     var m = Math.hypot(aab[1], aab[2]);
     var h = (Math.atan2(aab[2], aab[1]) * 180 / Math.PI + 360) % 360;
-    return [j, m, h];
+    return {
+      J: j, M: m, h: h,
+      stage: { cone: cone, compressed: y, Aab: aab }
+    };
+  }
+  function coneToJMh(cone, p) {
+    var r = coneToJMhTrace(cone, p);
+    return [r.J, r.M, r.h];
   }
   function rgbToJMh(rgb, p) {
     return coneToJMh(mulMV(p.mCone, rgb), p);
@@ -144,6 +152,12 @@
   /* XYZ（绝对，1.0 = 100 cd/m² 的同一标度）→ JMh */
   function xyzToJMh(xyz, p) {
     return coneToJMh(mulMV(p.mConeXYZ, xyz), p);
+  }
+  function xyzToJMhTrace(xyz, p) {
+    var cone = mulMV(p.mConeXYZ, xyz);
+    var r = coneToJMhTrace(cone, p);
+    r.stage.xyz = xyz;
+    return r;
   }
   function jmhToRGB(jmh, p) {
     var A = Math.pow(Math.max(jmh[0], 0) / 100, p.inv_cz);
@@ -218,7 +232,7 @@
 
   return {
     CZ: CZ, REF: REF, CORNERS: CORNERS,
-    init: init, rgbToJMh: rgbToJMh, xyzToJMh: xyzToJMh, jmhToRGB: jmhToRGB, yToJ: yToJ,
+    init: init, rgbToJMh: rgbToJMh, xyzToJMh: xyzToJMh, xyzToJMhTrace: xyzToJMhTrace, jmhToRGB: jmhToRGB, yToJ: yToJ,
     inGamut: inGamut, cusp: cusp, boundaryM: boundaryM,
     rgbToXYZ: rgbToXYZ, cornerJMh: cornerJMh
   };

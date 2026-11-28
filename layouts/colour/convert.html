@@ -29,9 +29,11 @@
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Tools" "工具") "url" (cond $en "/en/tools/" "/tools/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <p class="c-intro">{{ cond $en
         "Convert code values between any two RGB spaces in the catalogue. The two ends are configured independently: primaries, transfer function and code value range. Intermediate values are kept as they are; nothing is clipped, gamut mapped or rendered."

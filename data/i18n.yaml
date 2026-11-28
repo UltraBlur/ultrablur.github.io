@@ -41,9 +41,18 @@ zh:
   optNorm: 归一化码值
   optCode: 量化码值
   optSrgb: sRGB（分段）
+  optCustom: 自定义 γ
+  customGamma: γ 值
   eiHeading: 曝光指数（EI）
   hint: 表格可横向滚动。
   jump: 英文
+  # 色彩空间索引页的筛选条（list.html + 页内脚本）
+  filterPlaceholder: 筛选色彩空间（如 ARRI、S-Log3、P3、PQ…）
+  filterAll: 全部
+  filterLabel: 筛选
+  filterUnit: 项
+  filterEmpty: 没有匹配的色彩空间，试试其他关键词。
+  filterClear: 清空筛选
 
 en:
   navTitle: Contents
@@ -86,6 +95,14 @@ en:
   optNorm: Normalised code
   optCode: Quantised code
   optSrgb: sRGB (piecewise)
+  optCustom: Custom γ
+  customGamma: γ value
   eiHeading: Exposure index (EI)
   hint: Scroll the table horizontally.
   jump: 中文
+  filterPlaceholder: Filter colour spaces (ARRI, S-Log3, P3, PQ…)
+  filterAll: All
+  filterLabel: Filter
+  filterUnit: spaces
+  filterEmpty: No colour space matches — try another keyword.
+  filterClear: Clear filter

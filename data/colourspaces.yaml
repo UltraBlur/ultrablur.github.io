@@ -288,8 +288,8 @@
       titleEn: "Pure power-law gamma"
       slug: tf-power
       group: display-tf
-      transfer: 幂函数 2.2 / 2.4 / 2.6（无线性段）
-      transferEn: "Power law 2.2 / 2.4 / 2.6 (no linear segment)"
+      transfer: γ = 1.8 / 2.2 / 2.35 / 2.4 / 2.6 / 2.8 等具名幂次（无线性段）
+      transferEn: "γ = 1.8 / 2.2 / 2.35 / 2.4 / 2.6 / 2.8 and other named exponents (no linear segment)"
     - title: "Adobe RGB Gamma 563/256"
       slug: tf-adobe-rgb-gamma
       group: display-tf

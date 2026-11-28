@@ -12,11 +12,14 @@
 {{ $lang := cond $en "en" "zh" }}
 {{ $meta := transform.Unmarshal (os.ReadFile "static/smpte/data/meta.json") }}
 <div class="c-page sm-page" data-lang="{{ $lang }}">
-  <nav class="c-crumb" aria-label="breadcrumb">
-    <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ cond $en "Home" "首页" }}</a> /
-    <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "/tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> /
-    {{ .Title }}
-  </nav>
+  {{ partial "colour-crumb.html" (dict
+    "ctx" .
+    "en" $en
+    "items" (slice
+      (dict "title" (cond $en "Home" "首页") "url" (cond $en "/en/" "/" | relURL))
+      (dict "title" (cond $en "Tools" "工具") "url" (cond $en "/en/tools/" "/tools/" | relURL))
+    )
+  ) }}
 
   <header class="sm-hero">
     <div class="sm-hero-text">

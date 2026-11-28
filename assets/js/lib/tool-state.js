@@ -60,8 +60,12 @@
         else if (raw === '0' || raw === 'false') out[key] = false;
         else out[key] = clone(def);
       } else if (spec.type === 'list') {
-        var list = parseList(raw, spec);
-        out[key] = list.length ? list : clone(def);
+        if (spec.allowEmpty && raw === '') {
+          out[key] = [];
+        } else {
+          var list = parseList(raw, spec);
+          out[key] = list.length ? list : clone(def);
+        }
       } else if (spec.type === 'number') {
         var n = Number(raw);
         if (!isFinite(n)) {
@@ -96,7 +100,7 @@
       var spec = schema[key] || {};
       var value = state[key];
       var empty = value === undefined || value === null || value === '' ||
-        (Array.isArray(value) && value.length === 0);
+        (Array.isArray(value) && value.length === 0 && !spec.allowEmpty);
       if (empty || same(value, spec.default)) {
         url.searchParams.delete(key);
       } else {

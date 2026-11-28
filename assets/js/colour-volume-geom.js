@@ -862,12 +862,14 @@
     var len = function (v) { return Math.hypot(v[0], v[1], v[2]); };
     for (var i = 0; i < n; i++) {
       if (used[i]) continue;
-      var ref = gens[i], pos = [0, 0, 0], neg = [0, 0, 0], group = [i];
+      var ref = gens[i], lr = len(ref);
+      if (!(lr > 1e-12)) { used[i] = true; continue; }
+      var pos = ref.slice(), neg = [0, 0, 0], group = [i];
       used[i] = true;
       for (var j = i + 1; j < n; j++) {
         if (used[j]) continue;
-        var g = gens[j], lr = len(ref), lg = len(g);
-        if (lg === 0) { used[j] = true; continue; }
+        var g = gens[j], lg = len(g);
+        if (!(lg > 1e-12)) { used[j] = true; continue; }
         var cross = Math.hypot(ref[1] * g[2] - ref[2] * g[1], ref[2] * g[0] - ref[0] * g[2], ref[0] * g[1] - ref[1] * g[0]);
         if (cross > eps * lr * lg) continue;
         used[j] = true;
@@ -879,10 +881,34 @@
       if (group.length === 1) { out.push(gens[i].slice()); continue; }
       var seg = [pos[0] - neg[0], pos[1] - neg[1], pos[2] - neg[2]];
       offset[0] += neg[0]; offset[1] += neg[1]; offset[2] += neg[2];
-      if (len(seg) > 0) out.push(seg);
+      if (len(seg) > 1e-12) out.push(seg);
       merged.push(group);
     }
     return { gens: out, offset: offset, merged: merged };
+  }
+
+  /* 判断生成元集合是否张成非退化的三维体积（至少 3 个线性无关向量） */
+  function has3DVolume(gens) {
+    var n = gens.length;
+    if (n < 3) return false;
+    var norms = gens.map(function (g) { return Math.hypot(g[0], g[1], g[2]); });
+    for (var i = 0; i < n; i++) {
+      if (!(norms[i] > 1e-12)) continue;
+      for (var j = i + 1; j < n; j++) {
+        if (!(norms[j] > 1e-12)) continue;
+        var gi = gens[i], gj = gens[j];
+        var nx = gi[1] * gj[2] - gi[2] * gj[1];
+        var ny = gi[2] * gj[0] - gi[0] * gj[2];
+        var nz = gi[0] * gj[1] - gi[1] * gj[0];
+        for (var k = j + 1; k < n; k++) {
+          if (!(norms[k] > 1e-12)) continue;
+          var gk = gens[k];
+          var vol = Math.abs(nx * gk[0] + ny * gk[1] + nz * gk[2]);
+          if (vol > 1e-9 * norms[i] * norms[j] * norms[k]) return true;
+        }
+      }
+    }
+    return false;
   }
 
   /* 由「原色色品 + 白点（+ 可选亮度权重）」造一个渲染管线要用的空间对象 */
@@ -894,12 +920,12 @@
       var y = Math.max(p[1], 1e-6);
       return [p[0] / y, 1, (1 - p[0] - p[1]) / y];
     });
-    var weights = (entry && entry.weights && entry.weights.length === unit.length)
-      ? entry.weights.slice()
-      : solveWeights(unit, W);
+    var hasExplicit = !!(entry && Array.isArray(entry.weights) && entry.weights.length === unit.length);
+    var weights = hasExplicit ? entry.weights.slice() : solveWeights(unit, W);
 
     /* 最小范数解可能为负（物理上仍有非负解）：换 active-set 非负解，
-       但只有它真能满足白点时才采用——否则说明白点根本不在原色锥内。 */
+       但只有它真能满足白点时才采用——否则说明白点根本不在原色锥内。
+       手填权重（hasExplicit）绝不静默替换成自动非负解。 */
     function residualOf(w) {
       var acc = 0;
       for (var r = 0; r < 3; r++) {
@@ -909,26 +935,29 @@
       }
       return Math.sqrt(acc);
     }
-    var neg = !!(weights && weights.some(function (v) { return v < -1e-9; }));
-    if (neg) {
+    var invalidWeights = !weights || weights.some(function (v) { return !isFinite(v); });
+    var neg = !invalidWeights && weights.some(function (v) { return v < -1e-9; });
+    if (!hasExplicit && neg) {
       var nn = solveWeightsNonNeg(unit, W);
       if (nn && residualOf(nn) < 1e-6) { weights = nn; neg = false; }
     }
 
-    var gens = [], err = 0, ok = !!weights;
-    if (weights) {
+    var gens = [], err = 0, sumY = 0, ok = !invalidWeights;
+    if (ok) {
       var sum = [0, 0, 0];
       for (var i = 0; i < unit.length; i++) {
         if (!(weights[i] >= -1e-9)) neg = true;
+        sumY += weights[i];
         gens.push([unit[i][0] * weights[i], unit[i][1] * weights[i], unit[i][2] * weights[i]]);
         sum[0] += gens[i][0]; sum[1] += gens[i][1]; sum[2] += gens[i][2];
       }
       err = Math.hypot(sum[0] - W[0], sum[1] - W[1], sum[2] - W[2]);
     }
-    /* 共线（含重复）基色合并：否则对应面片退化被跳过，曲面会破洞 */
+    /* 共线（含重复）基色合并，并剔除零权重基色 */
     var mergedInfo = mergeCollinear(gens, 1e-9);
     gens = mergedInfo.gens;
     var offset = mergedInfo.offset;
+    var hasVolume = ok && has3DVolume(gens);
 
     var inv = srgbMatrix ? invert3(flatten3(srgbMatrix)) : null;
     var jmhParams = null;
@@ -944,9 +973,13 @@
       gens: gens,
       offset: offset,
       mergedGroups: mergedInfo.merged,
-      weights: weights || [],
+      weights: (!invalidWeights && weights) ? weights : [],
+      explicitWeights: hasExplicit,
+      sumY: sumY,
       whiteError: err,
-      weightOk: ok && !neg,
+      hasVolume: hasVolume,
+      degenerate: !hasVolume,
+      weightOk: ok && !neg && hasVolume,
       negativeWeights: neg,
       jmhParams: jmhParams,
       colorXyz: function (xyz) {

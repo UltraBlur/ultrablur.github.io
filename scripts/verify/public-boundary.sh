@@ -39,7 +39,10 @@ for dir in static/internal/tools/*/ static/internal/en/tools/*/; do
   [ "$slug" = "gamut-volume" ] && continue
   for prefix in "$pub/tools" "$pub/en/tools"; do
     if [ -f "$prefix/$slug/index.html" ]; then
-      err "公开构建里出现内部页明文：$prefix/$slug/index.html"
+      # Hugo 别名页只是 canonical + refresh 跳转，不含页面正文
+      if ! grep -q 'http-equiv=refresh' "$prefix/$slug/index.html" 2>/dev/null; then
+        err "公开构建里出现内部页明文：$prefix/$slug/index.html"
+      fi
     fi
   done
 done

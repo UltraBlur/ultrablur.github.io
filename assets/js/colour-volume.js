@@ -153,13 +153,13 @@
         tip[ax.tickAxis] -= tick;
         seg(base, tip);
         var txt = fmtTick(v, step);
-        if (txt !== lastLabel) labels.push({ t: txt, p: tip, cls: 'is-axis', dx: ax.dx, dy: ax.dy });
+        if (txt !== lastLabel) labels.push({ t: txt, p: tip, cls: 'is-axis', axis: idx, dx: ax.dx, dy: ax.dy });
         lastLabel = txt;
       }
 
       var nameP = ax.at.slice();
       nameP[ax.i] = ax.to + (ax.to - ax.from) * 0.04;
-      labels.push({ t: names[idx], p: nameP, cls: 'is-axis-name', dx: ax.dx * 2.2, dy: ax.dy * 1.5 });
+      labels.push({ t: names[idx], p: nameP, cls: 'is-axis-name', axis: idx, dx: ax.dx * 2.2, dy: ax.dy * 1.5 });
     });
 
     return { pos: new Float32Array(pos), labels: labels, lo: lo, hi: hi, tick: tick, step: stepAll || 0 };
@@ -217,22 +217,27 @@
 
   /* 用「原色 + 白点（+ 权重）」造一个多基色空间对象。
      权重缺省时若有固定项，先按固定项把其余基色的 Y 解出来——URL 回填走的是这条路，
-     否则固定状态在刷新后会退回最小范数解。 */
+     否则固定状态在刷新后会退回最小范数解。
+     手填权重若含非有限值、负数，或生成元退化（无三维体积），返回 null。 */
   function buildCustomSpace(data) {
     if (!data || !data.primaries || data.primaries.length < 3) return null;
     var white = data.white || [0.3127, 0.329];
     var weights = data.weights && data.weights.length === data.primaries.length ? data.weights : null;
-    if (!weights && data.pin && data.pin.index >= 0 && data.pin.index < data.primaries.length) {
+    if (weights) {
+      if (weights.some(function (v) { return !isFinite(v) || v < 0; })) return null;
+    } else if (data.pin && data.pin.index >= 0 && data.pin.index < data.primaries.length) {
       weights = geom.solvePinned(data.primaries, white, data.pin.index, data.pin.value) || null;
     }
     try {
-      return geom.makeMultiSpace({
+      var sp = geom.makeMultiSpace({
         slug: CUSTOM_SLUG,
-        title: '自定义多基色',
+        title: T('自定义多基色', 'Custom multi-primary'),
         primaries: data.primaries,
         white: white,
         weights: weights
       }, cfg.srgbMatrix, JMH);
+      if (!sp || sp.degenerate || !sp.gens || !sp.gens.length) return null;
+      return sp;
     } catch (e) { return null; }
   }
 
@@ -338,7 +343,14 @@
      都以它为准，与当前选中哪个空间无关，所以换空间时画面不重排、刻度也不跳。
      只统计内置空间：自定义多基色是用户随时在改的，放进来会让所有空间跟着它缩放；
      它自己超出时由 extendFit 把取景撑开即可。 */
+  var refBoxCache = {};
+  function envKeyOf(coord) {
+    return [coord, LUM, COND.surround, COND.bg, COND.laFactor].join('|');
+  }
+
   function referenceRange(coord) {
+    var key = envKeyOf(coord);
+    if (refBoxCache[key]) return refBoxCache[key];
     var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
     var o = viewOpts();
     for (var s = 0; s < spaces.length; s++) {
@@ -357,8 +369,9 @@
         }
       }
     }
-    if (!isFinite(min[0])) return { min: [-1, -1, -1], max: [1, 1, 1] };
-    return { min: min, max: max };
+    var box = !isFinite(min[0]) ? { min: [-1, -1, -1], max: [1, 1, 1] } : { min: min, max: max };
+    refBoxCache[key] = box;
+    return box;
   }
 
   /* 由参考范围定中心与尺度：中心取范围中心，尺度取半对角线 */
@@ -457,9 +470,27 @@
   }
 
   /* opts.keepView：换色彩空间时用。取景框与刻度都由坐标系定，换空间不重新取景；
-     只有新色体超出参考框（自定义多基色）时才撑开并重新取景。 */
+     只有新色体超出参考框（自定义多基色）时才撑开并重新取景。
+     opts.lockCamera：纯叠加层 / 辅助显示开关用。fitCamera 是按**当前朝向**
+     重算 fitDist / fitHalfH 的：用户拖动旋转之后 fitDist 还是初始朝向的值，
+     这时只要重取景一次，画面就会突然缩放。叠加层开关既不换色体也不改取景框，
+     所以连 grew 的例外都不给——fitDist / fitHalfH / dist / zoom 一个数都不动。
+     只有「不改色体、不改取景框」的开关才可以用这个选项。 */
+  var customVersion = 0;
+  var primaryCache = null;
+  var axesCache = {};
+  var gridCache = null;
+  var overlayDataCache = {};
+  var refLayerCache = {};
+  var lastUploaded = {};
+  var lastAxesKey = '';
+  var lastLabelsKey = '';
+
+  function copyF32(arr) { return new Float32Array(arr); }
+
   function rebuild(opts) {
     var keepView = !!(opts && opts.keepView);
+    var lockCamera = !!(opts && opts.lockCamera);
     var primary;
     if (state.primary === CUSTOM_SLUG) {
       primary = customSpace || buildCustomSpace(state.custom || DEFAULT_CUSTOM);
@@ -475,218 +506,269 @@
     if (ptrNote) ptrNote.hidden = !state.layers.pointer;
     var coord = state.coord;
     var N = Math.min(window.devicePixelRatio > 1.5 ? 24 : 30, 30);
-    var opts = viewOpts();
+    var vopts = viewOpts();
+    var envKey = envKeyOf(coord);
+    var primaryId = state.primary === CUSTOM_SLUG ? (CUSTOM_SLUG + ':' + customVersion) : state.primary;
+    var primaryKey = [primaryId, envKey, N].join('|');
 
-    var mesh = primary.multi
-      ? geom.buildMultiSurface(primary, coord, N, opts)
-      : geom.buildSurface(primary, coord, N, opts);
+    /* 坐标轴与取景变换只依赖 envKey，缓存复用 */
+    var axEntry = axesCache[envKey];
+    if (!axEntry) {
+      var refBox = referenceRange(coord);
+      var axes = buildAxes(coord, [refBox.min, refBox.max]);
+      var frame = frameFromBox({ min: axes.lo, max: axes.hi });
+      applyFrame(axes.pos, frame);
+      var boxLo = [
+        (axes.lo[0] - frame.center[0]) * frame.scale,
+        (axes.lo[1] - frame.center[1]) * frame.scale,
+        (axes.lo[2] - frame.center[2]) * frame.scale
+      ];
+      var boxHi = [
+        (axes.hi[0] - frame.center[0]) * frame.scale,
+        (axes.hi[1] - frame.center[1]) * frame.scale,
+        (axes.hi[2] - frame.center[2]) * frame.scale
+      ];
+      var obox = overlayExtent(coord);
+      if (obox) {
+        var oMin = [(obox.min[0] - frame.center[0]) * frame.scale,
+                    (obox.min[1] - frame.center[1]) * frame.scale,
+                    (obox.min[2] - frame.center[2]) * frame.scale];
+        var oMax = [(obox.max[0] - frame.center[0]) * frame.scale,
+                    (obox.max[1] - frame.center[1]) * frame.scale,
+                    (obox.max[2] - frame.center[2]) * frame.scale];
+        for (var ok2 = 0; ok2 < 3; ok2++) {
+          if (oMin[ok2] < boxLo[ok2]) boxLo[ok2] = oMin[ok2];
+          if (oMax[ok2] > boxHi[ok2]) boxHi[ok2] = oMax[ok2];
+        }
+      }
+      axEntry = { axes: axes, frame: frame, boxLo: boxLo, boxHi: boxHi };
+      axesCache[envKey] = axEntry;
+    }
+    var axes = axEntry.axes;
+    var frame = axEntry.frame;
 
-    var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
-    for (var bi2 = 0; bi2 < mesh.pos.length; bi2 += 3) {
-      for (var bk2 = 0; bk2 < 3; bk2++) {
-        if (mesh.pos[bi2 + bk2] < bb[0][bk2]) bb[0][bk2] = mesh.pos[bi2 + bk2];
-        if (mesh.pos[bi2 + bk2] > bb[1][bk2]) bb[1][bk2] = mesh.pos[bi2 + bk2];
+    /* 主色体表面：仅当主空间、坐标、观察条件或 DPR 变化时重建与上传 */
+    if (!primaryCache || primaryCache.key !== primaryKey) {
+      var mesh = primary.multi
+        ? geom.buildMultiSurface(primary, coord, N, vopts)
+        : geom.buildSurface(primary, coord, N, vopts);
+      var bb = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+      for (var bi2 = 0; bi2 < mesh.pos.length; bi2 += 3) {
+        for (var bk2 = 0; bk2 < 3; bk2++) {
+          if (mesh.pos[bi2 + bk2] < bb[0][bk2]) bb[0][bk2] = mesh.pos[bi2 + bk2];
+          if (mesh.pos[bi2 + bk2] > bb[1][bk2]) bb[1][bk2] = mesh.pos[bi2 + bk2];
+        }
+      }
+      mesh.bbox = bb;
+      applyFrame(mesh.pos, frame);
+
+      state.fitLo = axEntry.boxLo.slice();
+      state.fitHi = axEntry.boxHi.slice();
+      extendFit(mesh.pos);
+      var grew = false;
+      for (var gk = 0; gk < 3; gk++) {
+        if (state.fitLo[gk] < axEntry.boxLo[gk] - 1e-9 || state.fitHi[gk] > axEntry.boxHi[gk] + 1e-9) grew = true;
+      }
+
+      uploadSolid('primary', mesh);
+
+      var anchors = axes.labels.slice();
+      if (!primary.multi) {
+        [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
+          var p = geom.pointFor(primary, coord, v[1], vopts);
+          if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
+        });
+      }
+      var builtLabels = anchors.map(function (a) {
+        var p = [
+          (a.p[0] - frame.center[0]) * frame.scale,
+          (a.p[1] - frame.center[1]) * frame.scale,
+          (a.p[2] - frame.center[2]) * frame.scale
+        ];
+        return { t: a.t, p: p, cls: a.cls || '', axis: a.axis, dx: a.dx || 0, dy: a.dy || 0 };
+      });
+      primaryCache = {
+        key: primaryKey,
+        mesh: mesh,
+        fitLo: state.fitLo.slice(),
+        fitHi: state.fitHi.slice(),
+        grew: grew,
+        labels: builtLabels
+      };
+    }
+
+    var mesh = primaryCache.mesh;
+    var grew = primaryCache.grew;
+    state.fitLo = primaryCache.fitLo.slice();
+    state.fitHi = primaryCache.fitHi.slice();
+    state.labels = primaryCache.labels;
+    if (lastLabelsKey !== primaryKey) {
+      ensureLabels(state.labels.length);
+      labelEls.forEach(function (el, i) {
+        var l = state.labels[i];
+        el.textContent = l ? l.t : '';
+        el.className = 'c-vol-label' + (l && l.cls ? ' ' + l.cls : '');
+      });
+      lastLabelsKey = primaryKey;
+    }
+
+    if (lastAxesKey !== envKey) {
+      uploadLines('axes', axes.pos, [0.45, 0.45, 0.48, 1]);
+      lastAxesKey = envKey;
+    }
+    state.axesPos = axes.pos;
+
+    /* ---------- 叠加层（按 envKey / refKey 缓存，只上传有变化的层） ---------- */
+    var activeLayers = [];
+    var liveLayers = {};
+    function setLayerBuf(key, cacheKey, buildPos, color) {
+      liveLayers[key] = true;
+      var cached = overlayDataCache[key + '|' + cacheKey];
+      if (!cached) {
+        var rawPos = buildPos();
+        if (rawPos && rawPos.length) {
+          cached = copyF32(rawPos);
+          applyFrame(cached, frame);
+        } else {
+          cached = new Float32Array(0);
+        }
+        overlayDataCache[key + '|' + cacheKey] = cached;
+      }
+      if (cached.length) {
+        activeLayers.push({ key: key, pos: cached });
+        if (lastUploaded[key] !== cacheKey) {
+          uploadLines(key, cached, color);
+          lastUploaded[key] = cacheKey;
+        }
+      } else if (buffers[key]) {
+        buffers[key].count = 0;
+        lastUploaded[key] = '';
       }
     }
-    mesh.bbox = bb;
 
-    /* 坐标轴按「本坐标系的参考范围」（所有内置空间的并集）画，而不是当前色体的
-       包围盒：换空间时刻度值、刻度位置、轴长都不变，只有色体本身变大变小 */
-    var refBox = referenceRange(coord);
-    var axes = buildAxes(coord, [refBox.min, refBox.max]);
-
-    /* ---------- 叠加层 ----------
-       每层先按当前坐标算出「未变换」的顶点，统一取景后再各自上传。 */
-    var layerSpecs = [];
-    function addLayer(key, pos, color, kind) {
-      if (!pos || !pos.length) return;
-      layerSpecs.push({ key: key, pos: new Float32Array(pos), color: color, kind: kind });
-    }
-
-    /* Pointer's Gamut：实测环 + 经线，3D 笼架 */
     if (state.layers.pointer && pointerSpace) {
-      var cage = geom.buildCustomGrid(pointerSpace, coord, pointerSpace.ringStep || 4, 6, opts);
-      addLayer('overlayPointer', cage.pos, [0.20, 0.24, 0.34, 1], 'lines');
+      setLayerBuf('overlayPointer', envKey, function () {
+        return geom.buildCustomGrid(pointerSpace, coord, pointerSpace.ringStep || 4, 6, vopts).pos;
+      }, [0.20, 0.24, 0.34, 1]);
     }
-
-    /* Munsell 2734：3D 点云。数据是照明体 C 下的 (x, y, Y)，与 Pointer 同口径。 */
     if (state.layers.munsell && MUNSELL && MUNSELL.points && pointerSpace) {
-      var mp = [];
-      for (var mi = 0; mi < MUNSELL.points.length; mi++) {
-        var mrow = MUNSELL.points[mi];
-        var mx = mrow[0], my = mrow[1], mY = mrow[2] / 100;
-        if (!(my > 1e-4) || !(mY > 0)) continue;
-        var mxyz = [mx * mY / my, mY, (1 - mx - my) * mY / my];
-        var mq = geom.pointForXyz(pointerSpace, coord, mxyz, opts);
-        if (!mq || !isFinite(mq[0]) || !isFinite(mq[1]) || !isFinite(mq[2])) continue;
-        mp.push(mq[0], mq[1], mq[2]);
-      }
-      addLayer('overlayMunsell', mp, [0.26, 0.26, 0.30, 0.5], 'points');
+      setLayerBuf('overlayMunsell', envKey, function () {
+        var mp = [];
+        for (var mi = 0; mi < MUNSELL.points.length; mi++) {
+          var mrow = MUNSELL.points[mi];
+          var mx = mrow[0], my = mrow[1], mY = mrow[2] / 100;
+          if (!(my > 1e-4) || !(mY > 0)) continue;
+          var mxyz = [mx * mY / my, mY, (1 - mx - my) * mY / my];
+          var mq = geom.pointForXyz(pointerSpace, coord, mxyz, vopts);
+          if (!mq || !isFinite(mq[0]) || !isFinite(mq[1]) || !isFinite(mq[2])) continue;
+          mp.push(mq[0], mq[1], mq[2]);
+        }
+        return mp;
+      }, [0.26, 0.26, 0.30, 0.5]);
     }
-
-    /* 光谱轨迹：每个波长带上自己的亮度 ȳ(λ)，于是从平面曲线变成三维曲线。
-       俯视时 ȳ 被压掉，投影回熟悉的马蹄形。 */
     if (state.layers.locus && LOCUS3D && LOCUS3D.points && LOCUS3D.points.length > 2) {
-      var lp = [], lprev = null, lfirst = null;
-      for (var li = 0; li < LOCUS3D.points.length; li++) {
-        var row = LOCUS3D.points[li];
-        var lx = row[0], ly = row[1], lY = row[2];
-        if (!(ly > 1e-4) || !(lY > 0)) { lprev = null; continue; }
-        var lxyz = [lx * lY / ly, lY, (1 - lx - ly) * lY / ly];
-        var q = geom.pointForXyz(locusRef, coord, lxyz, opts);
-        if (!q || !isFinite(q[0]) || !isFinite(q[1]) || !isFinite(q[2])) { lprev = null; continue; }
-        var cur = [q[0], q[1], q[2]];
-        if (lprev) lp.push(lprev[0], lprev[1], lprev[2], cur[0], cur[1], cur[2]);
-        else lfirst = cur;
-        lprev = cur;
-      }
-      /* 紫边：红光端连回紫光端 */
-      if (lfirst && lprev && lfirst !== lprev) {
-        lp.push(lprev[0], lprev[1], lprev[2], lfirst[0], lfirst[1], lfirst[2]);
-      }
-      addLayer('overlayLocus', lp, [0.30, 0.30, 0.34, 1], 'lines');
+      setLayerBuf('overlayLocus', envKey, function () {
+        var lp = [], lprev = null, lfirst = null;
+        for (var li = 0; li < LOCUS3D.points.length; li++) {
+          var row = LOCUS3D.points[li];
+          var lx = row[0], ly = row[1], lY = row[2];
+          if (!(ly > 1e-4) || !(lY > 0)) { lprev = null; continue; }
+          var lxyz = [lx * lY / ly, lY, (1 - lx - ly) * lY / ly];
+          var q = geom.pointForXyz(locusRef, coord, lxyz, vopts);
+          if (!q || !isFinite(q[0]) || !isFinite(q[1]) || !isFinite(q[2])) { lprev = null; continue; }
+          var cur = [q[0], q[1], q[2]];
+          if (lprev) lp.push(lprev[0], lprev[1], lprev[2], cur[0], cur[1], cur[2]);
+          else lfirst = cur;
+          lprev = cur;
+        }
+        if (lfirst && lprev && lfirst !== lprev) {
+          lp.push(lprev[0], lprev[1], lprev[2], lfirst[0], lfirst[1], lfirst[2]);
+        }
+        return lp;
+      }, [0.30, 0.30, 0.34, 1]);
     }
-
-    /* 参考色域：把另一个空间画成线框，用来比体积大小（P7 vs P3 vs Rec.2020） */
     if (state.ref && state.ref !== state.primary) {
       var refSpace = state.ref === CUSTOM_SLUG
         ? (customSpace || buildCustomSpace(state.custom || DEFAULT_CUSTOM))
         : spaceBySlug[state.ref];
       if (refSpace) {
-        var refGrid = refSpace.multi
-          ? geom.buildMultiGrid(refSpace, coord, N, opts)
-          : geom.buildGrid(refSpace, coord, Math.min(N, 20), 3, opts);
-        addLayer('overlayRef', refGrid.pos, [0.86, 0.30, 0.12, 1], 'lines');
+        var refSpaceKey = state.ref === CUSTOM_SLUG ? (CUSTOM_SLUG + ':' + customVersion) : state.ref;
+        var refKey = [refSpaceKey, envKey, N].join('|');
+        liveLayers.overlayRef = true;
+        var cachedRef = refLayerCache[refKey];
+        if (!cachedRef) {
+          var refGrid = refSpace.multi
+            ? geom.buildMultiGrid(refSpace, coord, N, vopts)
+            : geom.buildGrid(refSpace, coord, Math.min(N, 20), 3, vopts);
+          cachedRef = copyF32(refGrid.pos);
+          applyFrame(cachedRef, frame);
+          refLayerCache[refKey] = cachedRef;
+        }
+        if (cachedRef.length) {
+          activeLayers.push({ key: 'overlayRef', pos: cachedRef });
+          if (lastUploaded.overlayRef !== refKey) {
+            uploadLines('overlayRef', cachedRef, [0.86, 0.30, 0.12, 1]);
+            lastUploaded.overlayRef = refKey;
+          }
+        } else if (buffers.overlayRef) {
+          buffers.overlayRef.count = 0;
+          lastUploaded.overlayRef = '';
+        }
       }
     }
-
-    /* 取景变换（中心 + 尺度）以「坐标系」为口径，不跟着选中的色彩空间走：
-       直接由坐标轴的范围定，于是换空间时色体该多大就多大，刻度一个都不跳。
-       否则每个色体都被拉成一样大，体积根本没法比。 */
-    var frame = frameFromBox({ min: axes.lo, max: axes.hi });
-
-    applyFrame(mesh.pos, frame);
-    applyFrame(axes.pos, frame);
-    /* 相机取景框 = 轴范围 ∪ 叠加层 ∪ 当前色体；叠加层或自定义色体超出轴范围时
-       只把取景撑开，刻度与其它空间的大小关系不变 */
-    var boxLo = [
-      (axes.lo[0] - frame.center[0]) * frame.scale,
-      (axes.lo[1] - frame.center[1]) * frame.scale,
-      (axes.lo[2] - frame.center[2]) * frame.scale
-    ];
-    var boxHi = [
-      (axes.hi[0] - frame.center[0]) * frame.scale,
-      (axes.hi[1] - frame.center[1]) * frame.scale,
-      (axes.hi[2] - frame.center[2]) * frame.scale
-    ];
-    state.fitLo = boxLo.slice();
-    state.fitHi = boxHi.slice();
-    /* 取景框固定包含三类东西，且都不看复选框状态，所以勾选/取消叠加层时画面不动：
-       ① 当前色体（自定义多基色超出参考范围时才起作用）
-       ② 三个叠加层的数据范围（光谱轨迹 / Munsell / Pointer），无论当前开没开
-       ③ axes 范围（上面那一步已经包含） */
-    /* 叠加层的盒子是原始坐标，先过一遍同一个 frame 才和 fitLo/fitHi 同量纲 */
-    var obox = overlayExtent(coord);
-    if (obox) {
-      extendFitBox({
-        min: [(obox.min[0] - frame.center[0]) * frame.scale,
-              (obox.min[1] - frame.center[1]) * frame.scale,
-              (obox.min[2] - frame.center[2]) * frame.scale],
-        max: [(obox.max[0] - frame.center[0]) * frame.scale,
-              (obox.max[1] - frame.center[1]) * frame.scale,
-              (obox.max[2] - frame.center[2]) * frame.scale]
-      });
-    }
-    /* 到这里为止的取景框与「当前是哪个色彩空间」无关，换空间时沿用即可 */
-    var baseLo = state.fitLo.slice(), baseHi = state.fitHi.slice();
-    extendFit(mesh.pos);
-    /* 只有色体自己撑破了基准框（超大的自定义多基色）才算「需要重新取景」 */
-    var grew = false;
-    for (var gk = 0; gk < 3; gk++) {
-      if (state.fitLo[gk] < baseLo[gk] - 1e-9 || state.fitHi[gk] > baseHi[gk] + 1e-9) grew = true;
-    }
-    var liveLayers = {};
-    for (var lg = 0; lg < layerSpecs.length; lg++) {
-      applyFrame(layerSpecs[lg].pos, frame);
-      uploadLines(layerSpecs[lg].key, layerSpecs[lg].pos, layerSpecs[lg].color);
-      liveLayers[layerSpecs[lg].key] = true;
-    }
-    /* 关掉的层要清空缓冲，否则会停在上一次的画面里 */
     ['overlayPointer', 'overlayMunsell', 'overlayLocus', 'overlayRef'].forEach(function (k) {
-      if (!liveLayers[k] && buffers[k]) buffers[k].count = 0;
+      if (!liveLayers[k] && buffers[k]) { buffers[k].count = 0; lastUploaded[k] = ''; }
     });
-    state.layerPos = layerSpecs.map(function (sp) { return sp.pos; });
-
-    uploadSolid('primary', mesh);
+    state.layerPos = activeLayers.map(function (sp) { return sp.pos; });
 
     if (state.grid) {
-      var grid = primary.multi
-        ? geom.buildMultiGrid(primary, coord, N, opts)
-        : geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), opts);
-      applyFrame(grid.pos, frame);
-      uploadLines('grid', grid.pos, [0.16, 0.16, 0.18, 0.30]);
+      if (!gridCache || gridCache.key !== primaryKey) {
+        var grid = primary.multi
+          ? geom.buildMultiGrid(primary, coord, N, vopts)
+          : geom.buildGrid(primary, coord, N, Math.max(2, Math.round(N / 6)), vopts);
+        applyFrame(grid.pos, frame);
+        gridCache = { key: primaryKey, pos: grid.pos };
+      }
+      if (lastUploaded.grid !== primaryKey) {
+        uploadLines('grid', gridCache.pos, [0.16, 0.16, 0.18, 0.30]);
+        lastUploaded.grid = primaryKey;
+      }
     } else if (buffers.grid) {
       buffers.grid.count = 0;
+      lastUploaded.grid = '';
     }
 
-    /* 实测格点：重采样之前的 16 × 36 个边界点（只在叠加 Pointer 时出现） */
     var isPointer = !!(state.layers.pointer && pointerSpace);
     var pointsWrap = document.querySelector('[data-vol-points]');
     if (pointsWrap) pointsWrap.hidden = !isPointer;
     if (isPointer && state.points) {
-      var raw = geom.dataPoints(pointerSpace);
-      var dp = [];
-      for (var qi = 0; qi < raw.length; qi += 3) {
-        var q = geom.pointForXyz(pointerSpace, coord, [raw[qi], raw[qi + 1], raw[qi + 2]], opts);
-        if (!q) continue;
-        dp.push(q[0], q[1], q[2]);
-      }
-      var dpArr = new Float32Array(dp);
-      applyFrame(dpArr, frame);
-      uploadLines('points', dpArr, [0.10, 0.10, 0.12, 0.9]);
+      setLayerBuf('points', envKey, function () {
+        var raw = geom.dataPoints(pointerSpace);
+        var dp = [];
+        for (var qi = 0; qi < raw.length; qi += 3) {
+          var q = geom.pointForXyz(pointerSpace, coord, [raw[qi], raw[qi + 1], raw[qi + 2]], vopts);
+          if (!q) continue;
+          dp.push(q[0], q[1], q[2]);
+        }
+        return dp;
+      }, [0.10, 0.10, 0.12, 0.9]);
     } else if (buffers.points) {
       buffers.points.count = 0;
+      lastUploaded.points = '';
     }
-
-    uploadLines('axes', axes.pos, [0.45, 0.45, 0.48, 1]);
-    state.axesPos = axes.pos;
-
-    var anchors = axes.labels.slice();
-    if (!primary.multi) {
-      [['W', [1, 1, 1]], ['K', [0, 0, 0]], ['R', [1, 0, 0]], ['G', [0, 1, 0]], ['B', [0, 0, 1]]].forEach(function (v) {
-        var p = geom.pointFor(primary, coord, v[1], opts);
-        if (p) anchors.push({ t: v[0], p: p, cls: 'is-vertex' });
-      });
-    }
-
-    state.labels = anchors.map(function (a) {
-      var p = [
-        (a.p[0] - frame.center[0]) * frame.scale,
-        (a.p[1] - frame.center[1]) * frame.scale,
-        (a.p[2] - frame.center[2]) * frame.scale
-      ];
-      return { t: a.t, p: p, cls: a.cls || '', dx: a.dx || 0, dy: a.dy || 0 };
-    });
-    ensureLabels(state.labels.length);
-    labelEls.forEach(function (el, i) {
-      var l = state.labels[i];
-      el.textContent = l ? l.t : '';
-      el.className = 'c-vol-label' + (l && l.cls ? ' ' + l.cls : '');
-    });
 
     state.mesh = mesh;
     state.frame = frame;
     state.bbox = mesh.bbox;
-    /* 上一次取景被撑开过（超大自定义色体）时，回到正常色体要收回去；
-       正常情况下换空间一律不动相机 */
-    if (!keepView || grew || state.fitGrown) fitCamera();
-    state.fitGrown = grew;
+    if (!lockCamera && (!keepView || grew || state.fitGrown)) fitCamera();
+    if (!lockCamera) state.fitGrown = grew;
+    updateLegend();
     if (/voldebug/.test(location.search)) {
-      var bb = [Infinity, Infinity, Infinity], bb2 = [-Infinity, -Infinity, -Infinity];
+      var bb3 = [Infinity, Infinity, Infinity], bb4 = [-Infinity, -Infinity, -Infinity];
       for (var bi = 0; bi < mesh.pos.length; bi += 3) {
         for (var bk = 0; bk < 3; bk++) {
-          if (mesh.pos[bi + bk] < bb[bk]) bb[bk] = mesh.pos[bi + bk];
-          if (mesh.pos[bi + bk] > bb2[bk]) bb2[bk] = mesh.pos[bi + bk];
+          if (mesh.pos[bi + bk] < bb3[bk]) bb3[bk] = mesh.pos[bi + bk];
+          if (mesh.pos[bi + bk] > bb4[bk]) bb4[bk] = mesh.pos[bi + bk];
         }
       }
       window.__volSet = function (o) {
@@ -718,18 +800,17 @@
           fitDist: state.fitDist,
           fitHalfH: state.fitHalfH
         },
-        bbox: [bb, bb2],
+        bbox: [bb3, bb4],
         frame: frame,
         ref: state.ref,
-        layers: layerSpecs.map(function (sp) { return { key: sp.key, verts: sp.pos.length / 3 }; }),
+        layers: activeLayers.map(function (sp) { return { key: sp.key, verts: sp.pos.length / 3 }; }),
         missing: mesh.missing,
         repaired: mesh.repaired,
-        /* 多基色没有 3 通道 RGB→XYZ，pointFor 不适用 */
         sample: primary.multi ? null : {
-          W: geom.pointFor(primary, coord, [1, 1, 1], opts),
-          K: geom.pointFor(primary, coord, [0, 0, 0], opts),
-          R: geom.pointFor(primary, coord, [1, 0, 0], opts),
-          G: geom.pointFor(primary, coord, [0, 1, 0], opts)
+          W: geom.pointFor(primary, coord, [1, 1, 1], vopts),
+          K: geom.pointFor(primary, coord, [0, 0, 0], vopts),
+          R: geom.pointFor(primary, coord, [1, 0, 0], vopts),
+          G: geom.pointFor(primary, coord, [0, 1, 0], vopts)
         }
       };
     }
@@ -792,20 +873,47 @@
 
   var VP = new Float32Array(16);
   var dirty = true;
+  var rafId = 0;
+  var lastTime = 0;
+  var AUTO_RAD_PER_SEC = 0.0035 * 60;
 
-  function requestRender() { dirty = true; }
+  function scheduleFrame() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(frameLoop);
+  }
+
+  function requestRender() {
+    dirty = true;
+    scheduleFrame();
+  }
+
+  /* 只有画幅比例真的变了才重新取景。滚动条出现/消失、子像素抖动只改像素尺寸，
+     不该动相机——否则旋转视角后一开关叠加层（页面高度微变），画面就缩放。
+     页面的 .c-vol-stage 是 aspect-ratio + max-height，高度被卡住时宽度抖十几像素
+     也会改比例，所以再要求尺寸至少变 24 CSS px 才算真的改版式。 */
+  var lastAspect = null, lastPxW = 0, lastPxH = 0;
+  var REFIT_MIN_CSS_PX = 24;
 
   function resize() {
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var w = canvas.clientWidth || host.clientWidth;
     var h = canvas.clientHeight || Math.round(w * 0.72);
-    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
+    var nw = Math.round(w * dpr), nh = Math.round(h * dpr);
+    if (canvas.width !== nw || canvas.height !== nh) {
+      canvas.width = nw;
+      canvas.height = nh;
     }
     gl.viewport(0, 0, canvas.width, canvas.height);
+    var aspect = canvas.width / Math.max(1, canvas.height);
+    var bigEnough = Math.abs(canvas.width - lastPxW) >= REFIT_MIN_CSS_PX * dpr ||
+      Math.abs(canvas.height - lastPxH) >= REFIT_MIN_CSS_PX * dpr;
     // 画幅比例变了，取景也跟着变；zoom 保留，用户的缩放不会被重置
-    fitCamera();
+    if (lastAspect === null || (bigEnough && Math.abs(aspect - lastAspect) > 0.01)) {
+      lastAspect = aspect;
+      lastPxW = canvas.width;
+      lastPxH = canvas.height;
+      fitCamera();
+    }
     requestRender();
   }
 
@@ -887,7 +995,6 @@
     gl.disable(gl.BLEND);
 
     updateLabels(proj, view);
-    if (state.auto) requestRender();
   }
 
   function drawLines(key) {
@@ -961,24 +1068,76 @@
 
   function updateLabels() {
     var w = canvas.clientWidth, h = canvas.clientHeight;
-    state.labels.forEach(function (l, i) {
+    var topLike = Math.abs(Math.cos(state.pitch)) < 0.25;
+    var placed = [];
+    function overlaps(b) {
+      for (var k = 0; k < placed.length; k++) {
+        var a = placed[k];
+        if (b.l < a.r && b.r > a.l && b.t < a.b && b.b > a.t) return true;
+      }
+      return false;
+    }
+    var items = state.labels.map(function (l, i) {
       var el = labelEls[i];
-      if (!el) return;
+      if (!el) return null;
+      var dx = l.dx || 0, dy = l.dy || 0;
+      if (state.flip) {
+        if (l.axis === 0) dy = l.cls === 'is-axis-name' ? -18 : -12;
+        else if (l.axis === 2) dy = 0;
+      }
       var s = project(l.p, w, h);
-      if (!s) { el.style.opacity = '0'; return; }
+      var prio = l.cls === 'is-axis-name' ? (l.axis === 1 ? 1 : 0)
+               : l.cls === 'is-vertex' ? 2 : 3;
+      return { l: l, el: el, s: s, dx: dx, dy: dy, prio: prio, idx: i };
+    }).filter(Boolean);
+
+    items.sort(function (a, b) { return a.prio - b.prio || a.idx - b.idx; });
+
+    items.forEach(function (item) {
+      var l = item.l, el = item.el, s = item.s;
+      if (!s || (topLike && l.axis === 1)) {
+        el.style.opacity = '0';
+        return;
+      }
+      var x = s[0] + item.dx, y = s[1] + item.dy;
+      var bw = Math.max(14, el.offsetWidth || (l.t.length * 6.5 + 4));
+      var bh = Math.max(12, el.offsetHeight || 13);
+      var padX = l.cls === 'is-axis' ? 4 : 2;
+      var padY = l.cls === 'is-axis' ? 3 : 1;
+      var box = { l: x - bw / 2 - padX, r: x + bw / 2 + padX, t: y - bh / 2 - padY, b: y + bh / 2 + padY };
+      if (l.cls === 'is-axis' && overlaps(box)) {
+        el.style.opacity = '0';
+        return;
+      }
+      if (l.cls === 'is-axis-name' && overlaps(box)) {
+        var nudges = [[0, -14], [-18, 0], [18, 0], [0, 14]];
+        for (var ni = 0; ni < nudges.length; ni++) {
+          var nx = x + nudges[ni][0], ny = y + nudges[ni][1];
+          var nb = { l: nx - bw / 2 - 2, r: nx + bw / 2 + 2, t: ny - bh / 2 - 1, b: ny + bh / 2 + 1 };
+          if (!overlaps(nb)) { x = nx; y = ny; box = nb; break; }
+        }
+      }
+      placed.push(box);
       el.style.opacity = '1';
-      el.style.left = (s[0] + (l.dx || 0)).toFixed(1) + 'px';
-      el.style.top = (s[1] + (l.dy || 0)).toFixed(1) + 'px';
+      el.style.left = x.toFixed(1) + 'px';
+      el.style.top = y.toFixed(1) + 'px';
     });
   }
 
-  function frameLoop() {
+  function frameLoop(now) {
+    rafId = 0;
     if (state.auto) {
-      state.yaw += 0.0035;
+      if (lastTime > 0 && typeof now === 'number') {
+        var dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1);
+        state.yaw += AUTO_RAD_PER_SEC * dt;
+      }
+      lastTime = typeof now === 'number' ? now : (root.performance ? root.performance.now() : Date.now());
       dirty = true;
+    } else {
+      lastTime = 0;
     }
     if (dirty) draw();
-    requestAnimationFrame(frameLoop);
+    if (state.auto || dirty) scheduleFrame();
   }
 
   /* ---------- 交互 ---------- */
@@ -1018,7 +1177,7 @@
       if (pinchStart > 0) {
         // 两指张开 = 放大：zoom 变大，透视距离与正交半高同步变小
         state.zoom = clampZoom(pinchDist * Math.max(1, d) / pinchStart);
-        requestRender();
+        updateZoom();
       }
       return;
     }
@@ -1049,6 +1208,44 @@
   }, { passive: false });
 
   canvas.addEventListener('dblclick', function () { resetView(); });
+
+  canvas.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var step = 0.08;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      stopAutoRotate();
+      state.yaw -= step;
+      state.flip = false;
+      requestRender();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      stopAutoRotate();
+      state.yaw += step;
+      state.flip = false;
+      requestRender();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      stopAutoRotate();
+      state.pitch = Math.min(HALF_PI, state.pitch + step);
+      state.flip = false;
+      requestRender();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      stopAutoRotate();
+      state.pitch = Math.max(-HALF_PI, state.pitch - step);
+      state.flip = false;
+      requestRender();
+    } else if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
+      e.preventDefault();
+      state.zoom = clampZoom(state.zoom * 1.12);
+      updateZoom();
+    } else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+      e.preventDefault();
+      state.zoom = clampZoom(state.zoom / 1.12);
+      updateZoom();
+    }
+  });
 
   /* 正俯视：pitch 到 90°，yaw 归零，按当前朝向重新取景。
      xyY 这类「高度场」只有真正的正上方才看得清。 */
@@ -1414,8 +1611,8 @@
     var valid = rows.filter(isCoord);
     var white = whiteXY();
     if (valid.length < 3) {
-      setStatus(T('至少需要 3 个合法基色（x > 0、y > 0、x + y ≤ 1）',
-        'Need at least 3 valid primaries (x > 0, y > 0, x + y ≤ 1)'));
+      setStatus(T('未应用（保留上次有效绘图）：至少需要 3 个合法基色（x > 0、y > 0、x + y ≤ 1）',
+        'Not applied (previous plot kept): need at least 3 valid primaries (x > 0, y > 0, x + y ≤ 1)'));
       return;
     }
     var prim = valid.map(function (p) { return [p.x, p.y]; });
@@ -1425,11 +1622,18 @@
     var extra = '';
     var weights = null;
     if (mode === 'manual') {
-      if (valid.some(function (p) { return !isFinite(p.Y); })) {
-        setStatus(T('直接输入 Y：请给每个基色填一个 Y', 'Y entered directly: give every primary a Y'));
+      if (valid.some(function (p) { return !isFinite(p.Y) || p.Y < 0; })) {
+        setStatus(T('未应用（保留上次有效绘图）：直接输入 Y 时，每个基色须填有限非负数',
+          'Not applied (previous plot kept): every primary needs a finite non-negative Y'));
         return;
       }
       weights = valid.map(function (p) { return p.Y; });
+      var weightSum = weights.reduce(function (a, b) { return a + b; }, 0);
+      if (!(weightSum > 1e-9)) {
+        setStatus(T('未应用（保留上次有效绘图）：Y 之和必须大于 0',
+          'Not applied (previous plot kept): sum of Y must be greater than 0'));
+        return;
+      }
     } else if (pin) {
       var sol = geom.solvePinned(prim, white, pin.index, pin.value);
       if (!sol) {
@@ -1451,7 +1655,18 @@
       weights = sol || null;
     }
     var sp = buildCustomSpace({ primaries: prim, white: white, weights: weights });
-    if (!sp) { setStatus(T('构造失败：检查原色是否共线', 'Failed: check for collinear primaries')); return; }
+    if (!sp) {
+      setStatus(T(
+        mode === 'auto'
+          ? '未应用（保留上次有效绘图）：无法按白点求解（基色可能重合或共线）'
+          : '未应用（保留上次有效绘图）：基色退化（重合、共线或非零独立基色不足 3 个）',
+        mode === 'auto'
+          ? 'Not applied (previous plot kept): cannot solve from white point (primaries may be coincident or collinear)'
+          : 'Not applied (previous plot kept): degenerate primaries (coincident, collinear, or fewer than 3 independent non-zero primaries)'
+      ));
+      return;
+    }
+    customVersion++;
     state.custom = {
       primaries: prim,
       white: white,
@@ -1599,18 +1814,21 @@
     e.preventDefault();
     var tEl = document.getElementById('vol-custom-primaries');
     var parsed = geom.parsePrimaries(tEl ? tEl.value : '');
-    if (parsed.primaries.length < 3) { setStatus('文本里没有足够的合法基色'); return; }
+    if (parsed.primaries.length < 3) {
+      setStatus(T('文本里没有足够的合法基色', 'Not enough valid primaries in text'));
+      return;
+    }
     var nEl = document.getElementById('vol-custom-n');
     if (nEl) nEl.value = String(Math.max(3, Math.min(8, parsed.primaries.length)));
     renderCustomRows({ primaries: parsed.primaries });
-    setStatus('已从文本填入 ' + parsed.primaries.length + ' 个基色，点「应用」生效');
+    setStatus(T('已从文本填入 ' + parsed.primaries.length + ' 个基色，点「应用」生效',
+      'Filled ' + parsed.primaries.length + ' primaries from text; click Apply to commit'));
   });
-
-  bind('vol-custom-apply', 'click', function (e) { e.preventDefault(); applyCustom(); });
 
   var refSel = bind('vol-ref', 'change', function (e) {
     state.ref = e.target.value || '';
-    rebuild();
+    /* 参考色域只多/少一条线框：取景框本来就按坐标系定，不需要重取景 */
+    rebuild({ lockCamera: true });
     persistState();
   });
 
@@ -1632,8 +1850,82 @@
     }
   });
 
+  var coordNoteEl = document.querySelector('[data-vol-coord-note]');
+  var legendEl = host.querySelector('[data-vol-legend]');
+
+  function optionLabel(id, val) {
+    var sel = document.getElementById(id);
+    if (!sel) return val;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === val) return sel.options[i].textContent;
+    }
+    return val;
+  }
+
+  function cleanSpaceTitle(text) {
+    return String(text || '').replace(/[…\.]+$/, '').trim();
+  }
+
+  function updateCoordNote() {
+    if (!coordNoteEl) return;
+    var notes = root.ColourVolumeCoordNotes || {};
+    var msg = notes[state.coord] || '';
+    if (!msg) {
+      var sel = document.getElementById('vol-coord');
+      if (sel) {
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === state.coord) {
+            msg = sel.options[i].getAttribute('data-note') || '';
+            break;
+          }
+        }
+      }
+    }
+    coordNoteEl.textContent = msg;
+    coordNoteEl.hidden = !msg;
+  }
+
+  function updateLegend() {
+    var primaryName = cleanSpaceTitle(optionLabel('vol-space', state.primary));
+    var coordName = optionLabel('vol-coord', state.coord);
+    var hasRef = !!(state.ref && state.ref !== state.primary);
+    var refName = hasRef ? cleanSpaceTitle(optionLabel('vol-ref', state.ref)) : '';
+    if (canvas) {
+      var parts = [
+        T('三维色体积：', '3D gamut volume: ') + primaryName,
+        T('坐标 ', 'coordinates ') + coordName
+      ];
+      if (hasRef) parts.push(T('参考线框 ', 'reference wireframe ') + refName);
+      canvas.setAttribute('aria-label', parts.join(T('，', ', ')));
+    }
+    if (!legendEl) return;
+    legendEl.innerHTML = '';
+    function addItem(cls, text) {
+      var li = document.createElement('li');
+      li.className = 'c-vol-leg-item';
+      var sw = document.createElement('span');
+      sw.className = 'c-vol-leg-swatch ' + cls;
+      sw.setAttribute('aria-hidden', 'true');
+      li.appendChild(sw);
+      li.appendChild(document.createTextNode(text));
+      legendEl.appendChild(li);
+    }
+    addItem('is-solid', T('实体 · ', 'Solid · ') + primaryName);
+    if (hasRef) addItem('is-ref', T('线框 · ', 'Wireframe · ') + refName);
+    if (state.layers.pointer && pointerSpace) {
+      addItem('is-pointer', "Pointer's Gamut" + (state.points ? T('（含 576 点）', ' (+576 pts)') : ''));
+    }
+    if (state.layers.munsell && MUNSELL && MUNSELL.points) {
+      addItem('is-munsell', 'Munsell 2734');
+    }
+    if (state.layers.locus && LOCUS3D && LOCUS3D.points) {
+      addItem('is-locus', T('光谱轨迹', 'Spectral locus'));
+    }
+  }
+
   bind('vol-coord', 'change', function (e) {
     state.coord = e.target.value;
+    updateCoordNote();
     updateCondVisibility();
     rebuild();
     persistState();
@@ -1650,21 +1942,25 @@
   bind('vol-lum', 'change', function (e) {
     LUM = parseFloat(e.target.value) || 100;
     rebuild();
+    persistState();
   });
 
   bind('vol-surround', 'change', function (e) {
     COND.surround = e.target.value;
     rebuild();
+    persistState();
   });
 
   bind('vol-bg', 'change', function (e) {
     COND.bg = parseFloat(e.target.value) || 0.2;
     rebuild();
+    persistState();
   });
 
   bind('vol-la', 'change', function (e) {
     COND.laFactor = parseFloat(e.target.value) || 0.2;
     rebuild();
+    persistState();
   });
 
   var condBox = document.querySelector('[data-vol-cond]');
@@ -1680,27 +1976,31 @@
 
   bind('vol-grid', 'change', function (e) {
     state.grid = e.target.checked;
-    rebuild();
+    /* 网格是画在色体上的线，不影响色体与取景框 */
+    rebuild({ lockCamera: true });
   });
 
-  /* 叠加层开关：先读一遍 HTML 的初始状态，再逐个绑定 */
+  /* 叠加层开关：先读一遍 HTML 的初始状态，再逐个绑定。
+     取景框始终包含三层的范围（见 rebuild 里的 overlayExtent），开关只是画不画，
+     所以锁死相机：旋转过视角之后勾选/取消，画面原地不动，方便比对。 */
   LAYER_KEYS.forEach(function (key) {
     var el = document.getElementById('vol-ov-' + key);
     if (el) state.layers[key] = el.checked;
     bind('vol-ov-' + key, 'change', function (e) {
       state.layers[key] = e.target.checked;
-      rebuild();
+      rebuild({ lockCamera: true });
       persistState();
     });
   });
 
   bind('vol-points', 'change', function (e) {
     state.points = e.target.checked;
-    rebuild();
+    rebuild({ lockCamera: true });
   });
 
   bind('vol-auto', 'change', function (e) {
     state.auto = e.target.checked;
+    lastTime = 0;
     requestRender();
   });
 
@@ -1717,34 +2017,92 @@
       proj: state.proj,
       lay: enabledLayers(),
       ref: state.ref,
-      mp: state.primary === CUSTOM_SLUG && state.custom ? geom.encodeMulti(state.custom) : ''
+      mp: (state.primary === CUSTOM_SLUG || state.ref === CUSTOM_SLUG) && state.custom
+        ? geom.encodeMulti(state.custom) : '',
+      lum: String(LUM),
+      sur: COND.surround,
+      la: String(COND.laFactor),
+      bg: String(COND.bg)
     });
   }
 
-  function applyState(next) {
-    state.primary = next.space;
-    state.coord = next.coord;
-    state.proj = next.proj;
-    setLayers(next.lay);
-    state.ref = next.ref || '';
-    if (next.mp) {
-      var dec = geom.decodeMulti(next.mp);
-      if (dec) { state.custom = dec; customSpace = buildCustomSpace(dec); fillCustomPanel(dec); }
-    }
+  function applyQueryState(q, isInit) {
+    state.primary = q.space;
+    state.coord = q.coord;
     if (state.coord === 'jmh' && !JMH) state.coord = 'lab';
+    state.proj = q.proj;
+    setLayers(q.lay);
+    state.ref = q.ref || '';
+    LUM = parseFloat(q.lum) || 100;
+    COND.surround = q.sur || 'average';
+    COND.laFactor = parseFloat(q.la) || 0.2;
+    COND.bg = parseFloat(q.bg) || 0.2;
+
+    state.custom = null;
+    customSpace = null;
+    if (q.mp) {
+      var dec = geom.decodeMulti(q.mp);
+      var built = dec ? buildCustomSpace(dec) : null;
+      if (built) {
+        state.custom = dec;
+        customSpace = built;
+        customVersion++;
+      }
+    }
+    if ((state.primary === CUSTOM_SLUG || state.ref === CUSTOM_SLUG) && !customSpace) {
+      customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
+      customVersion++;
+    }
 
     var spaceEl = document.getElementById('vol-space');
     var coordEl = document.getElementById('vol-coord');
     var projEl = document.getElementById('vol-proj');
-    if (spaceEl) spaceEl.value = state.primary;
     var refEl = document.getElementById('vol-ref');
+    var lumEl = document.getElementById('vol-lum');
+    var surEl = document.getElementById('vol-surround');
+    var laEl = document.getElementById('vol-la');
+    var bgEl = document.getElementById('vol-bg');
+    if (spaceEl) spaceEl.value = state.primary;
     if (refEl) refEl.value = state.ref;
     if (coordEl) coordEl.value = state.coord;
     if (projEl) projEl.value = state.proj;
+    if (lumEl) lumEl.value = String(LUM);
+    if (surEl) surEl.value = COND.surround;
+    if (laEl) laEl.value = String(COND.laFactor);
+    if (bgEl) bgEl.value = String(COND.bg);
+    LAYER_KEYS.forEach(function (key) {
+      var el = document.getElementById('vol-ov-' + key);
+      if (el) el.checked = !!state.layers[key];
+    });
 
+    updateCoordNote();
     updateCondVisibility();
-    rebuild();
-    requestRender();
+    if (state.custom && customSpace) {
+      /* 回填时把「解出来的 Y」一起显示：自动口径下 URL 里不带权重，
+         但面板必须给出这一版色体实际用的分配，否则看起来像还没算过 */
+      fillCustomPanel({
+        primaries: state.custom.primaries,
+        white: state.custom.white,
+        weights: customSpace.weights || null,
+        pin: state.custom.pin
+      }, state.custom.weights ? 'manual' : 'auto');
+      if (state.primary === CUSTOM_SLUG) {
+        setStatus(customStatusText(state.custom.primaries, customSpace,
+          state.custom.weights ? 'manual' : 'auto', state.custom.pin, ''));
+      } else {
+        setStatus('');
+      }
+    } else {
+      renderCustomRows(DEFAULT_CUSTOM);
+      setStatus('');
+    }
+    syncYButtons();
+    syncWhiteControls();
+    syncCustomPanel();
+    if (!isInit) {
+      rebuild();
+      requestRender();
+    }
   }
 
   /* ---------- 启动 ---------- */
@@ -1755,6 +2113,12 @@
   var projSel = document.getElementById('vol-proj');
   if (projSel) state.proj = projSel.value === 'persp' ? 'persp' : 'ortho';
 
+  // 没加载到 JMh 内核时把这一项从下拉里摘掉，别让用户选到一个空体积
+  if (!JMH && coordSel) {
+    var jmhOpt = coordSel.querySelector('option[value="jmh"]');
+    if (jmhOpt) jmhOpt.parentNode.removeChild(jmhOpt);
+  }
+
   var QS = window.ToolState ? {
     space: {
       type: 'string',
@@ -1763,74 +2127,40 @@
     },
     coord: { type: 'string', values: coordSel ? Array.prototype.map.call(coordSel.options, function (o) { return o.value; }) : ['lab'], default: 'lab' },
     proj: { type: 'string', values: ['persp', 'ortho'], default: 'ortho' },
-    lay: { type: 'list', values: LAYER_KEYS, default: ['locus'] },
+    lay: { type: 'list', values: LAYER_KEYS, default: ['locus'], allowEmpty: true },
     mp: { type: 'string', default: '' },
     ref: {
       type: 'string',
       values: [''].concat(spaces.map(function (s) { return s.slug; }), [CUSTOM_SLUG]),
       default: ''
-    }
+    },
+    lum: { type: 'string', values: ['48', '100', '203', '1000'], default: '100' },
+    sur: { type: 'string', values: ['average', 'dim', 'dark'], default: 'average' },
+    la: { type: 'string', values: ['0.05', '0.1', '0.2', '0.4'], default: '0.2' },
+    bg: { type: 'string', values: ['0.1', '0.2', '0.4'], default: '0.2' }
   } : null;
+
   if (QS) {
-    var q = window.ToolState.parse(QS, window.location.search);
-    state.primary = q.space;
-    state.coord = q.coord;
-    state.proj = q.proj;
-    setLayers(q.lay);
-    state.ref = q.ref || '';
-    if (q.mp) {
-      var dec2 = geom.decodeMulti(q.mp);
-      if (dec2) { state.custom = dec2; customSpace = buildCustomSpace(dec2); }
-    }
+    applyQueryState(window.ToolState.parse(QS, window.location.search), true);
+  } else {
+    if (state.primary === CUSTOM_SLUG) customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
+    updateCoordNote();
+    updateCondVisibility();
+    renderCustomRows(DEFAULT_CUSTOM);
+    syncYButtons();
+    syncWhiteControls();
+    syncCustomPanel();
   }
-
-  // 没加载到 JMh 内核时把这一项从下拉里摘掉，别让用户选到一个空体积
-  if (!JMH) {
-    var jmhOpt = coordSel && coordSel.querySelector('option[value="jmh"]');
-    if (jmhOpt) jmhOpt.parentNode.removeChild(jmhOpt);
-    if (state.coord === 'jmh') {
-      state.coord = 'lab';
-    }
-  }
-
-  if (state.primary === CUSTOM_SLUG) customSpace = buildCustomSpace(state.custom || DEFAULT_CUSTOM);
-  if (refSel) refSel.value = state.ref;
-  if (primarySel) primarySel.value = state.primary;
-  if (coordSel) coordSel.value = state.coord;
-  if (projSel) projSel.value = state.proj;
-  LAYER_KEYS.forEach(function (key) {
-    var el = document.getElementById('vol-ov-' + key);
-    if (el) el.checked = !!state.layers[key];
-  });
-
-  updateCondVisibility();
-  if (state.custom) {
-    /* 回填时把「解出来的 Y」一起显示：自动口径下 URL 里不带权重，
-       但面板必须给出这一版色体实际用的分配，否则看起来像还没算过 */
-    fillCustomPanel({
-      primaries: state.custom.primaries,
-      white: state.custom.white,
-      weights: (customSpace && customSpace.weights) || null,
-      pin: state.custom.pin
-    }, state.custom.weights ? 'manual' : 'auto');
-    if (state.primary === CUSTOM_SLUG && customSpace) {
-      setStatus(customStatusText(state.custom.primaries, customSpace,
-        state.custom.weights ? 'manual' : 'auto', state.custom.pin, ''));
-    }
-  } else renderCustomRows(DEFAULT_CUSTOM);
-  syncYButtons();
-  syncWhiteControls();
-  syncCustomPanel();
 
   window.addEventListener('popstate', function () {
     if (!QS) return;
-    applyState(window.ToolState.parse(QS, window.location.search));
+    applyQueryState(window.ToolState.parse(QS, window.location.search), false);
   });
 
   try {
     resize();
     rebuild();
-    frameLoop();
+    scheduleFrame();
   } catch (err) {
     if (fallback) {
       fallback.hidden = false;

@@ -85,6 +85,20 @@ ok('全默认时只留无关参数', defaults === '/tools/compare/?utm_source=te
 const encoded = ToolState.write(schema, { a: 'p3' }, { href: 'https://example.com/tools/compare/' });
 ok('write 返回相对路径', encoded.indexOf('/tools/compare/?a=p3') === 0, encoded);
 
+/* ---- allowEmpty 列表（色体积叠加层显式全关往返） ---- */
+const volSchema = {
+  lay: { type: 'list', values: ['pointer', 'munsell', 'locus'], default: ['locus'], allowEmpty: true }
+};
+eq('allowEmpty：缺省键回落默认', ToolState.parse(volSchema, ''), { lay: ['locus'] });
+eq('allowEmpty：显式空值解析为空数组', ToolState.parse(volSchema, '?lay='), { lay: [] });
+eq('allowEmpty：全非法值仍回落默认', ToolState.parse(volSchema, '?lay=oops'), { lay: ['locus'] });
+eq('allowEmpty：正常列表解析', ToolState.parse(volSchema, '?lay=pointer,locus'), { lay: ['pointer', 'locus'] });
+const emptyLayHref = ToolState.write(volSchema, { lay: [] }, { href: 'https://example.com/tools/gamut-volume/' });
+ok('allowEmpty：空数组写入 lay=', emptyLayHref === '/tools/gamut-volume/?lay=', emptyLayHref);
+eq('allowEmpty：空数组往返一致', ToolState.parse(volSchema, emptyLayHref.split('?')[1]), { lay: [] });
+const defLayHref = ToolState.write(volSchema, { lay: ['locus'] }, { href: 'https://example.com/tools/gamut-volume/' });
+ok('allowEmpty：默认值仍省略', defLayHref === '/tools/gamut-volume/', defLayHref);
+
 if (fails.length) {
   console.error(fails.map((f) => '  ✗ ' + f).join('\n'));
   console.error(`\n${pass} passed, ${fails.length} failed`);

@@ -9,19 +9,45 @@
 {{/* 色域数量取自实际入表的空间，施工中条目在正式环境不计入 */}}
 {{ $gamutCount := len (partial "tool-spaces.html" (dict "scope" "all")).spaces }}
 {{ $sm := transform.Unmarshal (os.ReadFile "static/smpte/data/meta.json") }}
-{{/* 标题一律取页面自己的 .Title；这里只维护一句话说明，按 slug 挂上去。
+{{/* 标题一律取页面自己的 .Title；这里只维护说明、能力标签，按 slug 挂上去。
      页面不存在（未建、draft、内部页不在公开分支）就不渲染条目，避免死链。
-     所以新增工具时：写好页面，再往下面两个 slice 里加一行说明即可。 */}}
+     所以新增工具时：写好页面，再往下面两个 slice 里加一行即可。
+     注意 scripts/verify/sync_check.mjs 会扫描 .c-tools-desc：容器内必须是纯文本，
+     且文案里的数字（坐标数、叠加层数、平面数、纵轴数、色域数、SMPTE 统计）由断言校验。 */}}
 {{ $tools := slice
-  (dict "slug" "gamut-volume" "zhd" "显示空间的三维色体 · 12 种坐标（含 CAM16 / Hellwig JMh / ZCAM / JzAzBz / IPT）· 三种叠加层：Pointer's Gamut（576 实测点）、Munsell 2734、光谱轨迹 · 参考色域线框对比 · 自定义多基色 · 正交 / 透视" "end" "3D volumes of display spaces · 12 coordinate systems (CAM16, Hellwig JMh, ZCAM, JzAzBz, IPT…) · three overlays: Pointer's Gamut (576 measured points), Munsell 2734 and the spectral locus · reference-gamut wireframe · custom multi-primary · orthographic or perspective")
-  (dict "slug" "compare" "zhd" (printf "全部 %d 个色域任选两个 · CIE 1931 轨迹上的原色三角形 · xy 面积、交集、交集占 A/B 比例与 Pointer's Gamut 覆盖率" $gamutCount) "end" (printf "Any two of the %d gamuts · primaries triangles on CIE 1931 · xy area, intersection, share of A/B and Pointer's Gamut coverage" $gamutCount))
-  (dict "slug" "transfer" "zhd" "编码 / 解码双向叠加 · 5 种纵轴：cd/m² 线性、对数、相对峰值、档位、PQ 码值 · 曲线自选、参数可读" "end" "OETF and EOTF overlaid · five y axes: cd/m² linear/log, relative to peak, stops, PQ code · curves picked per space, parameters shown")
-  (dict "slug" "inspector" "zhd" "六种选色平面：HSV / LCH / OKLCH / JMH（CAM02）/ JMH（Hellwig）/ JzCH · 全模型坐标、越界灰显" "end" "Six picking planes: HSV, LCH, OKLCH, JMH (CAM02), JMH (Hellwig), JzCH · every model's coordinates, out-of-gamut greyed")
-  (dict "slug" "smpte" "zhd" (printf "%d 部标准 / %s 个版本 · 标题 / Scope / 关键词元数据检索 · 类型、状态、年份筛选 · 一键直达 pub.smpte.org" (int $sm.families) (lang.FormatNumber 0 (int $sm.versions))) "end" (printf "%d standards in %s versions · metadata search over titles, scopes and keywords · type, state and year filters · straight to pub.smpte.org" (int $sm.families) (lang.FormatNumber 0 (int $sm.versions))))
+  (dict "slug" "gamut-volume"
+    "zhd" "在 12 种坐标下交互观察显示空间三维色体，叠加 Pointer's Gamut（576 实测点）、Munsell 2734 与光谱轨迹三种叠加层，支持参考色域线框与自定义多基色。"
+    "end" "Explore 3D display gamut volumes across 12 coordinate systems with three overlays — Pointer's Gamut (576 measured points), Munsell 2734, and the spectral locus — plus wireframe comparison and custom primaries."
+    "zhtags" (slice "3D WebGL" "CAM16 / JMh / ZCAM" "自定义多基色")
+    "entags" (slice "3D WebGL" "CAM16 / JMh / ZCAM" "Custom primaries"))
+  (dict "slug" "compare"
+    "zhd" (printf "从全部 %d 个色域中任选两个（或自定义原色与白点），在 CIE 1931 色度图上叠画多边形，实时计算 xy 面积、交集占比与 Pointer's Gamut 覆盖率。" $gamutCount)
+    "end" (printf "Compare any two of the %d gamuts (or custom primaries and white point) on the CIE 1931 diagram, with live xy area, intersection share, and Pointer's Gamut coverage." $gamutCount)
+    "zhtags" (slice "CIE 1931" "交集与覆盖率" "导出 SVG / PNG")
+    "entags" (slice "CIE 1931" "Overlap & coverage" "SVG / PNG"))
+  (dict "slug" "transfer"
+    "zhd" "双向叠加 OETF 与 EOTF 传递曲线，自由切换线性/对数亮度、相对峰值、档位与 PQ 码值等 5 种纵轴，随时对照各空间公式参数。"
+    "end" "Overlay OETF and EOTF curves across 5 y-axes — linear/log cd/m², relative peak, stops, and PQ code — with per-space selection and live parameter readouts."
+    "zhtags" (slice "OETF / EOTF" "多空间叠图" "公式参数")
+    "entags" (slice "OETF / EOTF" "Multi-curve" "Parameters"))
+  (dict "slug" "inspector"
+    "zhd" "在 HSV、LCH、OKLCH、JMH 与 JzCH 等六种选色平面上通过色相轮与彩度切面取色，同步换算全模型坐标并灰显超色域区域。"
+    "end" "Pick colours via hue wheel and chroma-lightness slice across six picking planes (HSV, LCH, OKLCH, JMH, JzCH), with live cross-model coordinates and out-of-gamut clipping."
+    "zhtags" (slice "色相轮 + 切片" "全模型换算" "超色域提示")
+    "entags" (slice "Wheel & slice" "All models" "Out-of-gamut"))
+  (dict "slug" "smpte"
+    "zhd" (printf "收录 %d 部标准 / %s 个版本，支持按编号、标题、Scope 与关键词检索元数据，按类型、状态和年份筛选并直达 pub.smpte.org。" (int $sm.families) (lang.FormatNumber 0 (int $sm.versions)))
+    "end" (printf "Search metadata across %d standards in %s versions by number, title, scope, or keywords, filter by type, status, and year, and jump straight to pub.smpte.org." (int $sm.families) (lang.FormatNumber 0 (int $sm.versions)))
+    "zhtags" (slice "元数据检索" "多维筛选" "直达官网")
+    "entags" (slice "Metadata search" "Filters" "pub.smpte.org"))
 }}
 {{/* 内部页面：内容不进公开仓库，公开分支上没有这些文件，条目随之消失 */}}
 {{ $internal := slice
-  (dict "slug" "drt" "zhd" "ACES 2.0 / Baselight TCAM / Resolve CST 的中性灰曲线叠图 · 曲线可增删 · 锚点与峰值表" "end" "Neutral-axis curves from ACES 2.0, Baselight TCAM and Resolve CST · add or drop curves · anchor and peak table")
+  (dict "slug" "drt"
+    "zhd" "叠加对比 ACES 2.0、Baselight TCAM 与 Resolve CST 的中性灰影调曲线，支持自由增删曲线并实时核对锚点与峰值表。"
+    "end" "Overlay neutral-axis tone curves from ACES 2.0, Baselight TCAM, and Resolve CST, with dynamic curve management and an anchor/peak comparison table."
+    "zhtags" (slice "ACES / TCAM / CST" "中性灰曲线" "锚点与峰值表")
+    "entags" (slice "ACES / TCAM / CST" "Neutral axis" "Anchor table"))
 }}
 {{ $prefix := cond $en "/en/" "/" }}
 {{ $internalShown := 0 }}
@@ -30,17 +56,27 @@
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ cond $en "Home" "首页" }}</a> / {{ .Title }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Home" "首页") "url" (cond $en "/en/" "/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
-      <ul class="c-tools">
+      <ul class="c-tool-cards">
         {{ range $tools }}
         {{ $page := site.GetPage (printf "%stools/%s" $prefix .slug) }}
         {{ if $page }}
         <li>
-          <span class="c-tools-name"><a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a></span>
-          <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
+          <a class="c-tool-card" href="{{ $page.RelPermalink }}">
+            <span class="c-tool-head">
+              <span class="c-tools-name"><span>{{ $page.Title }}</span></span>
+              <span class="c-tool-arrow" aria-hidden="true">→</span>
+            </span>
+            <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
+            <span class="c-tool-tags">
+              {{ range (cond $en .entags .zhtags) }}<span class="c-tool-tag">{{ . }}</span>{{ end }}
+            </span>
+          </a>
         </li>
         {{ end }}
         {{ end }}
@@ -48,11 +84,19 @@
         {{ $page := site.GetPage (printf "%stools/%s" $prefix .slug) }}
         {{ if $page }}
         <li>
-          <span class="c-tools-name">
-            <a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a>
-            <span class="c-internal-badge">{{ cond $en "Internal" "内部" }}</span>
-          </span>
-          <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
+          <a class="c-tool-card c-tool-card--internal" href="{{ $page.RelPermalink }}">
+            <span class="c-tool-head">
+              <span class="c-tools-name">
+                <span>{{ $page.Title }}</span>
+                <span class="c-internal-badge">{{ cond $en "Internal" "内部" }}</span>
+              </span>
+              <span class="c-tool-arrow" aria-hidden="true">→</span>
+            </span>
+            <span class="c-tools-desc">{{ cond $en .end .zhd }}</span>
+            <span class="c-tool-tags">
+              {{ range (cond $en .entags .zhtags) }}<span class="c-tool-tag">{{ . }}</span>{{ end }}
+            </span>
+          </a>
         </li>
         {{ end }}
         {{ end }}

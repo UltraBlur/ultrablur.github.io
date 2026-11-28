@@ -11,6 +11,27 @@
 {{ $inModels := hasPrefix $current (printf "%smodels/" $prefix) }}
 {{ $catIndex := site.GetPage (printf "%scat" $prefix) }}
 {{ $inCat := and $catIndex (or (eq $current $catIndex.RelPermalink) (hasPrefix $current $catIndex.RelPermalink)) }}
+{{/* 各模块条目数：与下面实际渲染的链接数一一对应，供折叠时显示 */}}
+{{ $toolSlugs := slice "gamut-volume" "compare" "transfer" "inspector" "smpte" "drt" }}
+{{ $toolsCount := 0 }}
+{{ with site.GetPage (printf "%stools" $prefix) }}{{ $toolsCount = add $toolsCount 1 }}{{ end }}
+{{ range $toolSlugs }}{{ if site.GetPage (printf "%stools/%s" $prefix .) }}{{ $toolsCount = add $toolsCount 1 }}{{ end }}{{ end }}
+{{/* 本地分支多出一个「色体积内部版」入口，计数要与实际渲染的链接数一致 */}}
+{{ if site.GetPage (printf "%sresearch/aces-drt" $prefix) }}{{ $toolsCount = add $toolsCount 1 }}{{ end }}
+{{ $researchCount := 0 }}
+{{ with site.GetPage (printf "%sresearch" $prefix) }}{{ $researchCount = add $researchCount 1 }}{{ end }}
+{{ range slice "davinci-drt" "baselight-drt" "aces13-drt" "aces-drt" }}{{ if site.GetPage (printf "%sresearch/%s" $prefix .) }}{{ $researchCount = add $researchCount 1 }}{{ end }}{{ end }}
+{{ $catCount := 0 }}
+{{ with $catIndex }}
+  {{ $catCount = add $catCount 1 }}
+  {{ if site.GetPage (printf "%scat/basis" $prefix) }}{{ $catCount = add $catCount 1 }}{{ end }}
+  {{ range hugo.Data.cat }}{{ if site.GetPage (printf "%scat/%s" $prefix .slug) }}{{ $catCount = add $catCount 1 }}{{ end }}{{ end }}
+{{ end }}
+{{ $modelsCount := 0 }}
+{{ if hugo.Data.models }}
+  {{ with site.GetPage (printf "%smodels" $prefix) }}{{ $modelsCount = add $modelsCount 1 }}{{ end }}
+  {{ range hugo.Data.models }}{{ if site.GetPage (printf "%smodels/%s" $prefix .slug) }}{{ $modelsCount = add $modelsCount 1 }}{{ end }}{{ end }}
+{{ end }}
 {{ range hugo.Data.colourspaces }}
   {{ $items := slice }}
   {{ range .items }}
@@ -23,9 +44,24 @@
   {{ range $items }}{{ if eq .page.RelPermalink $current }}{{ $open = true }}{{ $inSpaces = true }}{{ end }}{{ end }}
   {{ $spaceGroups = $spaceGroups | append (dict "label" .label "items" $items "open" $open) }}
 {{ end }}
+{{/* 手机端折叠条上的「当前所在位置」：模块名 + 页面标题，桌面端由 CSS 隐藏 */}}
+{{ $hereSection := "" }}
+{{ if $inTools }}{{ $hereSection = cond $en "Tools" "工具" }}
+{{ else if $inResearch }}{{ $hereSection = cond $en "Research" "研究" }}
+{{ else if $inCat }}{{ $hereSection = cond $en "Transforms" "色适应" }}
+{{ else if $inModels }}{{ $hereSection = cond $en "Models" "色彩模型" }}
+{{ else if $inSpaces }}{{ $hereSection = cond $en "Colour spaces" "色彩空间" }}{{ end }}
+{{/* 模块首页（标题与模块名相同）不重复写「工具 / 工具」 */}}
+{{ if eq $hereSection .ctx.Title }}{{ $hereSection = "" }}{{ end }}
 <nav class="c-nav" aria-label="{{ $t.navTitle }}">
   <details class="c-nav-wrap" open>
-    <summary>{{ $t.navTitle }}</summary>
+    <summary>
+      <span class="c-nav-toggle-left">
+        <span class="c-nav-burger" aria-hidden="true">☰</span>
+        <span class="c-nav-toggle-title">{{ $t.navTitle }}</span>
+        <span class="c-nav-here">{{ with $hereSection }}{{ . }} / {{ end }}{{ .ctx.Title }}</span>
+      </span>
+    </summary>
     <script>
       (function () {
         var details = document.currentScript.parentElement;
@@ -37,47 +73,57 @@
     </script>
     <div class="c-nav-body">
 
-      {{/* ---- 工具 ---- */}}
-      <div class="c-nav-group{{ if $inTools }} is-here{{ end }}">
-        <p class="c-nav-label">{{ cond $en "Tools" "工具" }}</p>
+      {{/* ---- 工具：常展，最常用入口 ---- */}}
+      <div class="c-nav-mod{{ if $inTools }} is-here{{ end }}">
+        <p class="c-nav-mod-head">
+          <span class="c-nav-mod-title">{{ cond $en "Tools" "工具" }}</span>
+          <span class="c-nav-count">{{ $toolsCount }}</span>
+        </p>
         <ul>
           {{ with site.GetPage (printf "%stools" $prefix) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All tools" "全部工具" }}</a></li>
           {{ end }}
-          {{ range slice "gamut-volume" "compare" "transfer" "inspector" "smpte" "drt" }}
+          {{ range $toolSlugs }}
           {{ with site.GetPage (printf "%stools/%s" $prefix .) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
           {{ end }}
-          {{/* 内部版入口：只有本地分支（含内部页）才渲染 */}}
+          {{/* 内部版入口：只有本地分支（含内部页）才渲染。
+               高亮只认内部版自己的地址——公开页 /tools/gamut-volume/ 不再连带点亮这一条。 */}}
           {{ if site.GetPage (printf "%sresearch/aces-drt" $prefix) }}
-          {{ $volPage := site.GetPage (printf "%stools/gamut-volume" $prefix) }}
-          <li><a href="{{ cond $en "/internal/en/tools/gamut-volume/" "/internal/tools/gamut-volume/" }}"{{ if and $volPage (eq $volPage.RelPermalink $current) }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Gamut volume (internal)" "色体积内部版" }}</a></li>
+          {{ $intVolUrl := cond $en "/internal/en/tools/gamut-volume/" "/internal/tools/gamut-volume/" }}
+          <li><a href="{{ $intVolUrl }}"{{ if eq $current $intVolUrl }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Gamut volume (internal)" "色体积内部版" }}</a></li>
           {{ end }}
         </ul>
       </div>
 
-      {{/* ---- 研究 ---- */}}
+      {{/* ---- 研究：不在本模块时收起，只留标题与条目数 ---- */}}
       {{ if site.GetPage (printf "%sresearch" $prefix) }}
-      <div class="c-nav-group{{ if $inResearch }} is-here{{ end }}">
-        <p class="c-nav-label">{{ cond $en "Research" "研究" }}</p>
+      <details class="c-nav-mod c-nav-mod--fold{{ if $inResearch }} is-here{{ end }}"{{ if $inResearch }} open{{ end }}>
+        <summary>
+          <span class="c-nav-mod-title">{{ cond $en "Research" "研究" }}</span>
+          <span class="c-nav-count">{{ $researchCount }}</span>
+        </summary>
         <ul>
           {{ with site.GetPage (printf "%sresearch" $prefix) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All research" "全部研究" }}</a></li>
           {{ end }}
-          {{ range slice "davinci-drt" "baselight-drt" "aces-drt" }}
+          {{ range slice "davinci-drt" "baselight-drt" "aces13-drt" "aces-drt" }}
           {{ with site.GetPage (printf "%sresearch/%s" $prefix .) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
           {{ end }}
           {{ end }}
         </ul>
-      </div>
+      </details>
       {{ end }}
 
       {{/* ---- 色适应变换：条目页存在才出链接，其余收进「规划中」 ---- */}}
       {{ with $catIndex }}
-      <div class="c-nav-group{{ if $inCat }} is-here{{ end }}">
-        <p class="c-nav-label">{{ cond $en "Chromatic adaptation" "色适应变换" }}</p>
+      <details class="c-nav-mod c-nav-mod--fold{{ if $inCat }} is-here{{ end }}"{{ if $inCat }} open{{ end }}>
+        <summary>
+          <span class="c-nav-mod-title">{{ cond $en "Chromatic adaptation" "色适应变换" }}</span>
+          <span class="c-nav-count">{{ $catCount }}</span>
+        </summary>
         <ul>
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "All transforms" "全部变换" }}</a></li>
           {{ with site.GetPage (printf "%scat/basis" $prefix) }}
@@ -106,12 +152,14 @@
           </ul>
         </details>
         {{ end }}
-      </div>
+      </details>
       {{ end }}
 
       {{/* ---- RGB 色彩空间：两个大组默认收起，当前页所在的那组自动展开 ---- */}}
-      <div class="c-nav-group c-nav-spaces{{ if $inSpaces }} is-here{{ end }}">
-        <p class="c-nav-label">RGB {{ cond $en "colour spaces" "色彩空间" }}</p>
+      <div class="c-nav-mod c-nav-spaces{{ if $inSpaces }} is-here{{ end }}">
+        <p class="c-nav-mod-head">
+          <span class="c-nav-mod-title">RGB {{ cond $en "colour spaces" "色彩空间" }}</span>
+        </p>
         {{ range $spaceGroups }}
         <details class="c-nav-sec"{{ if .open }} open{{ end }}>
           <summary>
@@ -135,15 +183,23 @@
 
       {{/* ---- 色彩模型：已写好的做链接，规划中的收进「规划中」折叠组 ---- */}}
       {{ with hugo.Data.models }}
-      <div class="c-nav-group{{ if $inModels }} is-here{{ end }}">
-        <p class="c-nav-label">{{ cond $en "Colour models" "色彩模型" }}</p>
+      <details class="c-nav-mod c-nav-mod--fold{{ if $inModels }} is-here{{ end }}"{{ if $inModels }} open{{ end }}>
+        <summary>
+          <span class="c-nav-mod-title">{{ cond $en "Colour models" "色彩模型" }}</span>
+          <span class="c-nav-count">{{ $modelsCount }}</span>
+        </summary>
         <ul>
           {{ with site.GetPage (printf "%smodels" $prefix) }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ cond $en "Overview" "概览" }}</a></li>
           {{ end }}
-          {{ range hugo.Data.models }}
+          {{ range hugo.Data.modelGroups }}
+          {{ $group := . }}
+          {{ $shown := false }}
+          {{ range where hugo.Data.models "group" $group.key }}
           {{ with site.GetPage (printf "%smodels/%s" $prefix .slug) }}
+          {{ if not $shown }}<li class="c-nav-sub">{{ cond $en $group.en $group.zh }}</li>{{ $shown = true }}{{ end }}
           <li><a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $current }} class="is-current" aria-current="page"{{ end }}>{{ .Title }}</a></li>
+          {{ end }}
           {{ end }}
           {{ end }}
         </ul>
@@ -164,9 +220,33 @@
           </ul>
         </details>
         {{ end }}
-      </div>
+      </details>
       {{ end }}
 
     </div>
   </details>
+  <script>
+    (function () {
+      var nav = document.currentScript.parentElement;
+      if (nav) {
+        var path = window.location.pathname;
+        var links = nav.querySelectorAll('a[href]');
+        for (var i = 0; i < links.length; i++) {
+          if (links[i].pathname === path) {
+            var prev = nav.querySelectorAll('a.is-current');
+            for (var j = 0; j < prev.length; j++) {
+              prev[j].classList.remove('is-current');
+              prev[j].removeAttribute('aria-current');
+            }
+            links[i].classList.add('is-current');
+            links[i].setAttribute('aria-current', 'page');
+            break;
+          }
+        }
+      }
+      if (!window.matchMedia('(min-width: 821px)').matches) return;
+      var cur = nav && nav.querySelector('a.is-current');
+      if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+    })();
+  </script>
 </nav>

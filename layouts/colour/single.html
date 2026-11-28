@@ -23,14 +23,11 @@
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" .RelPermalink "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/colour/" | relURL }}{{ else }}{{ "colour/" | relURL }}{{ end }}">{{ $t.colourTitle }}</a> / {{ .Title }}
-        {{ if $en }}
-        <a class="c-lang" href="{{ printf "/colour/%s/" $slug | relURL }}" hreflang="zh">中文</a>
-        {{ else }}
-        {{ with site.GetPage (printf "/en/colour/%s" $slug) }}<a class="c-lang" href="{{ .RelPermalink }}" hreflang="en">English</a>{{ end }}
-        {{ end }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" $t.colourTitle "url" (cond $en "/en/colour/" "/colour/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="colour-data">{{ $chart | jsonify | safeJS }}</script>
       <script type="application/json" id="colour-ui">{{ dict
@@ -73,6 +70,8 @@
             "kind" "eotf"
             "en" $en
             "default" ($d.eotfDefault | default "srgb")
+            "options" $d.eotfOptions
+            "gamma" $d.eotfGamma
             "lwDefault" (cond $d.eotfRel 1 100)
             "label" (printf $t.labelEotf .Title)
             "caption" (cond $showGamut $t.figEotf $t.figEotfSolo)) }}

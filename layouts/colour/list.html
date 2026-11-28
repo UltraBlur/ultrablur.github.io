@@ -8,45 +8,169 @@
 {{ $lang := cond $en "en" "zh" }}
 {{ $t := index hugo.Data.i18n $lang }}
 {{ $base := cond $en "/en/colour/" "/colour/" }}
+{{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working "display-gamut" $t.displayGamut "display-tf" $t.displayTf }}
+{{/* 数据先整理成「大类 → 子分组 → 条目」三级：每个子分组各自成一个 2 列 Grid，
+     原来挤在一个 columns: 2 的列表里会跨栏，胶片子标题会插到右栏中间。
+     整理时不动 data/colourspaces.yaml 的原始顺序。 */}}
+{{ $cats := slice }}
+{{ $total := 0 }}
+{{ range hugo.Data.colourspaces }}
+  {{ $catKey := .key }}
+  {{ $catLabel := .label }}
+  {{ $groups := slice }}
+  {{ $curKey := "" }}
+  {{ $bucket := slice }}
+  {{ range .items }}
+    {{ $g := .group | default "" }}
+    {{ if and $curKey (ne $g $curKey) }}
+      {{ $groups = $groups | append (dict "key" $curKey "items" $bucket) }}
+      {{ $bucket = slice }}
+    {{ end }}
+    {{ $curKey = $g }}
+    {{ $bucket = $bucket | append . }}
+    {{ $total = add $total 1 }}
+  {{ end }}
+  {{ if $curKey }}{{ $groups = $groups | append (dict "key" $curKey "items" $bucket) }}{{ end }}
+  {{ $cats = $cats | append (dict "key" $catKey "label" $catLabel "groups" $groups) }}
+{{ end }}
 <div class="c-page" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/" | relURL }}{{ else }}{{ .Site.Home.RelPermalink }}{{ end }}">{{ $t.home }}</a> / {{ .Title }}
-        {{ if $en }}
-        <a class="c-lang" href="{{ "/colour/" | relURL }}" hreflang="zh">中文</a>
-        {{ else }}
-        {{ with site.GetPage "/en/colour" }}<a class="c-lang" href="{{ .RelPermalink }}" hreflang="en">English</a>{{ end }}
-        {{ end }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" $t.home "url" (cond $en "/en/" "/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <div class="c-prose">
         {{ .Content }}
 
-        {{ $subNames := dict "camera" $t.camera "film" $t.film "aces" $t.aces "working" $t.working "display-gamut" $t.displayGamut "display-tf" $t.displayTf }}
-        {{ range hugo.Data.colourspaces }}
-        <h2>{{ .label }}</h2>
-        {{ $isDR := eq .label "Display Referred" }}
-        <ul class="c-entries">
-          {{ $last := "" }}
-          {{ range .items }}
-          {{ $g := .group | default "" }}
-          {{ if and $g (ne $g $last) }}
-          <li class="c-entries-sub">{{ index $subNames $g }}{{ if eq $g "film" }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</li>
-          {{ if eq $g "film" }}<li style="list-style:none;margin:-.35rem 0 .6rem;font-size:.76rem;line-height:1.6;color:#8f8f8f;">{{ $t.filmNote }}</li>{{ end }}
-          {{ $last = $g }}
+        {{/* 筛选条：默认 hidden，脚本加载后显示，无 JS 时列表照常可读 */}}
+        <form class="c-filter" data-filter hidden role="search" aria-label="{{ $t.filterLabel }}" action="{{ .RelPermalink }}" method="get">
+          <input type="search" class="c-filter-input" name="q" placeholder="{{ $t.filterPlaceholder }}" aria-label="{{ $t.filterPlaceholder }}" autocomplete="off" spellcheck="false">
+          <div class="c-filter-pills" role="group" aria-label="{{ $t.filterLabel }}">
+            <button type="button" class="c-filter-pill is-on" data-cat="all" aria-pressed="true">{{ $t.filterAll }}</button>
+            {{ range $cats }}<button type="button" class="c-filter-pill" data-cat="{{ .key }}" aria-pressed="false">{{ .label }}</button>{{ end }}
+          </div>
+          <span class="c-filter-count" aria-live="polite" data-total="{{ $total }}" data-unit="{{ $t.filterUnit }}">{{ $total }} / {{ $total }} {{ $t.filterUnit }}</span>
+        </form>
+
+        <div class="c-entries-list" data-entries>
+          {{ range $cats }}
+          {{ $catKey := .key }}
+          <section class="c-entries-cat" data-entries-cat="{{ $catKey }}">
+            <h2>{{ .label }}</h2>
+            {{ range .groups }}
+            {{ $g := .key }}
+            <div class="c-entries-group" data-entries-group="{{ $g }}">
+              <div class="c-entries-head">
+                {{ with $g }}<span class="c-entries-sub">{{ index $subNames . }}</span>{{ end }}
+                {{ if eq $g "film" }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}
+                <span class="c-entries-gcount" data-group-count>{{ len .items }}</span>
+              </div>
+              {{ if eq $g "film" }}<p class="c-entries-note">{{ $t.filmNote }}</p>{{ end }}
+              <ul class="c-entries-grid">
+                {{ range .items }}
+                <li data-search="{{ lower (printf "%s %s %s %s %s" .title (.titleEn | default "") .slug (.transfer | default "") (.transferEn | default "")) }}">
+                  <a class="c-entry-link" href="{{ printf "%s%s/" $base .slug | relURL }}">
+                    <span class="c-entry-name">{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}</span>
+                    {{ if and (eq $catKey "display") .transfer }}<span class="c-entry-note">{{ if $en }}{{ .transferEn | default .transfer }}{{ else }}{{ .transfer }}{{ end }}</span>{{ end }}
+                  </a>
+                </li>
+                {{ end }}
+              </ul>
+            </div>
+            {{ end }}
+          </section>
           {{ end }}
-          <li>
-            <a href="{{ printf "%s%s/" $base .slug | relURL }}">{{ if $en }}{{ .titleEn | default .title }}{{ else }}{{ .title }}{{ end }}</a>{{ if .wip }}<span class="c-wip-tag">{{ cond $en "WIP" "施工中" }}</span>{{ end }}
-            {{ if and $isDR .transfer }}<span class="c-entry-note">{{ if $en }}{{ .transferEn | default .transfer }}{{ else }}{{ .transfer }}{{ end }}</span>{{ end }}
-          </li>
-          {{ end }}
-        </ul>
-        {{ end }}
+        </div>
+
+        <p class="c-filter-empty" hidden>{{ $t.filterEmpty }}<button type="button" class="c-filter-clear">{{ $t.filterClear }}</button></p>
       </div>
     </div>
   </div>
+  <script>
+  (function () {
+    var root = document.currentScript.closest('.c-page');
+    if (!root) return;
+    var form = root.querySelector('[data-filter]');
+    var list = root.querySelector('[data-entries]');
+    if (!form || !list) return;
+    var input = form.querySelector('.c-filter-input');
+    var pills = Array.prototype.slice.call(form.querySelectorAll('.c-filter-pill'));
+    var count = form.querySelector('.c-filter-count');
+    var empty = root.querySelector('.c-filter-empty');
+    var clearBtn = empty ? empty.querySelector('.c-filter-clear') : null;
+    var unit = count ? (count.getAttribute('data-unit') || '') : '';
+    var total = count ? (Number(count.getAttribute('data-total')) || 0) : 0;
+    var cats = Array.prototype.slice.call(list.querySelectorAll('[data-entries-cat]'));
+    var cat = 'all';
+
+    function setPills(next) {
+      cat = next;
+      pills.forEach(function (b) {
+        var on = b.getAttribute('data-cat') === next;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
+    /* 关键词与索引都做同一种归一：去掉空格、点、连字符等分隔符，
+       「rec2020」能命中「Rec.2020」、「sgamut」能命中「S-Gamut」。 */
+    function norm(str) {
+      return String(str).toLowerCase().replace(/[\s.\-_/·()]+/g, '');
+    }
+
+    function apply() {
+      var terms = input.value.split(/\s+/).map(norm).filter(function (s) { return s; });
+      var shown = 0;
+      cats.forEach(function (section) {
+        var inCat = cat === 'all' || section.getAttribute('data-entries-cat') === cat;
+        var anyGroup = false;
+        Array.prototype.slice.call(section.querySelectorAll('[data-entries-group]')).forEach(function (group) {
+          var visible = 0;
+          Array.prototype.slice.call(group.querySelectorAll('li[data-search]')).forEach(function (li) {
+            if (li.__hay === undefined) li.__hay = norm(li.getAttribute('data-search') || '');
+            var ok = inCat && terms.every(function (t) { return li.__hay.indexOf(t) !== -1; });
+            li.hidden = !ok;
+            if (ok) visible++;
+          });
+          var gc = group.querySelector('[data-group-count]');
+          if (gc) gc.textContent = String(visible);
+          group.hidden = visible === 0;
+          if (visible) anyGroup = true;
+          shown += visible;
+        });
+        section.hidden = !anyGroup;
+      });
+      if (count) count.textContent = shown + ' / ' + total + (unit ? ' ' + unit : '');
+      if (empty) empty.hidden = shown !== 0;
+      form.hidden = false;
+    }
+
+    input.addEventListener('input', apply);
+    input.addEventListener('search', apply);
+    /* 回车不该整页跳转：筛选是即时的；带上 ?q= 进来也能直接接上 */
+    form.addEventListener('submit', function (e) { e.preventDefault(); });
+    try {
+      var initial = new URLSearchParams(window.location.search).get('q');
+      if (initial) input.value = initial;
+    } catch (err) {}
+    pills.forEach(function (b) {
+      b.addEventListener('click', function () { setPills(b.getAttribute('data-cat') || 'all'); apply(); });
+    });
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        input.value = '';
+        setPills('all');
+        apply();
+        input.focus();
+      });
+    }
+    apply();
+  })();
+  </script>
   <script>document.documentElement.lang = "{{ $lang }}";</script>
 </div>
 {{ end }}

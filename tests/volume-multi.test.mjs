@@ -281,6 +281,111 @@ ok('编解码：固定项不会被误读成权重', decPin && decPin.weights ===
 const encPlain = Geom.encodeMulti({ primaries: SRGB_P, white: D65, weights: null });
 ok('编解码：不带固定项时不产生第三段', encPlain.split('*').length === 2, encPlain);
 
+/* ---------- 12. 手填权重、退化输入、单通道为零与合法 ΣY ≠ 1 ---------- */
+const negManual = Geom.makeMultiSpace({
+  primaries: SRGB_P,
+  white: D65,
+  weights: [-0.1, 0.7, 0.4]
+}, null, JMh);
+ok('手填负权重：不被静默改写成非负自动解',
+  negManual.weights.length === 3 && near(negManual.weights[0], -0.1, 1e-9) &&
+  near(negManual.weights[1], 0.7, 1e-9) && near(negManual.weights[2], 0.4, 1e-9),
+  stringifyWeights(negManual.weights));
+ok('手填负权重：标记 negativeWeights=true 且 weightOk=false',
+  negManual.negativeWeights === true && negManual.weightOk === false && negManual.explicitWeights === true);
+
+const zeroManual = Geom.makeMultiSpace({
+  primaries: SRGB_P,
+  white: D65,
+  weights: [0, 0, 0]
+}, null, JMh);
+ok('全零权重 [0,0,0]：标记退化且 weightOk=false',
+  zeroManual.degenerate === true && zeroManual.hasVolume === false && zeroManual.weightOk === false && zeroManual.gens.length === 0,
+  `gens=${zeroManual.gens.length} deg=${zeroManual.degenerate} ok=${zeroManual.weightOk}`);
+
+const coincAuto = Geom.makeMultiSpace({
+  primaries: [[0.3, 0.3], [0.3, 0.3], [0.3, 0.3]],
+  white: D65
+}, null, JMh);
+ok('三点重合（自动模式）：标记退化且 weightOk=false',
+  coincAuto.degenerate === true && coincAuto.hasVolume === false && coincAuto.weightOk === false);
+
+const coincManual = Geom.makeMultiSpace({
+  primaries: [[0.3, 0.3], [0.3, 0.3], [0.3, 0.3]],
+  white: D65,
+  weights: [0.3, 0.3, 0.4]
+}, null, JMh);
+ok('三点重合（手填权重）：标记退化且 weightOk=false',
+  coincManual.degenerate === true && coincManual.hasVolume === false && coincManual.weightOk === false);
+
+const colin3Manual = Geom.makeMultiSpace({
+  primaries: [[0.2, 0.3], [0.3, 0.3], [0.4, 0.3]],
+  white: D65,
+  weights: [0.3, 0.3, 0.4]
+}, null, JMh);
+ok('三点共线（手填权重）：无三维体积，标记退化',
+  colin3Manual.degenerate === true && colin3Manual.hasVolume === false && colin3Manual.weightOk === false);
+
+const threeOneZero = Geom.makeMultiSpace({
+  primaries: SRGB_P,
+  white: D65,
+  weights: [0.5, 0.5, 0]
+}, null, JMh);
+ok('三基色单通道为零：仅余 2 个非零向量，标记退化',
+  threeOneZero.degenerate === true && threeOneZero.hasVolume === false && threeOneZero.weightOk === false);
+
+/* 四基色单通道为零：无论 W=0 还是首通道 R=0，其余 3 通道仍构成合法封闭三维色体 */
+const rgbwW0 = Geom.makeMultiSpace({
+  primaries: SRGB_W,
+  white: D65,
+  weights: [0.212639, 0.715169, 0.072192, 0]
+}, null, JMh);
+const rgbwW0Mesh = Geom.buildMultiSurface(rgbwW0, 'xyz', 3, opts);
+const rgbwW0Weld = weldStats(rgbwW0Mesh);
+ok('四基色 W=0：合法三维体积且网格封闭',
+  rgbwW0.weightOk === true && rgbwW0.degenerate === false && rgbwW0.gens.length === 3 &&
+  rgbwW0Weld.boundary === 0 && rgbwW0Weld.nonManifold === 0,
+  `gens=${rgbwW0.gens.length} boundary=${rgbwW0Weld.boundary}`);
+
+const rgbwR0 = Geom.makeMultiSpace({
+  primaries: SRGB_W,
+  white: D65,
+  weights: [0, 0.715169, 0.072192, 0.212639]
+}, null, JMh);
+const rgbwR0Mesh = Geom.buildMultiSurface(rgbwR0, 'xyz', 3, opts);
+const rgbwR0Weld = weldStats(rgbwR0Mesh);
+ok('四基色首通道 R=0：mergeCollinear 不误合并其余基色且网格封闭',
+  rgbwR0.weightOk === true && rgbwR0.degenerate === false && rgbwR0.gens.length === 3 &&
+  rgbwR0Weld.boundary === 0 && rgbwR0Weld.nonManifold === 0,
+  `gens=${rgbwR0.gens.length} boundary=${rgbwR0Weld.boundary}`);
+
+const dupSum = [0, 0, 0];
+for (const g of dup.gens) { dupSum[0] += g[0]; dupSum[1] += g[1]; dupSum[2] += g[2]; }
+ok('重复基色合并：生成元总和仍等于白点',
+  near(dupSum[0], dup.white[0], 1e-9) && near(dupSum[1], dup.white[1], 1e-9) && near(dupSum[2], dup.white[2], 1e-9),
+  dupSum.map((v) => v.toFixed(6)).join(', '));
+
+const scaledManual = Geom.makeMultiSpace({
+  primaries: SRGB_P,
+  white: D65,
+  weights: [0.4, 0.8, 0.2]
+}, null, JMh);
+const scaledMesh = Geom.buildMultiSurface(scaledManual, 'lab', 3, opts);
+ok('合法手动 ΣY ≠ 1：weightOk=true、explicitWeights=true 且网格封闭',
+  scaledManual.weightOk === true && scaledManual.degenerate === false &&
+  scaledManual.explicitWeights === true && near(scaledManual.sumY, 1.4, 1e-9) &&
+  weldStats(scaledMesh).boundary === 0);
+
+const normalRgbw = Geom.makeMultiSpace({
+  primaries: SRGB_W,
+  white: D65
+}, null, JMh);
+const normalRgbwMesh = Geom.buildMultiSurface(normalRgbw, 'lab', 3, opts);
+ok('正常 RGBW 自动求解：weightOk=true、白点残差 ≈ 0 且网格封闭',
+  normalRgbw.weightOk === true && normalRgbw.negativeWeights === false &&
+  normalRgbw.degenerate === false && normalRgbw.whiteError < 1e-9 &&
+  weldStats(normalRgbwMesh).boundary === 0);
+
 /* ---------- 汇总 ---------- */
 console.log(`${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach((f) => console.log('  ✗ ' + f)); process.exit(1); }

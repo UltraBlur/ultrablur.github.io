@@ -134,6 +134,33 @@ ok('xyY 第三位随绿/红/蓝递减（y，不是 z）',
   gChroma[2] > rChroma[2] && rChroma[2] > bChroma[2],
   [gChroma, rChroma, bChroma].map((v) => v && v[2].toFixed(3)).join(' > '));
 
+/* 7. Lab / Luv 白点口径：各空间用自身参考白，不做适应 */
+const dciWhiteXY = [0.314, 0.351];
+const W_dci = Geom.whiteXYZ(dciWhiteXY);
+const dciLabOnDci = Geom.toDisplay('lab', W_dci, W_dci, opts);
+const dciLabOnD65 = Geom.toDisplay('lab', W_dci, srgb.white, opts);
+ok('Lab：DCI 白点 XYZ 以 DCI 白计算 = [0, 100, 0]',
+  dciLabOnDci && near(dciLabOnDci[0], 0, 1e-6) && near(dciLabOnDci[1], 100, 1e-6) && near(dciLabOnDci[2], 0, 1e-6),
+  dciLabOnDci && dciLabOnDci.join(', '));
+ok('Lab：同 DCI 白 XYZ 以 D65 白计算 ≈ [-9.9954, 100, 8.6072]',
+  dciLabOnD65 && near(dciLabOnD65[0], -9.9954, 1e-3) && near(dciLabOnD65[1], 100, 1e-6) && near(dciLabOnD65[2], 8.6072, 1e-3),
+  dciLabOnD65 && dciLabOnD65.map((v) => v.toFixed(4)).join(', '));
+
+const dciLuvOnDci = Geom.toDisplay('luv', W_dci, W_dci, opts);
+const dciLuvOnD65 = Geom.toDisplay('luv', W_dci, srgb.white, opts);
+ok('Luv：DCI 白点 XYZ 以 DCI 白计算 = [0, 100, 0]',
+  dciLuvOnDci && near(dciLuvOnDci[0], 0, 1e-6) && near(dciLuvOnDci[1], 100, 1e-6) && near(dciLuvOnDci[2], 0, 1e-6),
+  dciLuvOnDci && dciLuvOnDci.join(', '));
+ok('Luv：同 DCI 白 XYZ 以 D65 白计算 L*=100 且 u*/v* 非零',
+  dciLuvOnD65 && near(dciLuvOnD65[1], 100, 1e-6) && (Math.abs(dciLuvOnD65[0]) > 1 || Math.abs(dciLuvOnD65[2]) > 1),
+  dciLuvOnD65 && dciLuvOnD65.map((v) => v.toFixed(4)).join(', '));
+
+const d65LabOnD65 = Geom.toDisplay('lab', srgb.white, srgb.white, opts);
+const d65LuvOnD65 = Geom.toDisplay('luv', srgb.white, srgb.white, opts);
+ok('D65 对 D65 保持 [0, 100, 0]（Lab / Luv）',
+  d65LabOnD65 && near(d65LabOnD65[0], 0, 1e-6) && near(d65LabOnD65[1], 100, 1e-6) && near(d65LabOnD65[2], 0, 1e-6) &&
+  d65LuvOnD65 && near(d65LuvOnD65[0], 0, 1e-6) && near(d65LuvOnD65[1], 100, 1e-6) && near(d65LuvOnD65[2], 0, 1e-6));
+
 /* ---------- 汇总 ---------- */
 
 console.log(`${pass} passed, ${fails.length} failed`);

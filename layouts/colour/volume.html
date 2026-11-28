@@ -30,18 +30,15 @@
 {{ $spaces := $data.spaces }}
 {{ $srgbMatrix := $data.srgbMatrix }}
 
-<div class="c-page" data-lang="{{ $lang }}">
+<div class="c-page c-page--wide c-page--vol" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/colour/" | relURL }}{{ else }}{{ "colour/" | relURL }}{{ end }}">{{ $t.colourTitle }}</a> / {{ .Title }}
-        {{ if $en }}
-        <a class="c-lang" href="{{ "/tools/gamut-volume/" | relURL }}" hreflang="zh">中文</a>
-        {{ else }}
-        <a class="c-lang" href="{{ "/en/tools/gamut-volume/" | relURL }}" hreflang="en">English</a>
-        {{ end }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" $t.colourTitle "url" (cond $en "/en/colour/" "/colour/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="volume-data">{{ dict
         "spaces" $spaces
@@ -54,42 +51,42 @@
       | jsonify | safeJS }}</script>
 
       <div class="c-vol" data-volume>
-        <div class="c-vol-controls c-ctl">
+        <div class="c-vol-controls c-ctl c-vol-controls--main">
           <span class="c-vol-group">{{ cond $en "Volume" "色体" }}</span>
-<label>{{ cond $en "Colour space" "色彩空间" }}
-              <select id="vol-space">
-                {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
-                <optgroup label="{{ cond $en "Custom" "自定义" }}">
-                  <option value="custom-multi">{{ cond $en "Custom multi-primary…" "自定义多基色…" }}</option>
-                </optgroup>
-              </select>
-            </label>
-<label>{{ cond $en "Coordinates" "坐标" }}
-              <select id="vol-coord">
-                <option value="xyz">XYZ</option>
-                <option value="xyy">xyY</option>
-                <option value="lab" selected>CIE Lab (D65)</option>
-                <option value="luv">CIE Luv (D65)</option>
-                <option value="oklab">Oklab</option>
-                <option value="ipt" title="{{ cond $en "IPT (Ebner & Fairchild 1998): normalised cone responses raised to 0.43 and combined linearly into I / P / T. Matrices are normalised for D65, so white falls at I = 1 and P = T = 0. Display order is [P, I, T]." "IPT（Ebner & Fairchild 1998）：归一化锥响应取 0.43 次幂后线性组合成 I / P / T；矩阵按 D65 归一，白点落在 I = 1、P = T = 0。显示坐标取 [P, I, T]" }}">IPT (Ebner &amp; Fairchild)</option>
-                <option value="cam02">CAM02-UCS</option>
-                <option value="cam16">CAM16-UCS</option>
-                <option value="jmh" title="ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h">Hellwig JMh (ACES 2.0)</option>
-                <option value="ictcp">ICtCp (PQ)</option>
-                <option value="jzazbz">JzAzBz</option>
-                <option value="zcam" title="ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz">ZCAM (Safdar 2021)</option>
-              </select>
-            </label>
-<label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
-              <select id="vol-lum">
-                <option value="48">48 cd/m²</option>
-                <option value="100" selected>100 cd/m²</option>
-                <option value="203">203 cd/m²</option>
-                <option value="1000">1000 cd/m²</option>
-              </select>
-            </label>
-<label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Volume mesh" "色体网格" }}</label>
+          <label>{{ cond $en "Colour space" "色彩空间" }}
+            <select id="vol-space">
+              {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+              <optgroup label="{{ cond $en "Custom" "自定义" }}">
+                <option value="custom-multi">{{ cond $en "Custom multi-primary…" "自定义多基色…" }}</option>
+              </optgroup>
+            </select>
+          </label>
+          <label>{{ cond $en "Coordinates" "坐标" }}
+            <select id="vol-coord" aria-describedby="vol-coord-note">
+              <option value="xyz">XYZ</option>
+              <option value="xyy">xyY</option>
+              <option value="lab" selected>{{ cond $en "CIE Lab (space white)" "CIE Lab（各空间参考白）" }}</option>
+              <option value="luv">{{ cond $en "CIE Luv (space white)" "CIE Luv（各空间参考白）" }}</option>
+              <option value="oklab">Oklab</option>
+              <option value="ipt" data-note="{{ cond $en "IPT (Ebner & Fairchild 1998): normalised cone responses raised to 0.43 and combined into [P, I, T]; matrices are normalised for D65 (white at I = 1, P = T = 0)." "IPT（Ebner & Fairchild 1998）：归一化锥响应取 0.43 次幂后线性组合成 [P, I, T]；矩阵按 D65 归一，白点落在 I = 1、P = T = 0。" }}" title="{{ cond $en "IPT (Ebner & Fairchild 1998): normalised cone responses raised to 0.43 and combined linearly into I / P / T. Matrices are normalised for D65, so white falls at I = 1 and P = T = 0. Display order is [P, I, T]." "IPT（Ebner & Fairchild 1998）：归一化锥响应取 0.43 次幂后线性组合成 I / P / T；矩阵按 D65 归一，白点落在 I = 1、P = T = 0。显示坐标取 [P, I, T]" }}">IPT (Ebner &amp; Fairchild)</option>
+              <option value="cam02">CAM02-UCS</option>
+              <option value="cam16">CAM16-UCS</option>
+              <option value="jmh" data-note="{{ cond $en "Hellwig 2022 simplified model (ACES 2.0): L_A = 100, Y_b = 20, dim surround; J / M scaled to 1.0 = 100 cd/m²; display axes [a, J, b] with a = M·cos h, b = M·sin h." "ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h。" }}" title="{{ cond $en "ACES 2.0 simplified Hellwig 2022 model: L_A = 100, Y_b = 20, dim surround; J / M scaled to 1.0 = 100 cd/m²; display axes [a, J, b]" "ACES 2.0 的 Hellwig 2022 简化模型：L_A = 100、Y_b = 20、dim surround；J / M 以 1.0 = 100 cd/m² 标定；显示坐标取 [a, J, b]，a = M·cos h、b = M·sin h" }}">Hellwig JMh (ACES 2.0)</option>
+              <option value="ictcp">ICtCp (PQ)</option>
+              <option value="jzazbz">JzAzBz</option>
+              <option value="zcam" data-note="{{ cond $en "ZCAM (Safdar et al. 2021): CAT02 adaptation to D65 followed by Safdar 2021 JzAzBz variant; display axes [az, Jz, bz]." "ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz。" }}" title="{{ cond $en "ZCAM (Safdar et al. 2021): CAT02 adaptation to D65 followed by Safdar 2021 JzAzBz variant; display axes [az, Jz, bz]" "ZCAM（Safdar et al. 2021）：先 CAT02 适应到 D65，再走 JzAzBz 的 Safdar 2021 变体；显示坐标取 [az, Jz, bz]，az = Mz·cos hz、bz = Mz·sin hz" }}">ZCAM (Safdar 2021)</option>
+            </select>
+          </label>
+          <label data-vol-lum hidden>{{ cond $en "White level" "白点亮度" }}
+            <select id="vol-lum">
+              <option value="48">48 cd/m²</option>
+              <option value="100" selected>100 cd/m²</option>
+              <option value="203">203 cd/m²</option>
+              <option value="1000">1000 cd/m²</option>
+            </select>
+          </label>
         </div>
+        <p id="vol-coord-note" class="c-vol-coord-note" data-vol-coord-note hidden></p>
 
         <div class="c-vol-custom" data-vol-custom hidden>
           <div class="c-vol-custom-top">
@@ -161,13 +158,14 @@
           </details>
         </div>
 
-        <div class="c-vol-controls c-ctl">
-          <span class="c-vol-group">{{ cond $en "Overlays" "叠加层" }}</span>
-<label class="c-vol-check"><input type="checkbox" id="vol-ov-pointer" title="{{ cond $en "Pointer (1980) real-surface-colour volume as a wireframe reference cage — not a colour space itself" "Pointer (1980) 的真实表面色色体，画成参考笼架——它本身不是一个色彩空间" }}"> Pointer's Gamut</label>
-<label class="c-vol-check"><input type="checkbox" id="vol-ov-munsell" title="{{ cond $en "2734 Munsell renotation chips (Newhall, Nickerson & Judd 1943, illuminant C, 2° observer) as a 3D point cloud" "Munsell 重标定的 2734 个色片（Newhall / Nickerson / Judd 1943，照明体 C，2° 观察者），画成三维点云" }}"> Munsell 2734</label>
-<label class="c-vol-check"><input type="checkbox" id="vol-ov-locus" checked title="{{ cond $en "CIE 1931 spectral locus as a 3D curve: each wavelength carries its own luminance ȳ(λ), so the locus rises out of the xy plane. Seen from the top it projects back to the familiar horseshoe. In XYZ coordinates it is exactly the CIE x̄/ȳ/z̄ curve (a three-lobed loop) — the horseshoe is only its projection onto X+Y+Z=1." "CIE 1931 光谱轨迹的三维版：每个波长带上自己的亮度 ȳ(λ)，于是这条曲线从 xy 平面里立起来。俯视时投影回熟悉的马蹄形；在 XYZ 坐标下它正好就是 CIE 的 x̄/ȳ/z̄ 曲线（三瓣回环），马蹄形只是它在 X+Y+Z=1 平面上的投影。" }}"> {{ cond $en "Spectral locus" "光谱轨迹" }}</label>
+        <div class="c-vol-controls c-ctl c-vol-controls--layers">
+          <span class="c-vol-group">{{ cond $en "Layers" "叠加层" }}</span>
+          <label class="c-vol-check"><input type="checkbox" id="vol-grid" checked> {{ cond $en "Volume mesh" "色体网格" }}</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-ov-pointer" title="{{ cond $en "Pointer (1980) real-surface-colour volume as a wireframe reference cage — not a colour space itself" "Pointer (1980) 的真实表面色色体，画成参考笼架——它本身不是一个色彩空间" }}"> Pointer's Gamut</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-ov-munsell" title="{{ cond $en "2734 Munsell renotation chips (Newhall, Nickerson & Judd 1943, illuminant C, 2° observer) as a 3D point cloud" "Munsell 重标定的 2734 个色片（Newhall / Nickerson / Judd 1943，照明体 C，2° 观察者），画成三维点云" }}"> Munsell 2734</label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-ov-locus" checked title="{{ cond $en "CIE 1931 spectral locus as a 3D curve: each wavelength carries its own luminance ȳ(λ), so the locus rises out of the xy plane. Seen from the top it projects back to the familiar horseshoe. In XYZ coordinates it is exactly the CIE x̄/ȳ/z̄ curve (a three-lobed loop) — the horseshoe is only its projection onto X+Y+Z=1." "CIE 1931 光谱轨迹的三维版：每个波长带上自己的亮度 ȳ(λ)，于是这条曲线从 xy 平面里立起来。俯视时投影回熟悉的马蹄形；在 XYZ 坐标下它正好就是 CIE 的 x̄/ȳ/z̄ 曲线（三瓣回环），马蹄形只是它在 X+Y+Z=1 平面上的投影。" }}"> {{ cond $en "Spectral locus" "光谱轨迹" }}</label>
           <label>{{ cond $en "Reference gamut" "参考色域" }}
-            <select id="vol-ref" title="把另一个色彩空间的体积画成线框，叠在当前色体上比较">
+            <select id="vol-ref" title="{{ cond $en "Draw another colour space's volume as a wireframe over the current volume for comparison" "把另一个色彩空间的体积画成线框，叠在当前色体上比较" }}">
               <option value="">{{ cond $en "None" "无" }}</option>
               {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
               <option value="custom-multi">{{ cond $en "Custom multi-primary" "自定义多基色" }}</option>
@@ -178,19 +176,6 @@
           <span class="c-vol-subarrow" aria-hidden="true">↳</span>
           <label class="c-vol-check"><input type="checkbox" id="vol-points" title="{{ cond $en "The 16 × 36 = 576 tabulated boundary points of Pointer (1980) — the maximum chroma at each L* and hue. These are not the ~4,000 original measurement samples, which were never published." "Pointer (1980) 发表的 16 × 36 = 576 个边界格点（每个 L*、色相下的最大彩度）。这不是他当年约四千个原始测量样本——那批数据从未公开。" }}"> {{ cond $en "Pointer measured points" "Pointer 实测点" }}</label>
           <span class="c-vol-hint">{{ cond $en "16 × 36 = 576 tabulated boundary points" "16 × 36 = 576 个边界格点" }}</span>
-        </div>
-
-        <div class="c-vol-controls c-ctl">
-          <span class="c-vol-group">{{ cond $en "View" "视图" }}</span>
-<label>{{ cond $en "Projection" "投影" }}
-              <select id="vol-proj">
-                <option value="persp">{{ cond $en "Perspective" "透视" }}</option>
-                <option value="ortho" selected>{{ cond $en "Orthographic" "正交" }}</option>
-              </select>
-            </label>
-<label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
-          <button type="button" id="vol-top" class="c-vol-btn">{{ cond $en "Top view" "俯视" }}</button>
-          <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
         </div>
 
         <div class="c-vol-controls c-vol-cond" data-vol-cond hidden>
@@ -219,13 +204,27 @@
           </label>
         </div>
 
+        <div class="c-vol-controls c-ctl c-vol-controls--view">
+          <span class="c-vol-group">{{ cond $en "View" "视图" }}</span>
+          <label>{{ cond $en "Projection" "投影" }}
+            <select id="vol-proj">
+              <option value="persp">{{ cond $en "Perspective" "透视" }}</option>
+              <option value="ortho" selected>{{ cond $en "Orthographic" "正交" }}</option>
+            </select>
+          </label>
+          <label class="c-vol-check"><input type="checkbox" id="vol-auto"> {{ cond $en "Auto rotate" "自动旋转" }}</label>
+          <button type="button" id="vol-top" class="c-vol-btn">{{ cond $en "Top view" "俯视" }}</button>
+          <button type="button" id="vol-reset" class="c-vol-btn">{{ cond $en "Reset" "复位" }}</button>
+        </div>
+
         <div class="c-vol-stage">
-          <canvas aria-label="{{ .Title }}"></canvas>
+          <canvas tabindex="0" aria-label="{{ .Title }}"></canvas>
           <div class="c-vol-labels" aria-hidden="true"></div>
           <p class="c-vol-fallback" hidden>{{ cond $en "This browser does not support WebGL." "此浏览器不支持 WebGL，无法显示三维视图。" }}</p>
         </div>
 
-        <p class="c-vol-cap">{{ cond $en "Drag to rotate · scroll or pinch to zoom · double-click to reset" "拖动旋转 · 滚轮或双指缩放 · 双击复位" }}</p>
+        <ul class="c-vol-legend" data-vol-legend aria-live="polite"></ul>
+        <p class="c-vol-cap">{{ cond $en "Drag or arrow keys to rotate · scroll, pinch, or +/- to zoom · double-click to reset" "拖动或方向键旋转 · 滚轮、双指或 +/- 缩放 · 双击复位" }}</p>
         <p class="c-vol-cap" data-vol-pointer hidden>{{ cond $en "Pointer's Gamut is tabulated only for L* 15–90 (16 levels × 36 hues, illuminant C, 2° observer), so both ends are capped flat — the real surface-colour volume should taper to C* = 0 at L* = 0 and 100. The surface is resampled ×4 in L* for display; the mesh lines are drawn on the measured rings." "Pointer's Gamut 的数据只到 L* 15–90（16 档 × 36 色相，照明体 C，2° 观察者），所以两端是平封的——真实表面色体积在 L* = 0 和 100 处应当收到 C* = 0。显示时 L* 方向按 4× 重采样，网格线画在实测环上。" }}</p>
 
       </div>

@@ -9,10 +9,31 @@
 <script defer src="{{ $geom.RelPermalink }}" integrity="{{ $geom.Data.Integrity }}"></script>
 {{ $state := resources.Get "js/lib/tool-state.js" | minify | fingerprint }}
 <script defer src="{{ $state.RelPermalink }}" integrity="{{ $state.Data.Integrity }}"></script>
+{{ $custom := resources.Get "js/lib/custom-gamut.js" | minify | fingerprint }}
+<script defer src="{{ $custom.RelPermalink }}" integrity="{{ $custom.Data.Integrity }}"></script>
 <style>
   .c-cmp-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .45rem; vertical-align: middle; }
   .c-cmp-sub { display: block; font-size: .72rem; color: #999; }
   .c-cmp-note { max-width: 40rem; margin: 0 auto 2rem; font-size: .78rem; line-height: 1.5; color: #999; text-align: center; }
+  .c-cmp-custom { max-width: 640px; margin: 0 auto 1rem; padding: .7rem .9rem .55rem; border: 1px solid #e6e6e6; border-radius: 3px; background: #fbfbfb; }
+  .c-cmp-custom[hidden] { display: none; }
+  .c-cmp-custom-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .8rem; margin-bottom: .55rem; }
+  .c-cmp-custom-head strong { font-size: .84rem; color: #333; }
+  .c-cmp-custom-head span { font-size: .72rem; line-height: 1.45; color: #888; }
+  .c-cmp-custom-top { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.1rem; margin-bottom: .5rem; font-size: .74rem; color: #666; }
+  .c-cmp-custom-top label { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
+  .c-cmp-custom select, .c-cmp-custom input { height: 1.7rem; font: .78rem/1.7rem var(--mono, ui-monospace, monospace); padding: 0 .4rem; border: 1px solid #d9d9d9; border-radius: 2px; background: #fff; color: #333; }
+  .c-cmp-custom select { font-family: inherit; padding-right: 1.1rem; }
+  .c-cmp-custom input { width: 4.6rem; text-align: center; }
+  .c-cmp-custom-rowhead, .c-cmp-custom-pri { display: grid; grid-template-columns: 2.7rem minmax(4rem, 1fr) minmax(4rem, 1fr); gap: .25rem .55rem; align-items: center; }
+  .c-cmp-custom-rowhead { margin-bottom: .1rem; font-size: .7rem; color: #9a9a9a; text-align: center; }
+  .c-cmp-custom-rows { display: flex; flex-direction: column; gap: .15rem; }
+  .c-cmp-custom-pri { font-size: .72rem; color: #8a8a8a; }
+  .c-cmp-custom-idx { font-size: .7rem; color: #9a9a9a; text-align: right; padding-right: .2rem; }
+  .c-cmp-custom-pri input { width: 100%; }
+  .c-cmp-custom-status { min-height: 1.1rem; margin-top: .4rem; font-size: .72rem; color: #666; }
+  .c-cmp-custom-status.is-error { color: #b03a4a; }
+  .c-cmp-custom-status.is-warn { color: #a06a00; }
 </style>
 {{ $js := resources.Get "js/tool-compare.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
@@ -27,13 +48,15 @@
 {{ range $data.spaces }}
   {{ $spaces = $spaces | append (dict "slug" .slug "title" .title "primaries" .primaries "white" .white) }}
 {{ end }}
-<div class="c-page" data-lang="{{ $lang }}">
+<div class="c-page c-page--wide" data-lang="{{ $lang }}">
   <div class="c-layout">
     {{ partial "colour-nav.html" (dict "ctx" . "current" "" "en" $en) }}
     <div class="c-main">
-      <nav class="c-crumb" aria-label="breadcrumb">
-        <a href="{{ if $en }}{{ "/en/tools/" | relURL }}{{ else }}{{ "tools/" | relURL }}{{ end }}">{{ cond $en "Tools" "工具" }}</a> / {{ .Title }}
-      </nav>
+      {{ partial "colour-crumb.html" (dict
+        "ctx" .
+        "en" $en
+        "items" (slice (dict "title" (cond $en "Tools" "工具") "url" (cond $en "/en/tools/" "/tools/" | relURL)))
+      ) }}
       <header class="c-hero"><h1>{{ .Title }}</h1></header>
       <script type="application/json" id="compare-data">{{ dict
         "spaces" $spaces
@@ -53,6 +76,44 @@
           </label>
           <label><input type="checkbox" id="cmp-pointer" checked> Pointer's Gamut</label>
           <button type="button" class="c-btn" id="cmp-swap" aria-label="{{ cond $en "Swap A and B" "交换 A 和 B" }}">⇄ {{ cond $en "Swap" "交换" }}</button>
+        </div>
+        <div class="c-cmp-custom" data-cmp-custom hidden>
+          <div class="c-cmp-custom-head">
+            <strong data-cmp-custom-slot>{{ cond $en "Custom gamut" "自定义 Gamut" }}</strong>
+            <span>{{ cond $en "Enter measured primaries and the white point. The gamut is their convex hull, replacing the built-in gamut in this slot." "输入实测原色与白点：色域取原色的凸包，替换该位置的内置色域；4 个以上原色按多边形处理。" }}</span>
+          </div>
+          <div class="c-cmp-custom-top">
+            <label>{{ cond $en "Primaries" "基色数量" }}
+              <select id="cmp-custom-n">
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <label>{{ cond $en "White" "白点" }}
+              <select id="cmp-custom-wpreset">
+                <option value="d65" selected>D65</option>
+                <option value="d50">D50</option>
+                <option value="dci">DCI</option>
+                <option value="c">C</option>
+                <option value="custom">{{ cond $en "Custom" "自定义" }}</option>
+              </select>
+            </label>
+            <label>x <input id="cmp-custom-wx" type="text" inputmode="decimal" aria-label="{{ cond $en "White x" "白点 x" }}"></label>
+            <label>y <input id="cmp-custom-wy" type="text" inputmode="decimal" aria-label="{{ cond $en "White y" "白点 y" }}"></label>
+            <label>{{ cond $en "Load from" "载入空间" }}
+              <select id="cmp-custom-from">
+                <option value="">{{ cond $en "Choose…" "选择…" }}</option>
+                {{ range $spaces }}<option value="{{ .slug }}">{{ .title }}</option>{{ end }}
+              </select>
+            </label>
+          </div>
+          <div class="c-cmp-custom-rowhead" aria-hidden="true"><span></span><span>x</span><span>y</span></div>
+          <div class="c-cmp-custom-rows" id="cmp-custom-rows"></div>
+          <div class="c-cmp-custom-status" data-cmp-custom-status aria-live="polite"></div>
         </div>
         <svg class="c-cmp-svg" viewBox="0 0 640 560" aria-label="{{ .Title }}"></svg>
         <div class="c-cmp-legend" role="list" aria-label="{{ cond $en "Legend" "图例" }}"></div>

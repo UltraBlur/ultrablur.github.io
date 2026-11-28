@@ -101,5 +101,23 @@ close(J.yToJ(10.013, p3), 34.0965, 1e-2, 'yToJ(c_t*n_r) = mid_J at 100 nit');
 close(J.yToJ(100, p3), 100, 1e-4, 'yToJ(100) = 100');
 close(J.yToJ(18, p3), 44.93861, 1e-4, 'yToJ(18)');
 
+/* 11. 逐步演算的中间量与最终值同源：xyzToJMhTrace 的 J/M/h 必须等于 xyzToJMh，
+      LMS / 压缩 / Aab 三步都要有限，且与直接调用的结果逐位一致 */
+{
+  const prim = [[0.68, 0.32], [0.265, 0.69], [0.15, 0.06]];
+  const white = [0.3127, 0.329];
+  const M = J.init(prim, white);
+  const RGB2XYZ = J.rgbToXYZ(prim, white, 1);
+  for (const rgb of [[1, 1, 1], [0.5, 0.2, 0.1], [0.18, 0.18, 0.18], [0, 0, 0.6]]) {
+    const XYZ = [0, 1, 2].map((i) => RGB2XYZ[i][0] * rgb[0] + RGB2XYZ[i][1] * rgb[1] + RGB2XYZ[i][2] * rgb[2]);
+    const t = J.xyzToJMhTrace(XYZ, M);
+    const direct = J.xyzToJMh(XYZ, M);
+    const same = Math.abs(t.J - direct[0]) < 1e-12 && Math.abs(t.M - direct[1]) < 1e-12 && Math.abs(t.h - direct[2]) < 1e-12;
+    ok('JMh trace = xyzToJMh：' + rgb.join(','), same, JSON.stringify([t.J, t.M, t.h, direct]));
+    const finite = t.stage.cone.concat(t.stage.compressed, t.stage.Aab).every((v) => isFinite(v));
+    ok('JMh trace 中间量有限：' + rgb.join(','), finite && t.stage.cone.length === 3 && t.stage.Aab.length === 3);
+  }
+}
+
 console.log(pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

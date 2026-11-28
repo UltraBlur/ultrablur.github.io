@@ -155,6 +155,131 @@ ok('CAM16 / ZCAM：黑点不产生 NaN',
   black16 && black16.every((v) => isFinite(v)) && blackz && blackz.every((v) => isFinite(v)),
   JSON.stringify(black16) + ' / ' + JSON.stringify(blackz));
 
+/* ---------- 逆变换：24 色往返（页面渐变插值要用） ---------- */
+
+const SRGB_INV = [
+  [0.412390799266, 0.357584339384, 0.180480788402],
+  [0.212639005872, 0.715168678768, 0.072192315361],
+  [0.019330818716, 0.119194779795, 0.950532152250]
+].flat();
+
+/* 24 色 = sRGB 的 6×4 网格，覆盖近黑、饱和原色与中性灰 */
+const GRID_RGB = [];
+for (let r = 0; r < 6; r++) {
+  for (let g = 0; g < 3; g++) {
+    const b = (r + g) % 4 / 3;
+    GRID_RGB.push([r / 5, g / 2, b]);
+  }
+}
+
+const ROUND = [
+  ['Lab', (xyz) => CM.labToXyz(CM.lab(xyz, W_REL), W_REL)],
+  ['Luv', (xyz) => CM.luvToXyz(CM.luv(xyz, W_REL), W_REL)],
+  ['Oklab', (xyz) => CM.oklabToXyz(CM.oklab(xyz))],
+  ['IPT', (xyz) => CM.iptToXyz(CM.ipt(xyz))],
+  ['JzAzBz', (xyz) => CM.jzazbzToXyz(CM.jzazbz(xyz, 100), 100)]
+];
+const W_REL = [W[0] / 100, 1, W[2] / 100];
+for (const [name, back] of ROUND) {
+  let worst = 0;
+  for (const rgb of GRID_RGB) {
+    const xyz = mulv(SRGB_INV, rgb);
+    const got = back(xyz);
+    ok(name + '：往返无 NaN', got && got.every((v) => isFinite(v)), JSON.stringify(got));
+    if (!got) continue;
+    for (let i = 0; i < 3; i++) worst = Math.max(worst, Math.abs(got[i] - xyz[i]));
+  }
+  ok(name + '：24 色往返误差 < 1e-9', worst < 1e-9, worst.toExponential(2));
+}
+
+/* 逆变换对黑点与超白也要有限（渐变会插到两端外面） */
+for (const [name, back] of ROUND) {
+  const black = back([0, 0, 0]);
+  const above = back([1.2, 1.2, 1.2]);
+  ok(name + '：黑点 / 超白不产生 NaN',
+    black.every((v) => isFinite(v)) && above.every((v) => isFinite(v)),
+    JSON.stringify(black) + ' / ' + JSON.stringify(above));
+}
+
+/* ---------- cam16Forward：colour-science 0.4.6 黄金向量 ----------
+   XYZ_to_CAM16(xyz, D65_Y100, L_A, Y_b, surround)，XYZ 已按 Y = 100 的绝对量。
+   取 J / Q / C / M / s / h 六个量，容差 1e-4。 */
+
+const CAM16_GOLD = [
+  /* [名称, 矩阵, RGB, 条件] */
+  ['sRGB 红', 'srgb', [1, 0, 0], 'avg'], ['sRGB 红', 'srgb', [1, 0, 0], 'dim'],
+  ['sRGB 红', 'srgb', [1, 0, 0], 'dark'], ['sRGB 红', 'srgb', [1, 0, 0], 'la4'],
+  ['sRGB 蓝', 'srgb', [0, 0, 1], 'avg'], ['sRGB 蓝', 'srgb', [0, 0, 1], 'dim'],
+  ['sRGB 蓝', 'srgb', [0, 0, 1], 'dark'], ['sRGB 蓝', 'srgb', [0, 0, 1], 'la4'],
+  ['sRGB 18% 灰', 'srgb', [0.18, 0.18, 0.18], 'avg'], ['sRGB 18% 灰', 'srgb', [0.18, 0.18, 0.18], 'dim'],
+  ['sRGB 18% 灰', 'srgb', [0.18, 0.18, 0.18], 'dark'], ['sRGB 18% 灰', 'srgb', [0.18, 0.18, 0.18], 'la4'],
+  ['Rec.2020 红', 'r2020', [1, 0, 0], 'avg'], ['Rec.2020 红', 'r2020', [1, 0, 0], 'dim'],
+  ['Rec.2020 红', 'r2020', [1, 0, 0], 'dark'], ['Rec.2020 红', 'r2020', [1, 0, 0], 'la4']
+];
+const CAM16_COND = {
+  avg: { La: 64, Yb: 20, F: 1, c: 0.69, Nc: 1, Nc16: 1 },
+  dim: { La: 64, Yb: 20, F: 0.9, c: 0.59, Nc: 0.95, Nc16: 0.9 },
+  dark: { La: 64, Yb: 20, F: 0.8, c: 0.525, Nc: 0.8, Nc16: 0.8 },
+  la4: { La: 4, Yb: 20, F: 1, c: 0.69, Nc: 1, Nc16: 1 }
+};
+/* 键按「矩阵|条件|RGB」索引，避免同条件多条时错配 */
+const CAM16_GOLD_REF = new Map([
+  ['srgb|[1,0,0]|avg', [46.29002, 147.66861, 113.53161, 103.24744, 83.61719, 27.40699]],
+  ['srgb|[1,0,0]|dim', [51.74890, 182.53945, 108.59872, 98.76139, 73.55551, 27.48527]],
+  ['srgb|[1,0,0]|dark', [55.63671, 212.63936, 100.73695, 91.61177, 65.63777, 27.56472]],
+  ['srgb|[1,0,0]|la4', [46.02428, 83.61369, 112.39030, 81.12508, 98.50060, 27.39292]],
+  ['srgb|[0,0,1]|avg', [25.26929, 109.10409, 86.58043, 78.73761, 84.95141, 282.86130]],
+  ['srgb|[0,0,1]|dim', [30.84797, 140.93520, 87.24372, 79.34082, 75.03063, 282.67546]],
+  ['srgb|[0,0,1]|dark', [35.11925, 168.94118, 83.95098, 76.34635, 67.22431, 282.49090]],
+  ['srgb|[0,0,1]|la4', [25.06514, 61.70480, 86.37030, 62.34343, 100.51616, 282.75456]],
+  ['srgb|[0.18,0.18,0.18]|avg', [39.18915, 135.87120, 1.08007, 0.98223, 8.50242, 209.59487]],
+  ['srgb|[0.18,0.18,0.18]|dim', [44.88741, 170.00765, 1.99474, 1.81405, 10.32977, 209.52643]],
+  ['srgb|[0.18,0.18,0.18]|dark', [49.02837, 199.61200, 2.71388, 2.46805, 11.11946, 209.45849]],
+  ['srgb|[0.18,0.18,0.18]|la4', [38.92977, 76.89973, 1.92967, 1.39286, 13.45835, 209.53515]],
+  ['r2020|[1,0,0]|avg', [53.17475, 158.26951, 180.74190, 164.36954, 101.90888, 23.79063]],
+  ['r2020|[1,0,0]|dim', [58.25983, 193.68268, 171.43610, 155.90670, 89.71953, 23.84726]],
+  ['r2020|[1,0,0]|dark', [61.82144, 224.14677, 158.24763, 143.91290, 80.12787, 23.90448]],
+  ['r2020|[1,0,0]|la4', [52.91921, 89.65832, 179.37312, 129.47432, 120.17013, 23.74255]]
+]);
+for (const [name, mat, rgb, cond] of CAM16_GOLD) {
+  const M = mat === 'srgb' ? SRGB : R2020;
+  const xyz = mulv(M, rgb).map((v) => v * 100);
+  const got = CM.cam16Forward(xyz, W, CAM16_COND[cond]);
+  const want = CAM16_GOLD_REF.get(mat + '|' + JSON.stringify(rgb) + '|' + cond);
+  const pick = [got.J, got.Q, got.C, got.M, got.s, got.h];
+  const good = want && pick.every((v, i) => near(v, want[i], 1e-4));
+  ok('CAM16 正向：' + name + ' / ' + cond, good,
+    pick.map((v) => v.toFixed(4)).join(', ') + (want ? '' : '（缺参考值）'));
+}
+
+/* cam16ucs 必须就是 cam16Forward 的 [a′, J′, b′] */
+for (const rgb of [[1, 1, 1], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.18, 0.18, 0.18]]) {
+  const xyz = mulv(SRGB, rgb).map((v) => v * 100);
+  const f = CM.cam16Forward(xyz, W, AVG);
+  const u = CM.cam16ucs(xyz, W, AVG);
+  ok('cam16ucs = cam16Forward 的 UCS 三量：' + rgb.join(','),
+    near(u[0], f.ap) && near(u[1], f.Jp) && near(u[2], f.bp),
+    u.map((v) => v.toFixed(6)).join(','));
+}
+
+/* cam02Forward 与 cam02ucs 同样对齐 */
+for (const rgb of [[1, 1, 1], [1, 0, 0], [0, 0, 1]]) {
+  const xyz = mulv(SRGB, rgb).map((v) => v * 100);
+  const f = CM.cam02Forward(xyz, W, AVG);
+  const u = CM.cam02ucs(xyz, W, AVG);
+  ok('cam02ucs = cam02Forward 的 UCS 三量：' + rgb.join(','),
+    near(u[0], f.ap) && near(u[1], f.Jp) && near(u[2], f.bp),
+    u.map((v) => v.toFixed(6)).join(','));
+}
+
+/* trace()：八个模型的逐步演算都要给出有限值，最后一行就是最终坐标 */
+for (const slug of ['lab', 'luv', 'oklab', 'ipt', 'jzazbz', 'cam02', 'cam16', 'zcam']) {
+  const rows = CM.trace(slug, [0.2, 0.15, 0.05], AVG);
+  const finite = rows.every((r) => r.vals.every((v) => isFinite(v)));
+  ok('trace(' + slug + ')：' + rows.length + ' 步，数值有限', finite && rows.length >= 4,
+    JSON.stringify(rows));
+}
+
 /* ---------- 汇总 ---------- */
 
 console.log(`${pass} passed, ${fails.length} failed`);
